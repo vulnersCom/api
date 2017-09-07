@@ -17,12 +17,12 @@ class Vulners(object):
     def __init__(self):
         # Default URL's for the Vulners API
         self.vulners_urls = {
-        'search':"https://vulners.com/api/v3/search/lucene/",
-        'software':"https://vulners.com/api/v3/burp/software/",
-        'id':"https://vulners.com/api/v3/search/id/",
-        'suggest':"https://vulners.com/api/v3/search/suggest/",
-        'ai':"https://vulners.com/api/v3/ai/scoretext/",
-        'archive':"https://vulners.com/api/v3/archive/collection/"
+        'search':       "https://vulners.com/api/v3/search/lucene/",
+        'software':     "https://vulners.com/api/v3/burp/software/",
+        'id':           "https://vulners.com/api/v3/search/id/",
+        'suggest':      "https://vulners.com/api/v3/search/suggest/",
+        'ai':           "https://vulners.com/api/v3/ai/scoretext/",
+        'archive':      "https://vulners.com/api/v3/archive/collection/"
         }
         # Default search parameters
         self.search_size = 100
@@ -180,6 +180,31 @@ class Vulners(object):
             results = self.__search(query, skip, min(self.search_size, limit or self.search_size), fields or [])
             for element in results.get('search'):
                     dataDocs.append(element.get('_source'))
+        return dataDocs
+
+    def searchExploit(self, query, lookup_fields = None, limit = 500, fields = ("id", "title", "description", "cvss", "href", "sourceData")):
+        """
+        Search Vulners database for the exploits
+
+        :param query: Print here software name and criteria
+        :param lookup_fileds: Make a strict search using lookup limit. Like ["title"]
+        :param limit: Search size. Default is 500 elements limit. 10000 is absolute maximum.
+        :param fields: Returnable fields of the data model.
+        :return: List of the found documents.
+        """
+        if lookup_fields:
+            searchQuery = "bulletinFamily:exploit AND (%s)" % " OR ".join(
+                "%s:\"%s\"" % (lField, query) for lField in lookup_fields)
+        else:
+            searchQuery = "bulletinFamily:exploit AND %s" % query
+
+        total_bulletins = limit or self.__search(searchQuery, 0, 0, ['id']).get('total')
+        dataDocs = []
+
+        for skip in range(0, total_bulletins, min(self.search_size, limit or self.search_size)):
+            results = self.__search(searchQuery, skip, min(self.search_size, limit or self.search_size), fields or [])
+            for element in results.get('search'):
+                dataDocs.append(element.get('_source'))
         return dataDocs
 
     def softwareVulnerabilities(self, name, version):

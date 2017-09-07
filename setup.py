@@ -4,7 +4,7 @@
 #      Pypy setup file
 # ==============
 
-from setuptools import setup
+from setuptools import setup, find_packages
 
 dependencies = open('requirements.txt', 'r').read().split('\n')
 
@@ -15,7 +15,7 @@ setup(
     author = 'Kirill Ermakov',
     author_email = 'isox@vulners.com',
     url = 'https://github.com/vulnersCom/api',
-    packages = ['vulners'],
+    packages = find_packages(exclude=['samples']),
     install_requires = dependencies,
     keywords = ['security', 'network', 'vulners', 'vulnerability', 'CVE'],
     classifiers = [

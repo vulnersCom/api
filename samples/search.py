@@ -8,3 +8,4 @@ import vulners
 
 vulnersApi = vulners.Vulners()
 heartbleed_felated = vulnersApi.search("heartbleed", limit=10)
+CVE_2017_14174 = vulnersApi.document("CVE-2017-14174")

@@ -3,3 +3,5 @@
 # ==============
 #      Main lib file
 # ==============
+
+from vulners.api import Vulners

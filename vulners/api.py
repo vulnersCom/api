@@ -192,6 +192,8 @@ class Vulners(object):
         :param fields: Returnable fields of the data model.
         :return: List of the found documents.
         """
+        if not isinstance(lookup_fields, (list,set)) or not all(isinstance(item, str) for item in lookup_fields):
+            raise TypeError('lookup_fields list is expected to be a list of strings')
         if lookup_fields:
             searchQuery = "bulletinFamily:exploit AND (%s)" % " OR ".join(
                 "%s:\"%s\"" % (lField, query) for lField in lookup_fields)

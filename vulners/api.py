@@ -16,7 +16,7 @@ import json
 class Vulners(object):
     def __init__(self):
         # Default URL's for the Vulners API
-        self.vulners_urls = {
+        self.__vulners_urls = {
         'search':       "https://vulners.com/api/v3/search/lucene/",
         'software':     "https://vulners.com/api/v3/burp/software/",
         'id':           "https://vulners.com/api/v3/search/id/",
@@ -25,11 +25,11 @@ class Vulners(object):
         'archive':      "https://vulners.com/api/v3/archive/collection/"
         }
         # Default search parameters
-        self.search_size = 100
+        self.__search_size = 100
 
         # Requests opener
-        self.opener = requests.session()
-        self.opener.headers = {'User-Agent': 'Vulners Python API'}
+        self.__opener = requests.session()
+        self.__opener.headers = {'User-Agent': 'Vulners Python API'}
 
     def __adapt_response_content(self, response):
         """
@@ -54,7 +54,7 @@ class Vulners(object):
         :return: 'data' key from the response
         """
         # Return result
-        response = self.opener.get(self.vulners_urls[vulners_url_key], params=json_parameters)
+        response = self.__opener.get(self.__vulners_urls[vulners_url_key], params=json_parameters)
         return self.__adapt_response_content(response)
 
     def __vulners_post_request(self, vulners_url_key, json_parameters):
@@ -66,7 +66,7 @@ class Vulners(object):
         :return: 'data' key from the response
         """
         # Return result
-        response = self.opener.post(self.vulners_urls[vulners_url_key], json=json_parameters)
+        response = self.__opener.post(self.__vulners_urls[vulners_url_key], json=json_parameters)
         return self.__adapt_response_content(response)
 
     def __archive(self, type, datefrom, dateto):
@@ -176,8 +176,8 @@ class Vulners(object):
         total_bulletins = limit or self.__search(query, 0, 0, ['id']).get('total')
         dataDocs = []
 
-        for skip in range(0, total_bulletins, min(self.search_size, limit or self.search_size)):
-            results = self.__search(query, skip, min(self.search_size, limit or self.search_size), fields or [])
+        for skip in range(0, total_bulletins, min(self.__search_size, limit or self.__search_size)):
+            results = self.__search(query, skip, min(self.__search_size, limit or self.__search_size), fields or [])
             for element in results.get('search'):
                     dataDocs.append(element.get('_source'))
         return dataDocs
@@ -203,8 +203,8 @@ class Vulners(object):
         total_bulletins = limit or self.__search(searchQuery, 0, 0, ['id']).get('total')
         dataDocs = []
 
-        for skip in range(0, total_bulletins, min(self.search_size, limit or self.search_size)):
-            results = self.__search(searchQuery, skip, min(self.search_size, limit or self.search_size), fields or [])
+        for skip in range(0, total_bulletins, min(self.__search_size, limit or self.__search_size)):
+            results = self.__search(searchQuery, skip, min(self.__search_size, limit or self.__search_size), fields or [])
             for element in results.get('search'):
                 dataDocs.append(element.get('_source'))
         return dataDocs

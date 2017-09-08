@@ -15,7 +15,7 @@ Package is available with [PyPI](https://pypi.python.org/pypi)
 
 You can use pip for the installation
 
-```
+```bash
 pip install -U vulners
 ```
 
@@ -24,28 +24,28 @@ pip install -U vulners
 All the callable methods are using [Vulners REST API](https://vulners.com/docs).
 
 ### Search in database
-```
+```python
 import vulners
 
 vulnersApi = vulners.Vulners()
 heartbleed_related = vulnersApi.search("heartbleed", limit=10)
 ```
 ### Get information about document by identificator
-```
+```python
 import vulners
 
 vulnersApi = vulners.Vulners()
 CVE_2017_14174 = vulnersApi.document("CVE-2017-14174")
 ```
 ### Search for the public available exploits
-```
+```python
 import vulners
 
 vulnersApi = vulners.Vulners()
 wordpress_exploits = vulnersApi.searchExploit("wordpress 4.7.0")
 ```
 ### Get vulnerabilities and exploits by software name and version
-```
+```python
 import vulners
 
 vulnersApi = vulners.Vulners()
@@ -55,7 +55,7 @@ exploit_list = sw_results.get('exploit')
 vulnerabilities_list = [sw_results.get(key) for key in sw_results if key not in ['info', 'blog', 'bugbounty']]
 ```
 ### Get vulnerabilities by CPE product and version string
-```
+```python
 import vulners
 
 vulnersApi = vulners.Vulners()
@@ -65,21 +65,21 @@ cpe_exploit_list = cpe_results.get('exploit')
 cpe_vulnerabilities_list = [cpe_results.get(key) for key in cpe_results if key not in ['info', 'blog', 'bugbounty']]
 ```
 ### Get references for the vulnerability
-```
+```python
 import vulners
 
 vulnersApi = vulners.Vulners()
 references = vulnersApi.references("CVE-2014-0160")
 ```
 ### Score any vulnerability description using [Vulners AI](https://lab.wallarm.com/new-from-wallarm-research-first-ai-based-tool-to-predict-vulnerability-risk-2d0a7e9b3474)
-```
+```python
 import vulners
 
 vulnersApi = vulners.Vulners()
 text_ai_score = vulnersApi.aiScore("My cool vulnerability description")
 ```
 ### Download whole database collection and work with data locally
-```
+```python
 import vulners
 
 vulnersApi = vulners.Vulners()

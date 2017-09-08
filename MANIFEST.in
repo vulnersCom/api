@@ -1,4 +1,4 @@
 include AUTHORS
 include LICENSE
 include requirements.txt
-recursive-include shodan *.py
+recursive-include vulners *.py

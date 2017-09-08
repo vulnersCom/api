@@ -1,28 +1,28 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# ==============
+# ===============================
 #      Vulners API wrapper
-# ==============
+# ===============================
 
 # Imports
-import requests
 import re
+import json
+import requests
 from io import BytesIO
 from zipfile import ZipFile
-import json
 
 # Base API wrapper class
 
 class Vulners(object):
+
     def __init__(self):
         # Default URL's for the Vulners API
         self.__vulners_urls = {
-        'search':       "https://vulners.com/api/v3/search/lucene/",
-        'software':     "https://vulners.com/api/v3/burp/software/",
-        'id':           "https://vulners.com/api/v3/search/id/",
-        'suggest':      "https://vulners.com/api/v3/search/suggest/",
-        'ai':           "https://vulners.com/api/v3/ai/scoretext/",
-        'archive':      "https://vulners.com/api/v3/archive/collection/"
+            'search':       "https://vulners.com/api/v3/search/lucene/",
+            'software':     "https://vulners.com/api/v3/burp/software/",
+            'id':           "https://vulners.com/api/v3/search/id/",
+            'suggest':      "https://vulners.com/api/v3/search/suggest/",
+            'ai':           "https://vulners.com/api/v3/ai/scoretext/",
+            'archive':      "https://vulners.com/api/v3/archive/collection/"
         }
         # Default search parameters
         self.__search_size = 100
@@ -86,7 +86,7 @@ class Vulners(object):
             raise TypeError("Dateto expected to be a string")
         return self.__vulners_get_request('archive', {'type':type, 'datefrom':datefrom, 'dateto':dateto})
 
-    def __search(self, query, skip, size, fields = ()):
+    def __search(self, query, skip, size, fields=()):
         """
         Tech search wrapper for internal lib usage
 
@@ -116,7 +116,7 @@ class Vulners(object):
         if not isinstance(references, bool):
             raise TypeError("References  expected to be a bool")
 
-        search_request = {"id":identificator}
+        search_request = {"id": identificator}
         if references == True:
             search_request['references'] = "True"
         return self.__vulners_post_request('id', search_request)
@@ -164,7 +164,7 @@ class Vulners(object):
             raise TypeError("Text expected to be a string")
         return self.__vulners_post_request('ai', {"text":text})
 
-    def search(self, query, limit = 500, fields = ("id", "title", "description", "type", "bulletinFamily", "cvss", "published", "modified", "href")):
+    def search(self, query, limit=500, fields=("id", "title", "description", "type", "bulletinFamily", "cvss", "published", "modified", "href")):
         """
         Search Vulners database for the abstract query
 
@@ -182,7 +182,7 @@ class Vulners(object):
                     dataDocs.append(element.get('_source'))
         return dataDocs
 
-    def searchExploit(self, query, lookup_fields = None, limit = 500, fields = ("id", "title", "description", "cvss", "href", "sourceData")):
+    def searchExploit(self, query, lookup_fields=None, limit=500, fields=("id", "title", "description", "cvss", "href", "sourceData")):
         """
         Search Vulners database for the exploits
 
@@ -192,9 +192,9 @@ class Vulners(object):
         :param fields: Returnable fields of the data model.
         :return: List of the found documents.
         """
-        if not isinstance(lookup_fields, (list,set)) or not all(isinstance(item, str) for item in lookup_fields):
-            raise TypeError('lookup_fields list is expected to be a list of strings')
         if lookup_fields:
+            if not isinstance(lookup_fields, (list, set, tuple)) or not all(isinstance(item, str) for item in lookup_fields):
+                raise TypeError('lookup_fields list is expected to be a list of strings')
             searchQuery = "bulletinFamily:exploit AND (%s)" % " OR ".join(
                 "%s:\"%s\"" % (lField, query) for lField in lookup_fields)
         else:
@@ -218,7 +218,7 @@ class Vulners(object):
         :return: {merged by family dict}
         """
         dataDocs = {}
-        results = self.__burpSoftware(name, version, type = 'software')
+        results = self.__burpSoftware(name, version, type='software')
         for element in results.get('search'):
             elementData = element.get('_source')
             dataDocs[elementData.get('bulletinFamily')] = dataDocs.get(elementData.get('bulletinFamily'), []) + [elementData]
@@ -235,7 +235,7 @@ class Vulners(object):
         if len(cpeString.split(":")) <= 4:
             raise ValueError("Malformed CPE string. Please, refer to the https://cpe.mitre.org/specification/. Awaiting like 'cpe:/a:cybozu:garoon:4.2.1'")
         version = cpeString.split(":")[4]
-        results = self.__burpSoftware(cpeString, version, type = 'cpe')
+        results = self.__burpSoftware(cpeString, version, type='cpe')
         for element in results.get('search'):
             elementData = element.get('_source')
             dataDocs[elementData.get('bulletinFamily')] = dataDocs.get(elementData.get('bulletinFamily'), []) + [elementData]
@@ -292,7 +292,7 @@ class Vulners(object):
 
         :return: List of available collections
         """
-        return self.__suggest(type = 'distinct', field_name = 'type').get('suggest')
+        return self.__suggest(type='distinct', field_name='type').get('suggest')
 
     def suggest(self, field_name):
         """
@@ -301,7 +301,7 @@ class Vulners(object):
         :param field_name: Data model field name. As example 'type', 'published'.
         :return: List of possible values
         """
-        return self.__suggest(type = 'distinct', field_name = field_name).get('suggest')
+        return self.__suggest(type='distinct', field_name=field_name).get('suggest')
 
     def aiScore(self, text):
         """
@@ -312,7 +312,7 @@ class Vulners(object):
         """
         return self.__ai_score(text).get('score', 0)
 
-    def archive(self, collection, start_date = '1950-01-01', end_date = '2199-01-01'):
+    def archive(self, collection, start_date='1950-01-01', end_date='2199-01-01'):
         """
         Get dict with entire collection data
 
@@ -321,7 +321,7 @@ class Vulners(object):
         """
         if collection not in self.collections():
             raise ValueError("Can't get archive for the unknown collection. Available collections: %s" % self.collections())
-        zipped_json = self.__archive(type = collection, datefrom = start_date, dateto= end_date)
+        zipped_json = self.__archive(type=collection, datefrom=start_date, dateto=end_date)
         with ZipFile(BytesIO(zipped_json)) as zip_file:
             if len(zip_file.namelist()) > 1:
                 raise Exception("Unexpected file count in Vulners ZIP archive")

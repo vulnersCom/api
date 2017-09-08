@@ -1,25 +1,24 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# ==============
-#      Pypy setup file
-# ==============
+# ===========================
+# Setup file
+# ===========================
 
 from setuptools import setup, find_packages
 
-dependencies = open('requirements.txt', 'r').read().split('\n')
-
 setup(
     name = 'vulners',
-    version = '0.1',
+    version = '1.0',
     description = 'Python library and command-line utility for Vulners (https://vulners.com)',
     author = 'Kirill Ermakov',
     author_email = 'isox@vulners.com',
     url = 'https://github.com/vulnersCom/api',
     packages = find_packages(exclude=['samples']),
-    install_requires = dependencies,
+    install_requires = [
+        'requests'
+    ],
     keywords = ['security', 'network', 'vulners', 'vulnerability', 'CVE'],
     classifiers = [
-        "Development Status :: 3 - Alpha",
+        "Development Status :: 5 - Production/Stable",
         "Operating System :: OS Independent",
         "Programming Language :: Python",
         "Topic :: Software Development :: Libraries :: Python Modules",

@@ -3,11 +3,14 @@
 # Setup file
 # ===========================
 
+import re
 from setuptools import setup, find_packages
+
+version = re.search(r'__version__\s*=\s*"(.+)"', open('vulners/__init__.py', 'rt').read()).group(1)
 
 setup(
     name = 'vulners',
-    version = '1.0',
+    version = version,
     description = 'Python library and command-line utility for Vulners (https://vulners.com)',
     author = 'Kirill Ermakov',
     author_email = 'isox@vulners.com',

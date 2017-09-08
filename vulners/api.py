@@ -10,6 +10,8 @@ import requests
 from io import BytesIO
 from zipfile import ZipFile
 
+from . import __version__ as api_version
+
 # Base API wrapper class
 
 class Vulners(object):
@@ -29,7 +31,7 @@ class Vulners(object):
 
         # Requests opener
         self.__opener = requests.session()
-        self.__opener.headers = {'User-Agent': 'Vulners Python API'}
+        self.__opener.headers = {'User-Agent': 'Vulners Python API %s' % api_version}
 
     def __adapt_response_content(self, response):
         """
@@ -327,4 +329,3 @@ class Vulners(object):
                 raise Exception("Unexpected file count in Vulners ZIP archive")
             file_name = zip_file.namelist()[0]
             return json.loads(zip_file.open(file_name).read())
-

@@ -3,8 +3,8 @@
 
 # Description
 Python 2/3 library for the [Vulners Database](https://vulners.com).
-It provides *search, data retreival, archive and vulnerability scanning* API's for the integration purposes.
-With this library you can create powerfull security tools and get access to the world largest security database.
+It provides *search, data retrieval, archive and vulnerability scanning* API's for the integration purposes.
+With this library you can create powerful security tools and get access to the world largest security database.
 
 ## Python version
 Library was tested on a *python2* and *python3*.

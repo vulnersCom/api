@@ -51,8 +51,8 @@ import vulners
 vulners_api = vulners.Vulners()
 
 results = vulners_api.softwareVulnerabilities("httpd", "1.5")
-exploit_list = sw_results.get('exploit')
-vulnerabilities_list = [sw_results.get(key) for key in sw_results if key not in ['info', 'blog', 'bugbounty']]
+exploit_list = results.get('exploit')
+vulnerabilities_list = [results.get(key) for key in results if key not in ['info', 'blog', 'bugbounty']]
 ```
 ### Get vulnerabilities by CPE product and version string
 ```python

@@ -16,7 +16,13 @@ from . import __version__ as api_version
 
 class Vulners(object):
 
-    def __init__(self):
+    def __init__(self, proxies=None):
+        """
+        Set default URLs and create session object
+
+        :param proxies: {} dict for proxy supporting. Example: {"https": "myproxy.com:3128"}
+        """
+
         # Default URL's for the Vulners API
         self.__vulners_urls = {
             'search':       "https://vulners.com/api/v3/search/lucene/",
@@ -32,6 +38,10 @@ class Vulners(object):
         # Requests opener
         self.__opener = requests.session()
         self.__opener.headers = {'User-Agent': 'Vulners Python API %s' % api_version}
+        if proxies is not None:
+            if not isinstance(proxies, dict):
+                raise TypeError("Proxies must be a dict type")
+            self.__opener.proxies.update(proxies)
 
     def __adapt_response_content(self, response):
         """

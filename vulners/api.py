@@ -9,6 +9,7 @@ import json
 import requests
 from io import BytesIO
 from zipfile import ZipFile
+import warnings
 
 from . import __version__ as api_version
 
@@ -43,7 +44,7 @@ class Vulners(object):
         if re.match('.*json.*', response.headers.get('content-type'), re.IGNORECASE):
             results = response.json().get('data')
             if results.get('error'):
-                raise Exception("%s" % results.get('error'))
+                warnings.warn("%s" % results.get('error'))
             return results
         return response.content
 
@@ -123,7 +124,7 @@ class Vulners(object):
             search_request['references'] = "True"
         return self.__vulners_post_request('id', search_request)
 
-    def __burpSoftware(self, software, version, type):
+    def __burpSoftware(self, software, version, type, maxVulnerabilities):
         """
         Tech Burp Software scanner call wrapper for internal lib usage
 
@@ -138,7 +139,7 @@ class Vulners(object):
             raise TypeError("Version query expected to be a string")
         if not isinstance(type, str) or type not in ('software', 'cpe'):
             raise TypeError("Type query expected to be a string and in [software, cpe]")
-        return self.__vulners_post_request('software', {"software":software, 'version':version, 'type':type})
+        return self.__vulners_post_request('software', {"software":software, 'version':version, 'type':type, 'maxVulnerabilities':maxVulnerabilities})
 
     def __suggest(self, type, field_name):
         """
@@ -211,34 +212,40 @@ class Vulners(object):
                 dataDocs.append(element.get('_source'))
         return dataDocs
 
-    def softwareVulnerabilities(self, name, version):
+    def softwareVulnerabilities(self, name, version, maxVulnerabilities = 50):
         """
         Find software vulnerabilities using name and version detection
 
         :param name: Software name, e.g. 'httpd'
         :param version: Software version, e.g. '2.1'
+        :param maxVulnerabilities: Maximum count of found vulnerabilities before marking it as False Positive
         :return: {merged by family dict}
         """
+        if not isinstance(maxVulnerabilities, int):
+            raise TypeError("maxVulnerabilities parameter suggested to be integer")
         dataDocs = {}
-        results = self.__burpSoftware(name, version, type='software')
-        for element in results.get('search'):
+        results = self.__burpSoftware(name, version, type='software', maxVulnerabilities = maxVulnerabilities)
+        for element in results.get('search', []):
             elementData = element.get('_source')
             dataDocs[elementData.get('bulletinFamily')] = dataDocs.get(elementData.get('bulletinFamily'), []) + [elementData]
         return dataDocs
 
-    def cpeVulnerabilities(self, cpeString):
+    def cpeVulnerabilities(self, cpeString, maxVulnerabilities = 50):
         """
         Find software vulnerabilities using CPE string. See CPE references at https://cpe.mitre.org/specification/
 
         :param cpe: CPE software string, see https://cpe.mitre.org/specification/
+        :param maxVulnerabilities: Maximum count of found vulnerabilities before marking it as False Positive
         :return: {merged by family dict}
         """
+        if not isinstance(maxVulnerabilities, int):
+            raise TypeError("maxVulnerabilities parameter suggested to be integer")
         dataDocs = {}
         if len(cpeString.split(":")) <= 4:
             raise ValueError("Malformed CPE string. Please, refer to the https://cpe.mitre.org/specification/. Awaiting like 'cpe:/a:cybozu:garoon:4.2.1'")
         version = cpeString.split(":")[4]
-        results = self.__burpSoftware(cpeString, version, type='cpe')
-        for element in results.get('search'):
+        results = self.__burpSoftware(cpeString, version, type='cpe', maxVulnerabilities = maxVulnerabilities)
+        for element in results.get('search', []):
             elementData = element.get('_source')
             dataDocs[elementData.get('bulletinFamily')] = dataDocs.get(elementData.get('bulletinFamily'), []) + [elementData]
         return dataDocs

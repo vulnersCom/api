@@ -177,12 +177,12 @@ class Vulners(object):
             raise TypeError("Text expected to be a string")
         return self.__vulners_post_request('ai', {"text":text})
 
-    def search(self, query, limit=500, fields=("id", "title", "description", "type", "bulletinFamily", "cvss", "published", "modified", "href")):
+    def search(self, query, limit=100, fields=("id", "title", "description", "type", "bulletinFamily", "cvss", "published", "modified", "href")):
         """
         Search Vulners database for the abstract query
 
         :param query: Abstract Vulners query. See https://vulners.com/help for the details.
-        :param limit: Search size. Default is 500 elements limit. 10000 is absolute maximum.
+        :param limit: Search size. Default is 100 elements limit. 10000 skip is absolute maximum.
         :param fields: Returnable fields of the data model.
         :return: List of the found documents.
         """

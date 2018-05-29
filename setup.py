@@ -5,8 +5,14 @@
 
 import re
 from setuptools import setup, find_packages
+import sys
 
 version = re.search(r'__version__\s*=\s*"(.+)"', open('vulners/__init__.py', 'rt').read()).group(1)
+
+if sys.version_info < (3, 5):
+    REQUIRES = ['requests']
+else:
+    REQUIRES = ['requests', 'aiohttp']
 
 setup(
     name = 'vulners',
@@ -16,10 +22,7 @@ setup(
     author_email = 'isox@vulners.com',
     url = 'https://github.com/vulnersCom/api',
     packages = find_packages(exclude=['samples']),
-    install_requires = [
-        'requests',
-        'aiohttp',
-    ],
+    install_requires = REQUIRES,
     keywords = ['security', 'network', 'vulners', 'vulnerability', 'CVE'],
     classifiers = [
         "Development Status :: 5 - Production/Stable",

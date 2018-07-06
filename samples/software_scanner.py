@@ -8,8 +8,8 @@ import vulners
 
 vulners_api = vulners.Vulners()
 
-# Plain text software + version example for Apache Httpd 1.5
-sw_results = vulners_api.softwareVulnerabilities("httpd", "1.5")
+# Plain text software + version example for Apache Httpd 1.3
+sw_results = vulners_api.softwareVulnerabilities("httpd", "1.3")
 sw_exploit_list = sw_results.get('exploit')
 sw_vulnerabilities_list = [sw_results.get(key) for key in sw_results if key not in ['info', 'blog', 'bugbounty']]
 

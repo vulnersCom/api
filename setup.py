@@ -9,7 +9,7 @@ from setuptools import setup, find_packages
 
 version = re.search(r'__version__\s*=\s*"(.+)"', open('vulners/__init__.py', 'rt').read()).group(1)
 
-with open('README.md', encoding='utf-8') as f:
+with open('README.md') as f:
     long_description = f.read()
     
 

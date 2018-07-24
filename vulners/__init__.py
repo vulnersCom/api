@@ -3,3 +3,9 @@
 __version__ = "1.1.3"
 
 from vulners.api import Vulners
+import sys
+
+if sys.version_info >= (3, 5):
+    from vulners.aioapi import AioVulners
+
+

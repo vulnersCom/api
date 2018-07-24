@@ -19,6 +19,13 @@ You can use pip for the installation
 pip install -U vulners
 ```
 
+## Obtaining Vulners API key
+
+Please, register at [Vulners website](https://vulners.com).
+Go to the personal menu by clicking at your name at the right top corner.
+Follow "API KEYS" tab.
+Generate API key with scope "api" and use it with the library.
+
 # Functions and methods
 
 All the callable methods are using [Vulners REST API](https://vulners.com/docs).
@@ -27,28 +34,28 @@ All the callable methods are using [Vulners REST API](https://vulners.com/docs).
 ```python
 import vulners
 
-vulners_api = vulners.Vulners()
+vulners_api = vulners.Vulners(api_key="YOUR_API_KEY_HERE")
 heartbleed_related = vulners_api.search("heartbleed", limit=10)
 ```
 ### Get information about document by identificator
 ```python
 import vulners
 
-vulners_api = vulners.Vulners()
+vulners_api = vulners.Vulners(api_key="YOUR_API_KEY_HERE")
 CVE_2017_14174 = vulners_api.document("CVE-2017-14174")
 ```
 ### Search for the public available exploits
 ```python
 import vulners
 
-vulners_api = vulners.Vulners()
+vulners_api = vulners.Vulners(api_key="YOUR_API_KEY_HERE")
 wordpress_exploits = vulners_api.searchExploit("wordpress 4.7.0")
 ```
 ### Get vulnerabilities and exploits by software name and version
 ```python
 import vulners
 
-vulners_api = vulners.Vulners()
+vulners_api = vulners.Vulners(api_key="YOUR_API_KEY_HERE")
 
 results = vulners_api.softwareVulnerabilities("httpd", "1.3")
 exploit_list = results.get('exploit')
@@ -58,7 +65,7 @@ vulnerabilities_list = [results.get(key) for key in results if key not in ['info
 ```python
 import vulners
 
-vulners_api = vulners.Vulners()
+vulners_api = vulners.Vulners(api_key="YOUR_API_KEY_HERE")
 
 cpe_results = vulners_api.cpeVulnerabilities("cpe:/a:cybozu:garoon:4.2.1")
 cpe_exploit_list = cpe_results.get('exploit')
@@ -68,20 +75,20 @@ cpe_vulnerabilities_list = [cpe_results.get(key) for key in cpe_results if key n
 ```python
 import vulners
 
-vulners_api = vulners.Vulners()
+vulners_api = vulners.Vulners(api_key="YOUR_API_KEY_HERE")
 references = vulners_api.references("CVE-2014-0160")
 ```
 ### Score any vulnerability description using [Vulners AI](https://lab.wallarm.com/new-from-wallarm-research-first-ai-based-tool-to-predict-vulnerability-risk-2d0a7e9b3474)
 ```python
 import vulners
 
-vulners_api = vulners.Vulners()
+vulners_api = vulners.Vulners(api_key="YOUR_API_KEY_HERE")
 text_ai_score = vulners_api.aiScore("My cool vulnerability description")
 ```
 ### Download whole database collection and work with data locally
 ```python
 import vulners
 
-vulners_api = vulners.Vulners()
+vulners_api = vulners.Vulners(api_key="YOUR_API_KEY_HERE")
 all_cve = vulners_api.archive("cve")
 ```

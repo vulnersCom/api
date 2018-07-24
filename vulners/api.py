@@ -17,7 +17,7 @@ from . import __version__ as api_version
 
 class Vulners(object):
 
-    def __init__(self, proxies=None):
+    def __init__(self, api_key = None, proxies=None):
         """
         Set default URLs and create session object
 
@@ -31,7 +31,8 @@ class Vulners(object):
             'id':           "https://vulners.com/api/v3/search/id/",
             'suggest':      "https://vulners.com/api/v3/search/suggest/",
             'ai':           "https://vulners.com/api/v3/ai/scoretext/",
-            'archive':      "https://vulners.com/api/v3/archive/collection/"
+            'archive':      "https://vulners.com/api/v3/archive/collection/",
+            'apiKey':       "https://vulners.com/api/v3/apiKey/valid/"
         }
         # Default search parameters
         self.__search_size = 100
@@ -43,6 +44,16 @@ class Vulners(object):
             if not isinstance(proxies, dict):
                 raise TypeError("Proxies must be a dict type")
             self.__opener.proxies.update(proxies)
+
+        # API key validation
+
+        self.__api_key = api_key
+
+        if api_key and not isinstance(api_key, str):
+            raise TypeError("api_key parameter must be a string value")
+
+        if api_key and not self.__validKey(api_key):
+            raise ValueError("Wrong Vulners API key. Please, follow https://vulners.com to obtain correct one.")
 
     def __adapt_response_content(self, response):
         """
@@ -67,6 +78,8 @@ class Vulners(object):
         :return: 'data' key from the response
         """
         # Return result
+        if self.__api_key:
+            json_parameters['apiKey'] = self.__api_key
         response = self.__opener.get(self.__vulners_urls[vulners_url_key], params=json_parameters)
         return self.__adapt_response_content(response)
 
@@ -79,8 +92,22 @@ class Vulners(object):
         :return: 'data' key from the response
         """
         # Return result
+        if self.__api_key:
+            json_parameters['apiKey'] = self.__api_key
         response = self.__opener.post(self.__vulners_urls[vulners_url_key], json=json_parameters)
         return self.__adapt_response_content(response)
+
+    def __validKey(self, api_key):
+        """
+        Tech wrapper for validating API key
+
+        :param api_key: Vulners API Key
+        :return: True/False
+        """
+        if not isinstance(api_key, str):
+            raise TypeError("api_key expected to be a string")
+
+        return self.__vulners_post_request('apiKey', {'keyID':api_key}).get('valid')
 
     def __archive(self, type, datefrom, dateto):
         """

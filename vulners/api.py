@@ -32,7 +32,8 @@ class Vulners(object):
             'suggest':      "https://vulners.com/api/v3/search/suggest/",
             'ai':           "https://vulners.com/api/v3/ai/scoretext/",
             'archive':      "https://vulners.com/api/v3/archive/collection/",
-            'apiKey':       "https://vulners.com/api/v3/apiKey/valid/"
+            'apiKey':       "https://vulners.com/api/v3/apiKey/valid/",
+            'audit':        "https://vulners.com/api/v3/audit/audit/"
         }
         # Default search parameters
         self.__search_size = 100
@@ -160,6 +161,23 @@ class Vulners(object):
         if references == True:
             search_request['references'] = "True"
         return self.__vulners_post_request('id', search_request)
+
+    def __audit(self, os, os_version, package):
+        """
+        Tech Audit call wrapper for internal lib usage
+
+        :param os: OS name
+        :param os_version: OS version
+        :param package: List of the installed packages
+        :return: {'search':[SEARCH_RESULTS_HERE], 'total':TOTAL_BULLETINS_FOUND}
+        """
+        if not isinstance(os, str):
+            raise TypeError("OS expected to be a string")
+        if not isinstance(os_version, str):
+            raise TypeError("OS Version expected to be a string")
+        if not isinstance(package, (list, set)):
+            raise TypeError("Package expected to be a list or set")
+        return self.__vulners_post_request('audit', {"os":os, 'version':os_version, 'package':package})
 
     def __burpSoftware(self, software, version, type, maxVulnerabilities):
         """
@@ -297,6 +315,20 @@ class Vulners(object):
         """
         results = self.__id(identificator, references=False)
         return results.get('documents', {}).get(identificator, {})
+
+    def audit(self, os, os_version, package):
+        """
+        Linux Audit API for analyzing package vulnerabilities.
+        Accepts RPM and DEB based package lists.
+        For collecting RPM use command: rpm -qa --qf '%{NAME}-%{VERSION}-%{RELEASE}.%{ARCH}\\n'
+        For collecting DEB use command: dpkg-query -W -f='${Package} ${Version} ${Architecture}\\n'
+
+        :param os: Full name of the OS. Like Ubuntu, Debian, rhel, oraclelinux
+        :param os_version: OS version
+        :param package: List of the installed packages
+        :return: {'search':[SEARCH_RESULTS_HERE], 'total':TOTAL_BULLETINS_FOUND}
+        """
+        return self.__audit(os, os_version, package)
 
     def documentList(self, identificatorList):
         """

@@ -96,7 +96,7 @@ all_cve = vulners_api.archive("cve")
 ```python
 import vulners
 
-vulners_api = vulners.Vulners()
+vulners_api = vulners.Vulners(api_key="YOUR_API_KEY_HERE")
 
 # Example for CentOS 7
 # You can use it for any RPM based OS

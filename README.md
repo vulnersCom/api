@@ -116,3 +116,12 @@ how_to_fix = centos_vulnerabilities.get('cumulativeFix')
 
 debian_vulnerabilities = vulners_api.audit(os= 'debian', os_version= '8', package= ['uno-libs3 4.3.3-2+deb8u7 amd64'])
 ```
+
+### Download web application vulnerability detection regex collection
+```python
+import vulners
+
+vulners_api = vulners.Vulners()
+
+rules = vulners_api.rules()
+```

@@ -6,7 +6,10 @@
 
 import vulners
 
-vulners_api = vulners.Vulners(api_key="YOUR_API_KEY_HERE")
+vulners_api = vulners.Vulners()
+
+# Download web application vulnerability detection regex collection
+rules = vulners_api.rules()
 
 # Plain text software + version example for Apache Httpd 1.3
 sw_results = vulners_api.softwareVulnerabilities("httpd", "1.3")

@@ -33,7 +33,8 @@ class Vulners(object):
             'ai':           "https://vulners.com/api/v3/ai/scoretext/",
             'archive':      "https://vulners.com/api/v3/archive/collection/",
             'apiKey':       "https://vulners.com/api/v3/apiKey/valid/",
-            'audit':        "https://vulners.com/api/v3/audit/audit/"
+            'audit':        "https://vulners.com/api/v3/audit/audit/",
+            'rules':        "https://vulners.com/api/v3/burp/rules/",
         }
         # Default search parameters
         self.__search_size = 100
@@ -169,7 +170,7 @@ class Vulners(object):
         :param os: OS name
         :param os_version: OS version
         :param package: List of the installed packages
-        :return: {'search':[SEARCH_RESULTS_HERE], 'total':TOTAL_BULLETINS_FOUND}
+        :return: {'packages':[LIST OF VULNERABLE PACKAGES], 'reasons':LIST OF REASONS, 'vulnerabilities':[LIST OF VULNERABILITY IDs]}
         """
         if not isinstance(os, str):
             raise TypeError("OS expected to be a string")
@@ -326,7 +327,7 @@ class Vulners(object):
         :param os: Full name of the OS. Like Ubuntu, Debian, rhel, oraclelinux
         :param os_version: OS version
         :param package: List of the installed packages
-        :return: {'search':[SEARCH_RESULTS_HERE], 'total':TOTAL_BULLETINS_FOUND}
+        :return: {'packages':[LIST OF VULNERABLE PACKAGES], 'reasons':LIST OF REASONS, 'vulnerabilities':[LIST OF VULNERABILITY IDs]}
         """
         return self.__audit(os, os_version, package)
 
@@ -389,6 +390,14 @@ class Vulners(object):
         :return: Float score
         """
         return self.__ai_score(text).get('score', 0)
+
+    def rules(self):
+        """
+        Get collection of the regular expressions for the web application vulnerabilities detection
+
+        :return: {'SOFTWARE NAME':{'regex':REGEX, 'alias':'SW NAME', 'type':'software/cpe'}}
+        """
+        return self.__vulners_get_request('rules', {}).get('rules', {})
 
     def archive(self, collection, start_date='1950-01-01', end_date='2199-01-01'):
         """

@@ -11,11 +11,22 @@ from io import BytesIO
 from zipfile import ZipFile
 import warnings
 
+from .common.ratelimit import rate_limited
 from . import __version__ as api_version
+
 
 # Base API wrapper class
 
 class Vulners(object):
+
+    """
+    This variable holds information that is dynamically updated about current ratelimits for the API.
+    Vulners backend dynamic blocking cache is changing this value depending on the server load and client license.
+    One more reason to use API key, rate limits are higher.
+    """
+    api_rate_limits = {
+        'default':10
+    }
 
     def __init__(self, api_key = None, proxies=None):
         """
@@ -71,6 +82,39 @@ class Vulners(object):
             return results
         return response.content
 
+    def __update_ratelimit(self, api_short_name, response):
+        """
+        Private method for controlling ratelimit of the API calls
+
+        :param api_short_name: API shortened name from the __vulners_urls
+        :param response: requests lib response
+        :return: True/False
+        """
+        headers = response.headers
+
+        ratelimit = headers.get('X-Vulners-Ratelimit-Reqlimit')
+        current_rate = headers.get('X-Vulners-Ratelimit-Rate')
+
+        if ratelimit and current_rate:
+            # Now we need to make a throttling, not just setting up ratelimit
+            # Convert to floats
+            # Any ideas how to make it better?
+
+            # Take a 80% not to playing with the banhammer
+            ratelimit = float(ratelimit)
+            ratelimit = (80 * ratelimit) / 100.0
+            current_rate = float(current_rate)
+
+            if current_rate <= ratelimit:
+                self.api_rate_limits[api_short_name] = ratelimit
+            else:
+                rate_difference = (current_rate / (ratelimit / 100)) / 60
+                self.api_rate_limits[api_short_name] = (rate_difference * ratelimit) / 100.0
+            return True
+
+        return False
+
+    @rate_limited(api_rate_limits)
     def __vulners_get_request(self, vulners_url_key, json_parameters):
         """
         Tech wrapper for the unified
@@ -83,8 +127,11 @@ class Vulners(object):
         if self.__api_key:
             json_parameters['apiKey'] = self.__api_key
         response = self.__opener.get(self.__vulners_urls[vulners_url_key], params=json_parameters)
+        # Update rate limits
+        self.__update_ratelimit(vulners_url_key, response)
         return self.__adapt_response_content(response)
 
+    @rate_limited(api_rate_limits)
     def __vulners_post_request(self, vulners_url_key, json_parameters):
         """
         Tech wrapper for the unified
@@ -97,6 +144,8 @@ class Vulners(object):
         if self.__api_key:
             json_parameters['apiKey'] = self.__api_key
         response = self.__opener.post(self.__vulners_urls[vulners_url_key], json=json_parameters)
+        # Update rate limits
+        self.__update_ratelimit(vulners_url_key, response)
         return self.__adapt_response_content(response)
 
     def __validKey(self, api_key):

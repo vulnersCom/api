@@ -52,6 +52,12 @@ class Vulners(object):
 
         # Requests opener
         self.__opener = requests.session()
+        # Setup pool size and Keep Alive
+        adapter = requests.adapters.HTTPAdapter(
+            pool_connections=100, pool_maxsize=100)
+        self.__opener.mount('https://', adapter)
+        self.__opener.headers.update({'Connection': 'Keep-Alive'})
+        #
         self.__opener.headers = {'User-Agent': 'Vulners Python API %s' % api_version}
         if proxies is not None:
             if not isinstance(proxies, dict):
@@ -272,19 +278,20 @@ class Vulners(object):
             raise TypeError("Text expected to be a string")
         return self.__vulners_post_request('ai', {"text":text})
 
-    def search(self, query, limit=100, fields=("id", "title", "description", "type", "bulletinFamily", "cvss", "published", "modified", "href")):
+    def search(self, query, limit=100, offset=0, fields=("id", "title", "description", "type", "bulletinFamily", "cvss", "published", "modified", "href")):
         """
         Search Vulners database for the abstract query
 
         :param query: Abstract Vulners query. See https://vulners.com/help for the details.
         :param limit: Search size. Default is 100 elements limit. 10000 skip is absolute maximum.
+        :param offset: Skip this amount of documents
         :param fields: Returnable fields of the data model.
         :return: List of the found documents.
         """
         total_bulletins = limit or self.__search(query, 0, 0, ['id']).get('total')
         dataDocs = []
 
-        for skip in range(0, total_bulletins, min(self.__search_size, limit or self.__search_size)):
+        for skip in range(offset, total_bulletins, min(self.__search_size, limit or self.__search_size)):
             results = self.__search(query, skip, min(self.__search_size, limit or self.__search_size), fields or [])
             for element in results.get('search'):
                     dataDocs.append(element.get('_source'))

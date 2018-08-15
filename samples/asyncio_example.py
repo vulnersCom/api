@@ -38,19 +38,3 @@ async def main():
 
 loop.run_until_complete(main())
 loop.close()
-
-#
-#
-# # Using parallel Thread pool for testing thread safety
-# with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
-#     search_results_pool = [executor.submit(vulners_api.search, query, 10) for query in query_pool]
-#     for future in concurrent.futures.as_completed(search_results_pool):
-#         print("Collected %s results with Thread Pool" % len(future.result()))
-#         merged_results.append(future.result())
-#
-# # Using parallel Process pool for testing thread safety
-# with concurrent.futures.ProcessPoolExecutor(max_workers=20) as executor:
-#     search_results_pool = [executor.submit(vulners_api.search, query, 10) for query in query_pool]
-#     for future in concurrent.futures.as_completed(search_results_pool):
-#         print("Collected %s results with Multiprocess Pool" % len(future.result()))
-#         merged_results.append(future.result())

@@ -58,7 +58,7 @@ class Vulners(object):
         self.__opener.mount('https://', adapter)
         self.__opener.headers.update({'Connection': 'Keep-Alive'})
         #
-        self.__opener.headers = {'User-Agent': 'Vulners Python API %s' % api_version}
+        self.__opener.headers.update({'User-Agent': 'Vulners Python API %s' % api_version})
         if proxies is not None:
             if not isinstance(proxies, dict):
                 raise TypeError("Proxies must be a dict type")

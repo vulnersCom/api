@@ -299,16 +299,17 @@ class Vulners(object):
         :param limit: Search size. Default is 100 elements limit. 10000 skip is absolute maximum.
         :param offset: Skip this amount of documents
         :param fields: Returnable fields of the data model.
-        :return: List of the found documents.
+        :return: List of the found documents, total found bulletins
         """
         total_bulletins = limit or self.__search(query, 0, 0, ['id']).get('total')
         dataDocs = []
-
+        total = 0
         for skip in range(offset, total_bulletins, min(self.__search_size, limit or self.__search_size)):
             results = self.__search(query, skip, min(self.__search_size, limit or self.__search_size), fields or [])
+            total = max(results.get('total'), total)
             for element in results.get('search'):
                     dataDocs.append(element.get('_source'))
-        return dataDocs
+        return dataDocs, total
 
     def searchExploit(self, query, lookup_fields=None, limit=500, offset=0, fields=("id", "title", "description", "cvss", "href", "sourceData")):
         """
@@ -330,13 +331,15 @@ class Vulners(object):
             searchQuery = "bulletinFamily:exploit AND %s" % query
 
         total_bulletins = limit or self.__search(searchQuery, 0, 0, ['id']).get('total')
+        total = 0
         dataDocs = []
 
         for skip in range(offset, total_bulletins, min(self.__search_size, limit or self.__search_size)):
             results = self.__search(searchQuery, skip, min(self.__search_size, limit or self.__search_size), fields or [])
+            total = max(results.get('total'), total)
             for element in results.get('search'):
                 dataDocs.append(element.get('_source'))
-        return dataDocs
+        return dataDocs, total
 
     def softwareVulnerabilities(self, name, version, maxVulnerabilities = 50):
         """

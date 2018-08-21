@@ -85,6 +85,14 @@ import vulners
 vulners_api = vulners.Vulners(api_key="YOUR_API_KEY_HERE")
 text_ai_score = vulners_api.aiScore("My cool vulnerability description")
 ```
+### Get possible query autocompletions
+```
+import vulners
+
+vulners_api = vulners.Vulners(api_key="YOUR_API_KEY_HERE")
+possible_autocomplete = vulners_api.autocomplete("heartbleed")
+
+```
 ### Download whole database collection and work with data locally
 ```python
 import vulners

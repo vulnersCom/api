@@ -46,6 +46,7 @@ class Vulners(object):
             'apiKey':       "https://vulners.com/api/v3/apiKey/valid/",
             'audit':        "https://vulners.com/api/v3/audit/audit/",
             'rules':        "https://vulners.com/api/v3/burp/rules/",
+            'autocomplete': "https://vulners.com/api/v3/search/autocomplete/",
         }
         # Default search parameters
         self.__search_size = 100
@@ -278,6 +279,18 @@ class Vulners(object):
             raise TypeError("Text expected to be a string")
         return self.__vulners_post_request('ai', {"text":text})
 
+    def __autocomplete(self, query):
+        """
+        Tech wrapper for the Autocomplete call
+
+        :param type: Search query.
+        :param field_name: How much bulletins to skip.
+        :return: List of possible values
+        """
+        if not isinstance(query, str):
+            raise TypeError("Query expected to be a string")
+        return self.__vulners_post_request('autocomplete', {"query":query})
+
     def search(self, query, limit=100, offset=0, fields=("id", "title", "description", "type", "bulletinFamily", "cvss", "published", "modified", "href")):
         """
         Search Vulners database for the abstract query
@@ -297,13 +310,14 @@ class Vulners(object):
                     dataDocs.append(element.get('_source'))
         return dataDocs
 
-    def searchExploit(self, query, lookup_fields=None, limit=500, fields=("id", "title", "description", "cvss", "href", "sourceData")):
+    def searchExploit(self, query, lookup_fields=None, limit=500, offset=0, fields=("id", "title", "description", "cvss", "href", "sourceData")):
         """
         Search Vulners database for the exploits
 
         :param query: Print here software name and criteria
         :param lookup_fileds: Make a strict search using lookup limit. Like ["title"]
         :param limit: Search size. Default is 500 elements limit. 10000 is absolute maximum.
+        :param offset: Skip this amount of documents
         :param fields: Returnable fields of the data model.
         :return: List of the found documents.
         """
@@ -318,7 +332,7 @@ class Vulners(object):
         total_bulletins = limit or self.__search(searchQuery, 0, 0, ['id']).get('total')
         dataDocs = []
 
-        for skip in range(0, total_bulletins, min(self.__search_size, limit or self.__search_size)):
+        for skip in range(offset, total_bulletins, min(self.__search_size, limit or self.__search_size)):
             results = self.__search(searchQuery, skip, min(self.__search_size, limit or self.__search_size), fields or [])
             for element in results.get('search'):
                 dataDocs.append(element.get('_source'))
@@ -470,3 +484,13 @@ class Vulners(object):
                 raise Exception("Unexpected file count in Vulners ZIP archive")
             file_name = zip_file.namelist()[0]
             return json.loads(zip_file.open(file_name).read())
+
+    def autocomplete(self, query):
+        """
+        Ask Vulners for possible suggestions to complete your query
+
+        :param query: Vulners Search query, Lucene syntax
+        :return: Float score
+        """
+        suggestions = self.__autocomplete(query).get('suggestions')
+        return [suggested_query[0] for suggested_query in suggestions]

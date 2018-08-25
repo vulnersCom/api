@@ -311,6 +311,22 @@ class Vulners(object):
                     dataDocs.append(element.get('_source'))
         return dataDocs, total
 
+    def searchPage(self, query, pageSize = 20, offset=0, fields=("id", "title", "description", "type", "bulletinFamily", "cvss", "published", "modified", "href")):
+        """
+        Search Vulners database for the abstract query, page mode
+
+        :param query: Abstract Vulners query. See https://vulners.com/help for the details.
+        :param pageSize: Search size. Default is 20 in the single hit. 100 is the maximum
+        :param offset: Skip this amount of documents
+        :param fields: Returnable fields of the data model.
+        :return: List of the found documents, total found bulletins
+        """
+
+        results = self.__search(query, offset, min(pageSize, self.__search_size), fields or [])
+        total = results.get('total')
+        dataDocs = [element.get('_source') for element in results.get('search')]
+        return dataDocs, total
+
     def searchExploit(self, query, lookup_fields=None, limit=500, offset=0, fields=("id", "title", "description", "cvss", "href", "sourceData")):
         """
         Search Vulners database for the exploits
@@ -320,7 +336,7 @@ class Vulners(object):
         :param limit: Search size. Default is 500 elements limit. 10000 is absolute maximum.
         :param offset: Skip this amount of documents
         :param fields: Returnable fields of the data model.
-        :return: List of the found documents.
+        :return: List of the found documents, total found bulletins
         """
         if lookup_fields:
             if not isinstance(lookup_fields, (list, set, tuple)) or not all(isinstance(item, str) for item in lookup_fields):
@@ -339,6 +355,30 @@ class Vulners(object):
             total = max(results.get('total'), total)
             for element in results.get('search'):
                 dataDocs.append(element.get('_source'))
+        return dataDocs, total
+
+    def searchExploitPage(self, query, lookup_fields=None, pageSize=20, offset=0, fields=("id", "title", "description", "cvss", "href", "sourceData")):
+        """
+        Search Vulners database for the exploits, page mode
+
+        :param query: Print here software name and criteria
+        :param lookup_fileds: Make a strict search using lookup limit. Like ["title"]
+        :param pageSize: Search size. Default is 20 in the single hit. 100 is the maximum
+        :param offset: Skip this amount of documents
+        :param fields: Returnable fields of the data model.
+        :return: List of the found documents, total found bulletins
+        """
+        if lookup_fields:
+            if not isinstance(lookup_fields, (list, set, tuple)) or not all(isinstance(item, str) for item in lookup_fields):
+                raise TypeError('lookup_fields list is expected to be a list of strings')
+            searchQuery = "bulletinFamily:exploit AND (%s)" % " OR ".join(
+                "%s:\"%s\"" % (lField, query) for lField in lookup_fields)
+        else:
+            searchQuery = "bulletinFamily:exploit AND %s" % query
+
+        results = self.__search(searchQuery, offset, min(pageSize, self.__search_size), fields or [])
+        total = results.get('total')
+        dataDocs = [element.get('_source') for element in results.get('search')]
         return dataDocs, total
 
     def softwareVulnerabilities(self, name, version, maxVulnerabilities = 50):

@@ -24,7 +24,8 @@ setup(
     url='https://github.com/vulnersCom/api',
     packages=find_packages(exclude=['samples']),
     install_requires = [
-        'requests'
+        'requests',
+        'six'
     ],
     keywords=['security', 'network', 'vulners', 'vulnerability', 'CVE'],
     classifiers =[

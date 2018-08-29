@@ -10,6 +10,7 @@ import requests
 from io import BytesIO
 from zipfile import ZipFile
 import warnings
+from six import string_types
 
 from .common.ratelimit import rate_limited
 from . import __version__ as api_version
@@ -69,7 +70,7 @@ class Vulners(object):
 
         self.__api_key = api_key
 
-        if api_key and not isinstance(api_key, str):
+        if api_key and not isinstance(api_key, string_types):
             raise TypeError("api_key parameter must be a string value")
 
         if api_key and not self.__validKey(api_key):
@@ -162,7 +163,7 @@ class Vulners(object):
         :param api_key: Vulners API Key
         :return: True/False
         """
-        if not isinstance(api_key, str):
+        if not isinstance(api_key, string_types):
             raise TypeError("api_key expected to be a string")
 
         return self.__vulners_post_request('apiKey', {'keyID':api_key}).get('valid')
@@ -176,11 +177,11 @@ class Vulners(object):
         :param dateto: End date
         :return: ZIP archive
         """
-        if not isinstance(type, str):
+        if not isinstance(type, string_types):
             raise TypeError("Type expected to be a string")
-        if not isinstance(datefrom, str):
+        if not isinstance(datefrom, string_types):
             raise TypeError("Datefrom expected to be a string")
-        if not isinstance(dateto, str):
+        if not isinstance(dateto, string_types):
             raise TypeError("Dateto expected to be a string")
         return self.__vulners_get_request('archive', {'type':type, 'datefrom':datefrom, 'dateto':dateto})
 
@@ -193,7 +194,7 @@ class Vulners(object):
         :param size: How much results to return.
         :return: {'search':[SEARCH_RESULTS_HERE], 'total':TOTAL_BULLETINS_FOUND}
         """
-        if not isinstance(query, str):
+        if not isinstance(query, string_types):
             raise TypeError("Search query expected to be a string")
         if not isinstance(skip, int) and skip in range(0, 10000):
             raise TypeError("Skip  expected to be a int in range 0-10000")
@@ -209,7 +210,7 @@ class Vulners(object):
         :param references: How much bulletins to skip.
         :return: {'search':[SEARCH_RESULTS_HERE], 'total':TOTAL_BULLETINS_FOUND}
         """
-        if not isinstance(identificator, (str, list)):
+        if not isinstance(identificator, (string_types, list)):
             raise TypeError("Search ID expected to be a string or list of strings")
         if not isinstance(references, bool):
             raise TypeError("References  expected to be a bool")
@@ -228,9 +229,9 @@ class Vulners(object):
         :param package: List of the installed packages
         :return: {'packages':[LIST OF VULNERABLE PACKAGES], 'reasons':LIST OF REASONS, 'vulnerabilities':[LIST OF VULNERABILITY IDs]}
         """
-        if not isinstance(os, str):
+        if not isinstance(os, string_types):
             raise TypeError("OS expected to be a string")
-        if not isinstance(os_version, str):
+        if not isinstance(os_version, string_types):
             raise TypeError("OS Version expected to be a string")
         if not isinstance(package, (list, set)):
             raise TypeError("Package expected to be a list or set")
@@ -245,11 +246,11 @@ class Vulners(object):
         :param size: How much results to return.
         :return: {'search':[SEARCH_RESULTS_HERE], 'total':TOTAL_BULLETINS_FOUND}
         """
-        if not isinstance(software, str):
+        if not isinstance(software, string_types):
             raise TypeError("Software query expected to be a string")
-        if not isinstance(version, str):
+        if not isinstance(version, string_types):
             raise TypeError("Version query expected to be a string")
-        if not isinstance(type, str) or type not in ('software', 'cpe'):
+        if not isinstance(type, string_types) or type not in ('software', 'cpe'):
             raise TypeError("Type query expected to be a string and in [software, cpe]")
         return self.__vulners_post_request('software', {"software":software, 'version':version, 'type':type, 'maxVulnerabilities':maxVulnerabilities})
 
@@ -261,9 +262,9 @@ class Vulners(object):
         :param field_name: How much bulletins to skip.
         :return: List of possible values
         """
-        if not isinstance(type, str):
+        if not isinstance(type, string_types):
             raise TypeError("Type query expected to be a string")
-        if not isinstance(field_name, str):
+        if not isinstance(field_name, string_types):
             raise TypeError("field_name query expected to be a string")
         return self.__vulners_post_request('suggest', {"type":type, 'fieldName':field_name})
 
@@ -275,7 +276,7 @@ class Vulners(object):
         :param field_name: How much bulletins to skip.
         :return: List of possible values
         """
-        if not isinstance(text, str):
+        if not isinstance(text, string_types):
             raise TypeError("Text expected to be a string")
         return self.__vulners_post_request('ai', {"text":text})
 
@@ -287,7 +288,7 @@ class Vulners(object):
         :param field_name: How much bulletins to skip.
         :return: List of possible values
         """
-        if not isinstance(query, str):
+        if not isinstance(query, string_types):
             raise TypeError("Query expected to be a string")
         return self.__vulners_post_request('autocomplete', {"query":query})
 
@@ -339,7 +340,7 @@ class Vulners(object):
         :return: List of the found documents, total found bulletins
         """
         if lookup_fields:
-            if not isinstance(lookup_fields, (list, set, tuple)) or not all(isinstance(item, str) for item in lookup_fields):
+            if not isinstance(lookup_fields, (list, set, tuple)) or not all(isinstance(item, string_types) for item in lookup_fields):
                 raise TypeError('lookup_fields list is expected to be a list of strings')
             searchQuery = "bulletinFamily:exploit AND (%s)" % " OR ".join(
                 "%s:\"%s\"" % (lField, query) for lField in lookup_fields)
@@ -369,7 +370,7 @@ class Vulners(object):
         :return: List of the found documents, total found bulletins
         """
         if lookup_fields:
-            if not isinstance(lookup_fields, (list, set, tuple)) or not all(isinstance(item, str) for item in lookup_fields):
+            if not isinstance(lookup_fields, (list, set, tuple)) or not all(isinstance(item, string_types) for item in lookup_fields):
                 raise TypeError('lookup_fields list is expected to be a list of strings')
             searchQuery = "bulletinFamily:exploit AND (%s)" % " OR ".join(
                 "%s:\"%s\"" % (lField, query) for lField in lookup_fields)
@@ -452,7 +453,7 @@ class Vulners(object):
         :return: {'documents':{'id1':{DOC_1}, 'id2':{DOC_2}}}
         """
 
-        if not isinstance(identificatorList, (list,set)) or not all(isinstance(item, str) for item in identificatorList):
+        if not isinstance(identificatorList, (list,set)) or not all(isinstance(item, string_types) for item in identificatorList):
             raise TypeError('Identificator list is expected to be a list of strings')
         return self.__id(identificatorList, references=False).get('documents')
 
@@ -474,7 +475,7 @@ class Vulners(object):
         :param identificatorList: List of ID's. As example - ["CVE-2017-14174"]
         :return: {'documents':{'id1':{DOC_1}, 'id2':{DOC_2}}}
         """
-        if not isinstance(identificatorList, (list,set)) or not all(isinstance(item, str) for item in identificatorList):
+        if not isinstance(identificatorList, (list,set)) or not all(isinstance(item, string_types) for item in identificatorList):
             raise TypeError('Identificator list is expected to be a list of strings')
         return self.__id(identificatorList, references=True).get('references')
 

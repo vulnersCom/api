@@ -13,6 +13,7 @@ import warnings
 from six import string_types
 
 from .common.ratelimit import rate_limited
+from .common.attributeList import AttributeList
 from . import __version__ as api_version
 
 
@@ -310,7 +311,7 @@ class Vulners(object):
             total = max(results.get('total'), total)
             for element in results.get('search'):
                     dataDocs.append(element.get('_source'))
-        return dataDocs, total
+        return AttributeList(dataDocs, total = total)
 
     def searchPage(self, query, pageSize = 20, offset=0, fields=("id", "title", "description", "type", "bulletinFamily", "cvss", "published", "modified", "href")):
         """
@@ -326,7 +327,7 @@ class Vulners(object):
         results = self.__search(query, offset, min(pageSize, self.__search_size), fields or [])
         total = results.get('total')
         dataDocs = [element.get('_source') for element in results.get('search')]
-        return dataDocs, total
+        return AttributeList(dataDocs, total = total)
 
     def searchExploit(self, query, lookup_fields=None, limit=500, offset=0, fields=("id", "title", "description", "cvss", "href", "sourceData")):
         """
@@ -356,7 +357,8 @@ class Vulners(object):
             total = max(results.get('total'), total)
             for element in results.get('search'):
                 dataDocs.append(element.get('_source'))
-        return dataDocs, total
+        return AttributeList(dataDocs, total = total)
+
 
     def searchExploitPage(self, query, lookup_fields=None, pageSize=20, offset=0, fields=("id", "title", "description", "cvss", "href", "sourceData")):
         """
@@ -380,7 +382,8 @@ class Vulners(object):
         results = self.__search(searchQuery, offset, min(pageSize, self.__search_size), fields or [])
         total = results.get('total')
         dataDocs = [element.get('_source') for element in results.get('search')]
-        return dataDocs, total
+        return AttributeList(dataDocs, total = total)
+
 
     def softwareVulnerabilities(self, name, version, maxVulnerabilities = 50):
         """

@@ -13,8 +13,10 @@ import warnings
 from six import string_types
 
 from .common.ratelimit import rate_limited
+from .common.cookiejar import PersistentCookieJar
 from .common.attributeList import AttributeList
 from . import __version__ as api_version
+
 
 
 # Base API wrapper class
@@ -25,16 +27,23 @@ class Vulners(object):
     This variable holds information that is dynamically updated about current ratelimits for the API.
     Vulners backend dynamic blocking cache is changing this value depending on the server load and client license.
     One more reason to use API key, rate limits are higher.
+
+    Security notice:
+    This API wrapper is using persistent Cookie Jar that is saved down to the OS tmp dir.
+    It's used for better session handling at Vulners server side and really helps a lot not to overcreate sessions.
+    But if you feels not comfortable - you can just turn it off at the init state setting "persistent = False"
     """
     api_rate_limits = {
         'default':10
     }
 
-    def __init__(self, api_key = None, proxies=None):
+    def __init__(self, api_key = None, proxies=None, persistent=True):
         """
         Set default URLs and create session object
 
         :param proxies: {} dict for proxy supporting. Example: {"https": "myproxy.com:3128"}
+        :param api_key: string with Vulners API key. You can obtain one from the https://vulners.com
+        :param persistent: Boolean. Regulates cookie storage policy. If set to true - will save down session cookie for reuse.
         """
 
         # Default URL's for the Vulners API
@@ -53,8 +62,10 @@ class Vulners(object):
         # Default search parameters
         self.__search_size = 100
 
-        # Requests opener
+        # Requests opener. If persistent option is active - try to load
         self.__opener = requests.session()
+        if persistent:
+            self.__opener.cookies = PersistentCookieJar()
         # Setup pool size and Keep Alive
         adapter = requests.adapters.HTTPAdapter(
             pool_connections=100, pool_maxsize=100)

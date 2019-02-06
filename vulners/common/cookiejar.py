@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 # ===============================
 #  Persistent cookie jar for Requests by Kir Ermakov <isox@vulners.com>
-#  It holds cookies in temp file and recovers on process start
+#  It holds cookies in temp file after process stops. And recovers on process start.
+#  Just like browsers!
 #
 #  Usage:
 #
@@ -26,6 +27,7 @@ import os
 import warnings
 import sys
 import hashlib
+
 
 
 class PersistentCookieJar(RequestsCookieJar):
@@ -65,8 +67,8 @@ class PersistentCookieJar(RequestsCookieJar):
         We are taking sys __main__, it's file name and then takes a hash from it.
         :return: string, Python module name
         """
-        full_module_file_path = six.text_type(sys.modules['__main__'].__file__)
-        path_hash = hashlib.sha1(full_module_file_path.encode('utf-8')).hexdigest()
+        keyword = six.text_type(sys.modules['__main__'].__file__ if hasattr(sys.modules['__main__'], '__file__') else 'console')
+        path_hash = hashlib.sha1(keyword.encode('utf-8')).hexdigest()
         return "%s.cookiejar" % path_hash
 
 

@@ -33,9 +33,29 @@ class Vulners(object):
     It's used for better session handling at Vulners server side and really helps a lot not to overcreate sessions.
     But if you feels not comfortable - you can just turn it off at the init state setting "persistent = False"
     """
+
+    # Default rate limits. Will be updated online.
     api_rate_limits = {
         'default':10
     }
+
+    # Default URL's for the Vulners API
+    vulners_urls = {
+        'search': "https://vulners.com/api/v3/search/lucene/",
+        'software': "https://vulners.com/api/v3/burp/software/",
+        'id': "https://vulners.com/api/v3/search/id/",
+        'suggest': "https://vulners.com/api/v3/search/suggest/",
+        'ai': "https://vulners.com/api/v3/ai/scoretext/",
+        'archive': "https://vulners.com/api/v3/archive/collection/",
+        'apiKey': "https://vulners.com/api/v3/apiKey/valid/",
+        'audit': "https://vulners.com/api/v3/audit/audit/",
+        'rules': "https://vulners.com/api/v3/burp/rules/",
+        'autocomplete': "https://vulners.com/api/v3/search/autocomplete/",
+    }
+
+    # Default search size parameter
+    search_size = 100
+
 
     def __init__(self, api_key = None, proxies=None, persistent=True):
         """
@@ -46,21 +66,6 @@ class Vulners(object):
         :param persistent: Boolean. Regulates cookie storage policy. If set to true - will save down session cookie for reuse.
         """
 
-        # Default URL's for the Vulners API
-        self.__vulners_urls = {
-            'search':       "https://vulners.com/api/v3/search/lucene/",
-            'software':     "https://vulners.com/api/v3/burp/software/",
-            'id':           "https://vulners.com/api/v3/search/id/",
-            'suggest':      "https://vulners.com/api/v3/search/suggest/",
-            'ai':           "https://vulners.com/api/v3/ai/scoretext/",
-            'archive':      "https://vulners.com/api/v3/archive/collection/",
-            'apiKey':       "https://vulners.com/api/v3/apiKey/valid/",
-            'audit':        "https://vulners.com/api/v3/audit/audit/",
-            'rules':        "https://vulners.com/api/v3/burp/rules/",
-            'autocomplete': "https://vulners.com/api/v3/search/autocomplete/",
-        }
-        # Default search parameters
-        self.__search_size = 100
 
         # Requests opener. If persistent option is active - try to load
         self.__opener = requests.session()
@@ -146,7 +151,7 @@ class Vulners(object):
         # Return result
         if self.__api_key:
             json_parameters['apiKey'] = self.__api_key
-        response = self.__opener.get(self.__vulners_urls[vulners_url_key], params=json_parameters)
+        response = self.__opener.get(self.vulners_urls[vulners_url_key], params=json_parameters)
         # Update rate limits
         self.__update_ratelimit(vulners_url_key, response)
         return self.__adapt_response_content(response)
@@ -163,7 +168,7 @@ class Vulners(object):
         # Return result
         if self.__api_key:
             json_parameters['apiKey'] = self.__api_key
-        response = self.__opener.post(self.__vulners_urls[vulners_url_key], json=json_parameters)
+        response = self.__opener.post(self.vulners_urls[vulners_url_key], json=json_parameters)
         # Update rate limits
         self.__update_ratelimit(vulners_url_key, response)
         return self.__adapt_response_content(response)
@@ -317,8 +322,8 @@ class Vulners(object):
         total_bulletins = limit or self.__search(query, 0, 0, ['id']).get('total')
         dataDocs = []
         total = 0
-        for skip in range(offset, total_bulletins, min(self.__search_size, limit or self.__search_size)):
-            results = self.__search(query, skip, min(self.__search_size, limit or self.__search_size), fields or [])
+        for skip in range(offset, total_bulletins, min(self.search_size, limit or self.search_size)):
+            results = self.__search(query, skip, min(self.search_size, limit or self.search_size), fields or [])
             total = max(results.get('total'), total)
             for element in results.get('search'):
                     dataDocs.append(element.get('_source'))
@@ -335,7 +340,7 @@ class Vulners(object):
         :return: List of the found documents, total found bulletins
         """
 
-        results = self.__search(query, offset, min(pageSize, self.__search_size), fields or [])
+        results = self.__search(query, offset, min(pageSize, self.search_size), fields or [])
         total = results.get('total')
         dataDocs = [element.get('_source') for element in results.get('search')]
         return AttributeList(dataDocs, total = total)
@@ -363,8 +368,8 @@ class Vulners(object):
         total = 0
         dataDocs = []
 
-        for skip in range(offset, total_bulletins, min(self.__search_size, limit or self.__search_size)):
-            results = self.__search(searchQuery, skip, min(self.__search_size, limit or self.__search_size), fields or [])
+        for skip in range(offset, total_bulletins, min(self.search_size, limit or self.search_size)):
+            results = self.__search(searchQuery, skip, min(self.search_size, limit or self.search_size), fields or [])
             total = max(results.get('total'), total)
             for element in results.get('search'):
                 dataDocs.append(element.get('_source'))
@@ -390,7 +395,7 @@ class Vulners(object):
         else:
             searchQuery = "bulletinFamily:exploit AND %s" % query
 
-        results = self.__search(searchQuery, offset, min(pageSize, self.__search_size), fields or [])
+        results = self.__search(searchQuery, offset, min(pageSize, self.search_size), fields or [])
         total = results.get('total')
         dataDocs = [element.get('_source') for element in results.get('search')]
         return AttributeList(dataDocs, total = total)

@@ -34,23 +34,27 @@ class Vulners(object):
     But if you feels not comfortable - you can just turn it off at the init state setting "persistent = False"
     """
 
+    # Vulners hostname is setting up individually. For on-premise installations it must be replaced with local one.
+
+    vulners_hostname = 'https://vulners.com'
+
     # Default rate limits. Will be updated online.
     api_rate_limits = {
         'default':10
     }
 
     # Default URL's for the Vulners API
-    vulners_urls = {
-        'search': "https://vulners.com/api/v3/search/lucene/",
-        'software': "https://vulners.com/api/v3/burp/software/",
-        'id': "https://vulners.com/api/v3/search/id/",
-        'suggest': "https://vulners.com/api/v3/search/suggest/",
-        'ai': "https://vulners.com/api/v3/ai/scoretext/",
-        'archive': "https://vulners.com/api/v3/archive/collection/",
-        'apiKey': "https://vulners.com/api/v3/apiKey/valid/",
-        'audit': "https://vulners.com/api/v3/audit/audit/",
-        'rules': "https://vulners.com/api/v3/burp/rules/",
-        'autocomplete': "https://vulners.com/api/v3/search/autocomplete/",
+    api_endpoints = {
+        'search': "/api/v3/search/lucene/",
+        'software': "/api/v3/burp/software/",
+        'id': "/api/v3/search/id/",
+        'suggest': "/api/v3/search/suggest/",
+        'ai': "/api/v3/ai/scoretext/",
+        'archive': "/api/v3/archive/collection/",
+        'apiKey': "/api/v3/apiKey/valid/",
+        'audit': "/api/v3/audit/audit/",
+        'rules': "/api/v3/burp/rules/",
+        'autocomplete': "/api/v3/search/autocomplete/",
     }
 
     # Default search size parameter
@@ -65,7 +69,7 @@ class Vulners(object):
         :param api_key: string with Vulners API key. You can obtain one from the https://vulners.com
         :param persistent: Boolean. Regulates cookie storage policy. If set to true - will save down session cookie for reuse.
         """
-
+        self.vulners_urls = dict((key, self.vulners_hostname + self.api_endpoints.get(key)) for key in self.api_endpoints)
 
         # Requests opener. If persistent option is active - try to load
         self.__opener = requests.session()

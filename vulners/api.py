@@ -144,7 +144,7 @@ class Vulners(object):
         return False
 
     @rate_limited(api_rate_limits)
-    def __vulners_get_request(self, vulners_url_key, json_parameters):
+    def vulners_get_request(self, vulners_url_key, json_parameters):
         """
         Tech wrapper for the unified
 
@@ -161,7 +161,7 @@ class Vulners(object):
         return self.__adapt_response_content(response)
 
     @rate_limited(api_rate_limits)
-    def __vulners_post_request(self, vulners_url_key, json_parameters):
+    def vulners_post_request(self, vulners_url_key, json_parameters):
         """
         Tech wrapper for the unified
 
@@ -187,7 +187,7 @@ class Vulners(object):
         if not isinstance(api_key, string_types):
             raise TypeError("api_key expected to be a string")
 
-        return self.__vulners_post_request('apiKey', {'keyID':api_key}).get('valid')
+        return self.vulners_post_request('apiKey', {'keyID':api_key}).get('valid')
 
     def __archive(self, type, datefrom, dateto):
         """
@@ -204,7 +204,7 @@ class Vulners(object):
             raise TypeError("Datefrom expected to be a string")
         if not isinstance(dateto, string_types):
             raise TypeError("Dateto expected to be a string")
-        return self.__vulners_get_request('archive', {'type':type, 'datefrom':datefrom, 'dateto':dateto})
+        return self.vulners_get_request('archive', {'type':type, 'datefrom':datefrom, 'dateto':dateto})
 
     def __search(self, query, skip, size, fields=()):
         """
@@ -221,7 +221,7 @@ class Vulners(object):
             raise TypeError("Skip  expected to be a int in range 0-10000")
         if not isinstance(size, int) and size in range(0, 10000):
             raise TypeError("Size  expected to be a int in range 0-10000")
-        return self.__vulners_post_request('search', {"query":query, 'skip':skip or 0, 'size':size or 0, 'fields':fields or []})
+        return self.vulners_post_request('search', {"query":query, 'skip': skip or 0, 'size': size or 0, 'fields': fields or []})
 
     def __id(self, identificator, references):
         """
@@ -239,7 +239,7 @@ class Vulners(object):
         search_request = {"id": identificator}
         if references == True:
             search_request['references'] = "True"
-        return self.__vulners_post_request('id', search_request)
+        return self.vulners_post_request('id', search_request)
 
     def __audit(self, os, os_version, package):
         """
@@ -256,7 +256,7 @@ class Vulners(object):
             raise TypeError("OS Version expected to be a string")
         if not isinstance(package, (list, set)):
             raise TypeError("Package expected to be a list or set")
-        return self.__vulners_post_request('audit', {"os":os, 'version':os_version, 'package':package})
+        return self.vulners_post_request('audit', {"os":os, 'version':os_version, 'package':package})
 
     def __burpSoftware(self, software, version, type, maxVulnerabilities):
         """
@@ -273,7 +273,7 @@ class Vulners(object):
             raise TypeError("Version query expected to be a string")
         if not isinstance(type, string_types) or type not in ('software', 'cpe'):
             raise TypeError("Type query expected to be a string and in [software, cpe]")
-        return self.__vulners_post_request('software', {"software":software, 'version':version, 'type':type, 'maxVulnerabilities':maxVulnerabilities})
+        return self.vulners_post_request('software', {"software":software, 'version':version, 'type':type, 'maxVulnerabilities':maxVulnerabilities})
 
     def __suggest(self, type, field_name):
         """
@@ -287,7 +287,7 @@ class Vulners(object):
             raise TypeError("Type query expected to be a string")
         if not isinstance(field_name, string_types):
             raise TypeError("field_name query expected to be a string")
-        return self.__vulners_post_request('suggest', {"type":type, 'fieldName':field_name})
+        return self.vulners_post_request('suggest', {"type":type, 'fieldName':field_name})
 
     def __ai_score(self, text):
         """
@@ -299,7 +299,7 @@ class Vulners(object):
         """
         if not isinstance(text, string_types):
             raise TypeError("Text expected to be a string")
-        return self.__vulners_post_request('ai', {"text":text})
+        return self.vulners_post_request('ai', {"text":text})
 
     def __autocomplete(self, query):
         """
@@ -311,7 +311,7 @@ class Vulners(object):
         """
         if not isinstance(query, string_types):
             raise TypeError("Query expected to be a string")
-        return self.__vulners_post_request('autocomplete', {"query":query})
+        return self.vulners_post_request('autocomplete', {"query":query})
 
     def search(self, query, limit=100, offset=0, fields=("id", "title", "description", "type", "bulletinFamily", "cvss", "published", "modified", "href")):
         """
@@ -534,7 +534,7 @@ class Vulners(object):
 
         :return: {'SOFTWARE NAME':{'regex':REGEX, 'alias':'SW NAME', 'type':'software/cpe'}}
         """
-        return self.__vulners_get_request('rules', {}).get('rules', {})
+        return self.vulners_get_request('rules', {}).get('rules', {})
 
     def archive(self, collection, start_date='1950-01-01', end_date='2199-01-01'):
         """

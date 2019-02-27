@@ -60,6 +60,11 @@ class Vulners(object):
     # Default search size parameter
     search_size = 100
 
+    # Default search fields
+    # Can be extended or reduced for the query performance
+
+    default_fields = ["id", "title", "description", "type", "bulletinFamily", "cvss", "published", "modified", "href"]
+
 
     def __init__(self, api_key = None, proxies=None, persistent=True):
         """
@@ -206,7 +211,7 @@ class Vulners(object):
             raise TypeError("Dateto expected to be a string")
         return self.vulners_get_request('archive', {'type':type, 'datefrom':datefrom, 'dateto':dateto})
 
-    def __search(self, query, skip, size, fields=()):
+    def __search(self, query, skip, size, fields):
         """
         Tech search wrapper for internal lib usage
 
@@ -223,7 +228,7 @@ class Vulners(object):
             raise TypeError("Size  expected to be a int in range 0-10000")
         return self.vulners_post_request('search', {"query":query, 'skip': skip or 0, 'size': size or 0, 'fields': fields or []})
 
-    def __id(self, identificator, references):
+    def __id(self, identificator, references, fields):
         """
         Tech ID vulnerability get wrapper
 
@@ -236,7 +241,7 @@ class Vulners(object):
         if not isinstance(references, bool):
             raise TypeError("References  expected to be a bool")
 
-        search_request = {"id": identificator}
+        search_request = {"id": identificator, "fields":fields or []}
         if references == True:
             search_request['references'] = "True"
         return self.vulners_post_request('id', search_request)
@@ -313,7 +318,7 @@ class Vulners(object):
             raise TypeError("Query expected to be a string")
         return self.vulners_post_request('autocomplete', {"query":query})
 
-    def search(self, query, limit=100, offset=0, fields=("id", "title", "description", "type", "bulletinFamily", "cvss", "published", "modified", "href")):
+    def search(self, query, limit=100, offset=0, fields=None):
         """
         Search Vulners database for the abstract query
 
@@ -327,13 +332,13 @@ class Vulners(object):
         dataDocs = []
         total = 0
         for skip in range(offset, total_bulletins, min(self.search_size, limit or self.search_size)):
-            results = self.__search(query, skip, min(self.search_size, limit or self.search_size), fields or [])
+            results = self.__search(query, skip, min(self.search_size, limit or self.search_size), fields or self.default_fields)
             total = max(results.get('total'), total)
             for element in results.get('search'):
                     dataDocs.append(element.get('_source'))
         return AttributeList(dataDocs, total = total)
 
-    def searchPage(self, query, pageSize = 20, offset=0, fields=("id", "title", "description", "type", "bulletinFamily", "cvss", "published", "modified", "href")):
+    def searchPage(self, query, pageSize = 20, offset=0, fields=None):
         """
         Search Vulners database for the abstract query, page mode
 
@@ -344,12 +349,12 @@ class Vulners(object):
         :return: List of the found documents, total found bulletins
         """
 
-        results = self.__search(query, offset, min(pageSize, self.search_size), fields or [])
+        results = self.__search(query, offset, min(pageSize, self.search_size), fields or self.default_fields)
         total = results.get('total')
         dataDocs = [element.get('_source') for element in results.get('search')]
         return AttributeList(dataDocs, total = total)
 
-    def searchExploit(self, query, lookup_fields=None, limit=500, offset=0, fields=("id", "title", "description", "cvss", "href", "sourceData")):
+    def searchExploit(self, query, lookup_fields=None, limit=500, offset=0, fields=None):
         """
         Search Vulners database for the exploits
 
@@ -373,14 +378,14 @@ class Vulners(object):
         dataDocs = []
 
         for skip in range(offset, total_bulletins, min(self.search_size, limit or self.search_size)):
-            results = self.__search(searchQuery, skip, min(self.search_size, limit or self.search_size), fields or [])
+            results = self.__search(searchQuery, skip, min(self.search_size, limit or self.search_size), fields or self.default_fields + ['sourceData'])
             total = max(results.get('total'), total)
             for element in results.get('search'):
                 dataDocs.append(element.get('_source'))
         return AttributeList(dataDocs, total = total)
 
 
-    def searchExploitPage(self, query, lookup_fields=None, pageSize=20, offset=0, fields=("id", "title", "description", "cvss", "href", "sourceData")):
+    def searchExploitPage(self, query, lookup_fields=None, pageSize=20, offset=0, fields=None):
         """
         Search Vulners database for the exploits, page mode
 
@@ -399,7 +404,7 @@ class Vulners(object):
         else:
             searchQuery = "bulletinFamily:exploit AND %s" % query
 
-        results = self.__search(searchQuery, offset, min(pageSize, self.search_size), fields or [])
+        results = self.__search(searchQuery, offset, min(pageSize, self.search_size), fields or self.default_fields + ['sourceData'])
         total = results.get('total')
         dataDocs = [element.get('_source') for element in results.get('search')]
         return AttributeList(dataDocs, total = total)
@@ -443,7 +448,7 @@ class Vulners(object):
             dataDocs[elementData.get('bulletinFamily')] = dataDocs.get(elementData.get('bulletinFamily'), []) + [elementData]
         return dataDocs
 
-    def document(self, identificator):
+    def document(self, identificator, fields = None):
         """
         Fetch information about bulletin by identificator
 
@@ -451,7 +456,7 @@ class Vulners(object):
         :param references: Search for the references in all collections
         :return: bulletin data dict
         """
-        results = self.__id(identificator, references=False)
+        results = self.__id(identificator, references=False, fields = fields or self.default_fields)
         return results.get('documents', {}).get(identificator, {})
 
     def audit(self, os, os_version, package):
@@ -468,7 +473,7 @@ class Vulners(object):
         """
         return self.__audit(os, os_version, package)
 
-    def documentList(self, identificatorList):
+    def documentList(self, identificatorList, fields = None):
         """
         Fetch information about multiple bulletin identificators
 
@@ -478,9 +483,9 @@ class Vulners(object):
 
         if not isinstance(identificatorList, (list,set)) or not all(isinstance(item, string_types) for item in identificatorList):
             raise TypeError('Identificator list is expected to be a list of strings')
-        return self.__id(identificatorList, references=False).get('documents')
+        return self.__id(identificatorList, references=False, fields=fields or self.default_fields).get('documents')
 
-    def references(self, identificator):
+    def references(self, identificator, fields = None):
         """
         Fetch information about bulletin references by identificator
 
@@ -488,10 +493,10 @@ class Vulners(object):
         :param references: Search for the references in all collections
         :return: bulletin data dict
         """
-        results = self.__id(identificator, references=True)
+        results = self.__id(identificator, references=True, fields=fields or self.default_fields)
         return results.get('references', {}).get(identificator, {})
 
-    def referencesList(self, identificatorList):
+    def referencesList(self, identificatorList, fields = None):
         """
         Fetch information about multiple bulletin references
 
@@ -500,7 +505,7 @@ class Vulners(object):
         """
         if not isinstance(identificatorList, (list,set)) or not all(isinstance(item, string_types) for item in identificatorList):
             raise TypeError('Identificator list is expected to be a list of strings')
-        return self.__id(identificatorList, references=True).get('references')
+        return self.__id(identificatorList, references=True, fields=fields or self.default_fields).get('references')
 
     def collections(self):
         """

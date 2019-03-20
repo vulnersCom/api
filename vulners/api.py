@@ -105,10 +105,14 @@ class Vulners(object):
     def __adapt_response_content(self, response):
         """
         Check if response is a JSON and return it. Otherwise - return raw content
+        Also check 402 + 9000 response from backend: API key is invalid
 
         :param response: Requests response
         :return: {} or raw content
         """
+        if response.status_code == 402 and response.json()['data']['errorCode'] == 9000:
+            raise AssertionError("Bad or no API key provided. Please, obtain correct one registering at https://vulners.com")
+
         if re.match('.*json.*', response.headers.get('content-type'), re.IGNORECASE):
             results = response.json().get('data')
             if results.get('error'):

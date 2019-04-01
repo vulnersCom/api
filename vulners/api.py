@@ -66,7 +66,7 @@ class Vulners(object):
     default_fields = ["id", "title", "description", "type", "bulletinFamily", "cvss", "published", "modified", "href"]
 
 
-    def __init__(self, api_key = None, proxies=None, persistent=True):
+    def __init__(self, api_key, proxies=None, persistent=True):
         """
         Set default URLs and create session object
 
@@ -94,10 +94,13 @@ class Vulners(object):
 
         # API key validation
 
-        self.__api_key = api_key
+        if not api_key:
+            raise ValueError("API key must be provided. You can obtain one for free at https://vulners.com")
 
         if api_key and not isinstance(api_key, string_types):
             raise TypeError("api_key parameter must be a string value")
+
+        self.__api_key = api_key
 
         if api_key and not self.__validKey(api_key):
             raise ValueError("Wrong Vulners API key. Please, follow https://vulners.com to obtain correct one.")

@@ -596,7 +596,8 @@ class Vulners(object):
             if len(zip_file.namelist()) > 1:
                 raise Exception("Unexpected file count in Vulners ZIP archive")
             file_name = zip_file.namelist()[0]
-            return json.loads(zip_file.open(file_name).read())
+            archive_data = json.loads(zip_file.open(file_name).read())
+            return [bulletin['_source'] for bulletin in archive_data]
 
     def autocomplete(self, query):
         """

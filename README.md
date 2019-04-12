@@ -125,6 +125,15 @@ how_to_fix = centos_vulnerabilities.get('cumulativeFix')
 debian_vulnerabilities = vulners_api.audit(os= 'debian', os_version= '8', package= ['uno-libs3 4.3.3-2+deb8u7 amd64'])
 ```
 
+### Download Linux (RPM/DEB based) vulnerability assessment data for local processing
+```python
+import vulners
+
+vulners_api = vulners.Vulners(api_key="YOUR_API_KEY_HERE")
+
+# Example for CentOS 7
+centos_vulnerabilities_data = vulners_api.distributive("CentOS", "7")
+```
 ### Download web application vulnerability detection regex collection
 ```python
 import vulners

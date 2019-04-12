@@ -55,6 +55,7 @@ class Vulners(object):
         'audit': "/api/v3/audit/audit/",
         'rules': "/api/v3/burp/rules/",
         'autocomplete': "/api/v3/search/autocomplete/",
+        'distributive': "/api/v3/archive/distributive/"
     }
 
     # Default search size parameter
@@ -217,6 +218,21 @@ class Vulners(object):
         if not isinstance(dateto, string_types):
             raise TypeError("Dateto expected to be a string")
         return self.vulners_get_request('archive', {'type':type, 'datefrom':datefrom, 'dateto':dateto})
+
+    def __distributive(self, os, version):
+        """
+        Tech wrapper for the distributive archive gathering
+
+        :param type: Collection type
+        :param datefrom: Start date
+        :param dateto: End date
+        :return: ZIP archive
+        """
+        if not isinstance(os, string_types):
+            raise TypeError("OS expected to be a string")
+        if not isinstance(version, string_types):
+            raise TypeError("Version expected to be a string")
+        return self.vulners_get_request('distributive', {'os':os, 'version':version})
 
     def __search(self, query, skip, size, fields):
         """
@@ -558,6 +574,24 @@ class Vulners(object):
         if collection not in self.collections():
             raise ValueError("Can't get archive for the unknown collection. Available collections: %s" % self.collections())
         zipped_json = self.__archive(type=collection, datefrom=start_date, dateto=end_date)
+        with ZipFile(BytesIO(zipped_json)) as zip_file:
+            if len(zip_file.namelist()) > 1:
+                raise Exception("Unexpected file count in Vulners ZIP archive")
+            file_name = zip_file.namelist()[0]
+            return json.loads(zip_file.open(file_name).read())
+
+    def distributive(self, os, version):
+        """
+        Get dict with data for OS vulnerability assessment
+
+        :param os: OS name
+        :param versin: OS version
+        :return: {} vulnerability assessment data
+        """
+        supported_os = self.suggest("affectedPackage.OS")
+        if os.lower() not in [os_name.lower() for os_name in supported_os]:
+            raise ValueError("Can't get archive for the unknown OS. Available os: %s" % supported_os)
+        zipped_json = self.__distributive(os = os, version = version)
         with ZipFile(BytesIO(zipped_json)) as zip_file:
             if len(zip_file.namelist()) > 1:
                 raise Exception("Unexpected file count in Vulners ZIP archive")

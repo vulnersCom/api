@@ -6,6 +6,8 @@
 # Imports
 import re
 import json
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 import requests
 from io import BytesIO
 from zipfile import ZipFile
@@ -66,6 +68,15 @@ class Vulners(object):
 
     default_fields = ["id", "title", "description", "type", "bulletinFamily", "cvss", "published", "modified", "href"]
 
+    # Fail-safe retry parameters
+
+    # Retry status codes
+    retry_codes = (500, 502, 503, 504)
+    # How many times to retry
+    retry_count = 6
+    # How many seconds to sleep before next try
+    backoff_factor = 3
+
 
     def __init__(self, api_key, proxies=None, persistent=True):
         """
@@ -82,9 +93,16 @@ class Vulners(object):
         if persistent:
             self.__opener.cookies = PersistentCookieJar()
         # Setup pool size and Keep Alive
-        adapter = requests.adapters.HTTPAdapter(
-            pool_connections=100, pool_maxsize=100)
-        self.__opener.mount('https://', adapter)
+        retries = Retry(total=self.retry_count,
+                        backoff_factor=self.backoff_factor,
+                        status_forcelist=self.retry_codes,
+                        method_whitelist = ['POST', 'GET']
+                        )
+        adapter = HTTPAdapter(
+            pool_connections=100,
+            pool_maxsize=100,
+            max_retries=retries)
+        self.__opener.mount(self.vulners_hostname, adapter)
         self.__opener.headers.update({'Connection': 'Keep-Alive'})
         #
         self.__opener.headers.update({'User-Agent': 'Vulners Python API %s' % api_version})
@@ -356,6 +374,8 @@ class Vulners(object):
         total = 0
         for skip in range(offset, total_bulletins, min(self.search_size, limit or self.search_size)):
             results = self.__search(query, skip, min(self.search_size, limit or self.search_size), fields or self.default_fields)
+            if not isinstance(results, dict):
+                raise AssertionError("Asserted result failed. No JSON returned from Vulners.\nReturned response: %s..." % results[:100])
             total = max(results.get('total'), total)
             for element in results.get('search'):
                     dataDocs.append(element.get('_source'))

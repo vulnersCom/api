@@ -57,7 +57,8 @@ class Vulners(object):
         'audit': "/api/v3/audit/audit/",
         'rules': "/api/v3/burp/rules/",
         'autocomplete': "/api/v3/search/autocomplete/",
-        'distributive': "/api/v3/archive/distributive/"
+        'distributive': "/api/v3/archive/distributive/",
+        'kbAudit':"/api/v3/audit/kb/"
     }
 
     # Default search size parameter
@@ -304,6 +305,20 @@ class Vulners(object):
             raise TypeError("Package expected to be a list or set")
         return self.vulners_post_request('audit', {"os":os, 'version':os_version, 'package':package})
 
+    def __kbAudit(self, os, kb_list):
+        """
+        Tech Windows KB audit call wrapper for internal lib usage
+
+        :param os_name: Window
+        :param kb_list: List of installed KB's
+        :return: {'cvelist':[], 'kbMissed':[]}
+        """
+        if not isinstance(os, string_types):
+            raise TypeError("OS expected to be a string")
+        if not isinstance(kb_list, (list, set)):
+            raise TypeError("kb_list expected to be a list or set")
+        return self.vulners_post_request('kbAudit', {"os":os, 'kbList':kb_list})
+
     def __burpSoftware(self, software, version, type, maxVulnerabilities):
         """
         Tech Burp Software scanner call wrapper for internal lib usage
@@ -515,6 +530,16 @@ class Vulners(object):
         :return: {'packages':[LIST OF VULNERABLE PACKAGES], 'reasons':LIST OF REASONS, 'vulnerabilities':[LIST OF VULNERABILITY IDs]}
         """
         return self.__audit(os, os_version, package)
+
+    def kbAudit(self, os, kb_list):
+        """
+        Windows KB audit function.
+
+        :param os_name: Windows OS name, like "Windows Server 2012 R2"
+        :param kb_list: List of installed KB's, ["KB2918614", "KB2918616"....]
+        :return: {'cvelist':[], 'kbMissed':[]}
+        """
+        return self.__kbAudit(os, kb_list)
 
     def documentList(self, identificatorList, fields = None):
         """

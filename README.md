@@ -107,6 +107,15 @@ import vulners
 vulners_api = vulners.Vulners(api_key="YOUR_API_KEY_HERE")
 all_cve = vulners_api.archive("cve")
 ```
+### Audit Windows hosts for installed security KB
+```python
+import vulners
+
+vulners_api = vulners.Vulners(api_key="YOUR_API_KEY_HERE")
+win_vulners = vulners_api.kbAudit(os="Windows Server 2012 R2", kb_list=["KB4072650", "KB2959936", "KB2894856", "KB2896496"])
+need_2_install_kb = win_vulners['kbMissed']
+affected_cve = win_vulners['cvelist']
+```
 ### Audit Linux hosts for vulnerabilities (RPM/DEB based)
 ```python
 import vulners

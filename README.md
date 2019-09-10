@@ -49,7 +49,7 @@ CVE_2017_14174 = vulners_api.document("CVE-2017-14174")
 import vulners
 
 vulners_api = vulners.Vulners(api_key="YOUR_API_KEY_HERE")
-CVE_DATA = vulners_api.documentList(["CVE-2017-14174", "CVE-2016-1175")
+CVE_DATA = vulners_api.documentList(["CVE-2017-14174", "CVE-2016-1175"])
 ```
 ### Search for the public available exploits
 ```python

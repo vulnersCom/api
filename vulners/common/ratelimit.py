@@ -73,13 +73,13 @@ class LastTime:
                               debugname,
                               self.cnt.value,
                               time.strftime(
-                                '%T.{}'
+                                '%H:%M:%S.{}'
                                 .format(str(self.last_time_called.value -
                                             int(self.last_time_called.value))
                                             .split('.')[1][:3]),
                                 time.localtime(self.last_time_called.value)),
                               time.strftime(
-                                '%T.{}'
+                                '%H:%M:%S.{}'
                                 .format(str(now -
                                             int(now))
                                             .split('.')[1][:3]),
@@ -130,10 +130,10 @@ def rate_limited(ratelimit_dict):
                               .format(func.__name__,
                                       LT.get_cnt(),
                                       time.strftime(
-                                            '%T',
+                                            '%H:%M:%S',
                                             time.localtime(
                                                 LT.get_last_time_called())),
-                                      time.strftime('%T',
+                                      time.strftime('%H:%M:%S',
                                                     time.localtime(xfrom)),
                                       elapsed,
                                       min_interval,

@@ -541,6 +541,21 @@ class Vulners(object):
         """
         return self.__kbAudit(os, kb_list)
 
+    def kbSuperseeds(self, kb_identificator):
+        """
+        Returns list of superseeds KB's and parentseeds KB's.
+        Superseeds means "what KB are covered by this KB".
+        Parentseeds means "what KB are covering this KB".
+
+        superseeds_list --> KB --> parentseeds_list
+
+        :param kb_identificator: Microsoft KB identificator
+        :return: {'superseeds':[], 'parentseeds':[]}
+        """
+        kb_candidate = self.__id(identificator=kb_identificator, fields=['superseeds', 'parentseeds'], references=False)
+        kb_document = kb_candidate.get('documents',{}).get(kb_identificator, {})
+        return {'superseeds':kb_document.get('superseeds', []), 'parentseeds':kb_document.get('parentseeds', [])}
+
     def documentList(self, identificatorList, fields = None):
         """
         Fetch information about multiple bulletin identificators

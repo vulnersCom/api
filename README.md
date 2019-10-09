@@ -85,6 +85,17 @@ import vulners
 vulners_api = vulners.Vulners(api_key="YOUR_API_KEY_HERE")
 references = vulners_api.references("CVE-2014-0160")
 ```
+### Get Windows KB superseeding and parentseeding information
+```python
+import vulners
+
+vulners_api = vulners.Vulners(api_key="YOUR_API_KEY_HERE")
+# Superseeding information will be returned as dict
+# with two fields: 'superseeds', 'parentseeds'.
+# Superseeds means "what KB are covered by this KB".
+# Parentseeds means "what KB are covering this KB".
+superseeds = vulners_api.kbSuperseeds("KB4524135")
+```
 ### Score any vulnerability description using [Vulners AI](https://lab.wallarm.com/new-from-wallarm-research-first-ai-based-tool-to-predict-vulnerability-risk-2d0a7e9b3474)
 ```python
 import vulners
@@ -93,7 +104,7 @@ vulners_api = vulners.Vulners(api_key="YOUR_API_KEY_HERE")
 text_ai_score = vulners_api.aiScore("My cool vulnerability description")
 ```
 ### Get possible query autocompletions
-```
+```python
 import vulners
 
 vulners_api = vulners.Vulners(api_key="YOUR_API_KEY_HERE")

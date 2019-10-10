@@ -552,9 +552,37 @@ class Vulners(object):
         :param kb_identificator: Microsoft KB identificator
         :return: {'superseeds':[], 'parentseeds':[]}
         """
+        if not isinstance(kb_identificator, string_types):
+            raise TypeError('KB Identificator expected to be a a string')
         kb_candidate = self.__id(identificator=kb_identificator, fields=['superseeds', 'parentseeds'], references=False)
         kb_document = kb_candidate.get('documents',{}).get(kb_identificator, {})
         return {'superseeds':kb_document.get('superseeds', []), 'parentseeds':kb_document.get('parentseeds', [])}
+
+    def kbUpdates(self, kb_identificator, fields = None):
+        """
+        Returns list of updates for KB
+        :param kb_identificator: Microsoft KB identificator
+        :return: List of the found documents, total found bulletins
+        """
+        if not isinstance(kb_identificator, string_types):
+            raise TypeError('KB Identificator expected to be a a string')
+
+        query = "type:msupdate AND kb:(%s)" % (kb_identificator)
+
+        total_bulletins = self.__search(query, 0, 0, ['id']).get('total')
+        dataDocs = []
+        total = 0
+        offset = 0
+        limit = 1000
+        for skip in range(offset, total_bulletins, limit):
+            results = self.__search(query, skip, limit, fields or self.default_fields)
+            if not isinstance(results, dict):
+                raise AssertionError(
+                    "Asserted result failed. No JSON returned from Vulners.\nReturned response: %s..." % results[:100])
+            total = max(results.get('total'), total)
+            for element in results.get('search'):
+                dataDocs.append(element.get('_source'))
+        return AttributeList(dataDocs, total=total)
 
     def documentList(self, identificatorList, fields = None):
         """

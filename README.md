@@ -96,6 +96,14 @@ vulners_api = vulners.Vulners(api_key="YOUR_API_KEY_HERE")
 # Parentseeds means "what KB are covering this KB".
 superseeds = vulners_api.kbSuperseeds("KB4524135")
 ```
+### Get Windows KB updates list and download urls
+```python
+import vulners
+
+vulners_api = vulners.Vulners(api_key="YOUR_API_KEY_HERE")
+microsoft_updates_for_kb = vulners_api.kbUpdates("KB4524135")
+updates_download_links = [update.get('href') for update in microsoft_updates_for_kb]
+```
 ### Score any vulnerability description using [Vulners AI](https://lab.wallarm.com/new-from-wallarm-research-first-ai-based-tool-to-predict-vulnerability-risk-2d0a7e9b3474)
 ```python
 import vulners

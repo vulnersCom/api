@@ -67,7 +67,20 @@ class Vulners(object):
     # Default search fields
     # Can be extended or reduced for the query performance
 
-    default_fields = ["id", "title", "description", "type", "bulletinFamily", "cvss", "published", "modified", "href"]
+    default_fields = [
+            'id',
+            'title',
+            'description',
+            'type',
+            'bulletinFamily',
+            'cvss',
+            'published',
+            'modified',
+            'lastseen',
+            'href',
+            'sourceHref',
+            'sourceData',
+    ]
 
     # Fail-safe retry parameters
 

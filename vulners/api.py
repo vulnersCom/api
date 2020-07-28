@@ -519,7 +519,7 @@ class Vulners(object):
             dataDocs[elementData.get('bulletinFamily')] = dataDocs.get(elementData.get('bulletinFamily'), []) + [elementData]
         return dataDocs
 
-    def document(self, identificator, fields = None):
+    def document(self, identificator, fields = None, references = False):
         """
         Fetch information about bulletin by identificator
 
@@ -527,7 +527,7 @@ class Vulners(object):
         :param references: Search for the references in all collections
         :return: bulletin data dict
         """
-        results = self.__id(identificator, references=False, fields = fields or self.default_fields)
+        results = self.__id(identificator, references=references, fields = fields or self.default_fields)
         return results.get('documents', {}).get(identificator, {})
 
     def audit(self, os, os_version, package):
@@ -597,7 +597,7 @@ class Vulners(object):
                 dataDocs.append(element.get('_source'))
         return AttributeList(dataDocs, total=total)
 
-    def documentList(self, identificatorList, fields = None):
+    def documentList(self, identificatorList, fields = None, references = False):
         """
         Fetch information about multiple bulletin identificators
 
@@ -607,7 +607,7 @@ class Vulners(object):
 
         if not isinstance(identificatorList, (list,set)) or not all(isinstance(item, string_types) for item in identificatorList):
             raise TypeError('Identificator list is expected to be a list of strings')
-        return self.__id(identificatorList, references=False, fields=fields or self.default_fields).get('documents')
+        return self.__id(identificatorList, references=references, fields=fields or self.default_fields).get('documents')
 
     def references(self, identificator, fields = None):
         """

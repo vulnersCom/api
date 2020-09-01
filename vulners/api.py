@@ -87,9 +87,9 @@ class Vulners(object):
     # Retry status codes
     retry_codes = (500, 502, 503, 504)
     # How many times to retry
-    retry_count = 6
+    retry_count = 3
     # How many seconds to sleep before next try
-    backoff_factor = 3
+    backoff_factor = 1
 
 
     def __init__(self, api_key, proxies=None, persistent=True):

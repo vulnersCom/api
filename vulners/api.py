@@ -58,7 +58,8 @@ class Vulners(object):
         'rules': "/api/v3/burp/rules/",
         'autocomplete': "/api/v3/search/autocomplete/",
         'distributive': "/api/v3/archive/distributive/",
-        'kbAudit':"/api/v3/audit/kb/"
+        'kbAudit':"/api/v3/audit/kb/",
+        'softwareAudit':"/api/v3/burp/packages/"
     }
 
     # Default search size parameter
@@ -301,6 +302,23 @@ class Vulners(object):
             search_request['references'] = "True"
         return self.vulners_post_request('id', search_request)
 
+    def __software_audit(self, packages, os, os_version):
+        """
+        Tech Software Audit call wrapper for internal lib usage
+
+        :param os: OS name
+        :param os_version: OS version
+        :param packages: List of the dicts
+        :return: {'vulnerabilities':[LIST OF VULNERABLE PACKAGES AND DESC]}
+        """
+        if not isinstance(os, string_types):
+            raise TypeError("OS expected to be a string")
+        if not isinstance(os_version, string_types):
+            raise TypeError("OS Version expected to be a string")
+        if not isinstance(packages, (list, set)):
+            raise TypeError("Package expected to be a list or set")
+        return self.vulners_post_request('softwareAudit', {"os":os, 'osVersion':os_version, 'packages':packages})
+
     def __audit(self, os, os_version, package):
         """
         Tech Audit call wrapper for internal lib usage
@@ -527,7 +545,7 @@ class Vulners(object):
         :param references: Search for the references in all collections
         :return: bulletin data dict
         """
-        results = self.__id(identificator, references=references, fields = fields or self.default_fields)
+        results = self.__id(identificator, references=references, fields = fields or ["*"])
         return results.get('documents', {}).get(identificator, {})
 
     def audit(self, os, os_version, package):
@@ -543,6 +561,19 @@ class Vulners(object):
         :return: {'packages':[LIST OF VULNERABLE PACKAGES], 'reasons':LIST OF REASONS, 'vulnerabilities':[LIST OF VULNERABILITY IDs]}
         """
         return self.__audit(os, os_version, package)
+
+    def software_audit(self, os, os_version, packages):
+        """
+        Software audit allow you to analyse software name/version pairs for the CVE's.
+        Packages input format, list of dicts:
+        [{"software":"Mozilla Firefox", "version":"80.0.1"}]
+
+        :param os: Full name of the OS. Like Ubuntu, Debian, rhel, oraclelinux, Mac OS, Windows
+        :param os_version: OS version
+        :param packages: List of the software dicts
+        :return: {}
+        """
+        return self.__software_audit(packages, os, os_version)
 
     def kbAudit(self, os, kb_list):
         """
@@ -607,7 +638,7 @@ class Vulners(object):
 
         if not isinstance(identificatorList, (list,set)) or not all(isinstance(item, string_types) for item in identificatorList):
             raise TypeError('Identificator list is expected to be a list of strings')
-        return self.__id(identificatorList, references=references, fields=fields or self.default_fields).get('documents')
+        return self.__id(identificatorList, references=references, fields=fields or ["*"]).get('documents')
 
     def references(self, identificator, fields = None):
         """

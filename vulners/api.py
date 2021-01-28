@@ -81,6 +81,7 @@ class Vulners(object):
             'href',
             'sourceHref',
             'sourceData',
+            'cvelist'
     ]
 
     # Fail-safe retry parameters

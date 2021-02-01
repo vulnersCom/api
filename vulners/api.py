@@ -280,9 +280,9 @@ class Vulners(object):
         """
         if not isinstance(query, string_types):
             raise TypeError("Search query expected to be a string")
-        if not isinstance(skip, int) or not 0 <= skip <= 10000:
+        if not isinstance(skip, int) or not 0 <= skip <= 9999:
             raise TypeError(
-                "Skip expected to be an int in range 0-10000, Vulners "
+                "Skip expected to be an int in range 0-9999, Vulners "
                 "won't provide records if skip is greater than that.")
         if not isinstance(size, int) or not 0 <= size <= 100:
             raise TypeError(
@@ -419,7 +419,7 @@ class Vulners(object):
 
         :param query: Abstract Vulners query. See https://vulners.com/help for the details.
         :param limit: a.k.a. search size. Default is 100 records.
-        :param offset: Skip this amount of documents. 10000 is Vulners' absolute maximum.
+        :param offset: Skip this amount of documents. 9999 is Vulners' absolute maximum.
         :param fields: Returnable fields of the data model.
         :return: AttributeList of the found documents. Total number of found bulletins can be retrieved on r.total
         """
@@ -440,7 +440,7 @@ class Vulners(object):
 
         :param query: Abstract Vulners query. See https://vulners.com/help for the details.
         :param pageSize: Search size. Default is 20 in the single hit. 100 is the maximum
-        :param offset: Skip this amount of documents. 10000 is the hard limit
+        :param offset: Skip this amount of documents. 9999 is the hard limit
         :param fields: Returnable fields of the data model.
         :return: List of the found documents, total found bulletins
         """
@@ -461,7 +461,7 @@ class Vulners(object):
         :param query: Print here software name and criteria
         :param lookup_fields: Make a strict search using lookup limit. Like ["title"]
         :param limit: Search size. Default is 500 elements limit. 10000 is absolute maximum.
-        :param offset: Skip this amount of documents. 10000 is absolute maximum.
+        :param offset: Skip this amount of documents. 9999 is absolute maximum.
         :param fields: Returnable fields of the data model.
         :return: List of the found documents, total found bulletins
         """

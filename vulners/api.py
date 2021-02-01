@@ -273,16 +273,21 @@ class Vulners(object):
         Tech search wrapper for internal lib usage
 
         :param query: Search query.
-        :param skip: How much bulletins to skip.
-        :param size: How much results to return.
-        :return: {'search':[SEARCH_RESULTS_HERE], 'total':TOTAL_BULLETINS_FOUND}
+        :param skip: How many bulletins to skip.
+        :param size: How many results to return.
+        :return: {'search': [SEARCH_RESULTS_HERE], 'exactMatch': <<>>, 'references': <<>>, 'total': TOTAL_BULLETINS_FOUND, 'maxSearchSize': 100}
+
         """
         if not isinstance(query, string_types):
             raise TypeError("Search query expected to be a string")
-        if not isinstance(skip, int) and skip in range(0, 10000):
-            raise TypeError("Skip  expected to be a int in range 0-10000")
-        if not isinstance(size, int) and size in range(0, 10000):
-            raise TypeError("Size  expected to be a int in range 0-10000")
+        if not isinstance(skip, int) or not 0 <= skip <= 10000:
+            raise TypeError(
+                "Skip expected to be an int in range 0-10000, Vulners "
+                "won't provide records if skip is greater than that.")
+        if not isinstance(size, int) or not 0 <= size <= 100:
+            raise TypeError(
+                "Size expected to be an int in range 0-100. "
+                "Vulners has a hard limit on max response size equal to 100")
         return self.vulners_post_request('search', {"query":query, 'skip': skip or 0, 'size': size or 0, 'fields': fields or []})
 
     def __id(self, identificator, references, fields):
@@ -410,22 +415,23 @@ class Vulners(object):
         """
         Search Vulners database for the abstract query
 
+        Retrieves up to 10000 records.
+
         :param query: Abstract Vulners query. See https://vulners.com/help for the details.
-        :param limit: Search size. Default is 100 elements limit. 10000 skip is absolute maximum.
-        :param offset: Skip this amount of documents
+        :param limit: a.k.a. search size. Default is 100 records.
+        :param offset: Skip this amount of documents. 10000 is Vulners' absolute maximum.
         :param fields: Returnable fields of the data model.
-        :return: List of the found documents, total found bulletins
+        :return: AttributeList of the found documents. Total number of found bulletins can be retrieved on r.total
         """
+        assert type(limit) == int, "limit can only be an int"
+
         total_bulletins = limit or self.__search(query, 0, 0, ['id']).get('total')
         dataDocs = []
         total = 0
         for skip in range(offset, total_bulletins, min(self.search_size, limit or self.search_size)):
-            results = self.__search(query, skip, min(self.search_size, limit or self.search_size), fields or self.default_fields)
-            if not isinstance(results, dict):
-                raise AssertionError("Asserted result failed. No JSON returned from Vulners.\nReturned response: %s..." % results[:100])
-            total = max(results.get('total'), total)
-            for element in results.get('search'):
-                    dataDocs.append(element.get('_source'))
+            new_page = self.searchPage(query, min(self.search_size, limit or self.search_size), skip, fields or self.default_fields)
+            dataDocs += new_page
+            total = max(new_page.total, total)
         return AttributeList(dataDocs, total = total)
 
     def searchPage(self, query, pageSize = 20, offset=0, fields=None):
@@ -434,24 +440,28 @@ class Vulners(object):
 
         :param query: Abstract Vulners query. See https://vulners.com/help for the details.
         :param pageSize: Search size. Default is 20 in the single hit. 100 is the maximum
-        :param offset: Skip this amount of documents
+        :param offset: Skip this amount of documents. 10000 is the hard limit
         :param fields: Returnable fields of the data model.
         :return: List of the found documents, total found bulletins
         """
 
         results = self.__search(query, offset, min(pageSize, self.search_size), fields or self.default_fields)
+        if not isinstance(results, dict):
+                raise AssertionError(
+                    "Asserted result failed. No JSON returned from Vulners.\n"
+                    "Returned response: %s..." % results[:100])
         total = results.get('total')
         dataDocs = [element.get('_source') for element in results.get('search')]
         return AttributeList(dataDocs, total = total)
 
-    def searchExploit(self, query, lookup_fields=None, limit=500, offset=0, fields=None):
+    def searchExploit(self, query, lookup_fields=None, limit=100, offset=0, fields=None):
         """
         Search Vulners database for the exploits
 
         :param query: Print here software name and criteria
-        :param lookup_fileds: Make a strict search using lookup limit. Like ["title"]
+        :param lookup_fields: Make a strict search using lookup limit. Like ["title"]
         :param limit: Search size. Default is 500 elements limit. 10000 is absolute maximum.
-        :param offset: Skip this amount of documents
+        :param offset: Skip this amount of documents. 10000 is absolute maximum.
         :param fields: Returnable fields of the data model.
         :return: List of the found documents, total found bulletins
         """
@@ -468,10 +478,9 @@ class Vulners(object):
         dataDocs = []
 
         for skip in range(offset, total_bulletins, min(self.search_size, limit or self.search_size)):
-            results = self.__search(searchQuery, skip, min(self.search_size, limit or self.search_size), fields or self.default_fields + ['sourceData'])
-            total = max(results.get('total'), total)
-            for element in results.get('search'):
-                dataDocs.append(element.get('_source'))
+            new_page = self.searchPage(query, min(self.search_size, limit or self.search_size), skip, fields or self.default_fields + ['sourceData'])
+            dataDocs += new_page
+            total = max(new_page.total, total)
         return AttributeList(dataDocs, total = total)
 
 
@@ -480,7 +489,7 @@ class Vulners(object):
         Search Vulners database for the exploits, page mode
 
         :param query: Print here software name and criteria
-        :param lookup_fileds: Make a strict search using lookup limit. Like ["title"]
+        :param lookup_fields: Make a strict search using lookup limit. Like ["title"]
         :param pageSize: Search size. Default is 20 in the single hit. 100 is the maximum
         :param offset: Skip this amount of documents
         :param fields: Returnable fields of the data model.
@@ -620,13 +629,9 @@ class Vulners(object):
         offset = 0
         limit = 1000
         for skip in range(offset, total_bulletins, limit):
-            results = self.__search(query, skip, limit, fields or self.default_fields)
-            if not isinstance(results, dict):
-                raise AssertionError(
-                    "Asserted result failed. No JSON returned from Vulners.\nReturned response: %s..." % results[:100])
-            total = max(results.get('total'), total)
-            for element in results.get('search'):
-                dataDocs.append(element.get('_source'))
+            new_page = self.searchPage(query, limit, skip, fields or self.default_fields)
+            dataDocs += new_page
+            total = max(new_page.total, total)
         return AttributeList(dataDocs, total=total)
 
     def documentList(self, identificatorList, fields = None, references = False):

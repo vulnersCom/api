@@ -6,7 +6,7 @@
 
 import vulners
 
-vulners_api = vulners.Vulners()
+vulners_api = vulners.Vulners(api_key="YOUR_API_KEY_HERE")
 
 # Download web application vulnerability detection regex collection
 rules = vulners_api.rules()

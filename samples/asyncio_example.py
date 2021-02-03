@@ -7,7 +7,7 @@ import vulners
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 
 
-vulners_api = vulners.Vulners()
+vulners_api = vulners.Vulners(api_key="YOUR_API_KEY_HERE")
 
 loop = asyncio.get_event_loop()
 # pool = ProcessPoolExecutor(max_workers=multiprocessing.cpu_count())

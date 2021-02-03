@@ -8,7 +8,7 @@
 import concurrent.futures
 import vulners
 
-vulners_api = vulners.Vulners()
+vulners_api = vulners.Vulners(api_key="YOUR_API_KEY_HERE")
 
 collection_names = vulners_api.collections()[:20]
 

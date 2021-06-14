@@ -1,5 +1,11 @@
 # -*- coding: utf-8 -*-
 
-__version__ = "1.5.11"
+__version__ = "2.0.0"
 
-from vulners.api import Vulners
+import warnings
+from . vulners import VulnersApi, Vulners
+from . vscanner import VScannerApi
+
+
+warnings.simplefilter("always", DeprecationWarning)
+

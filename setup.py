@@ -1,33 +1,37 @@
 # -*- coding: utf-8 -*-
-# ===========================
-# Setup file
-# ===========================
 
 import re
+import os
 from setuptools import setup, find_packages
 
 
-version = re.search(r'__version__\s*=\s*"(.+)"', open('vulners/__init__.py', 'rt').read()).group(1)
+def get_version(package):
+    init_py = open(os.path.join(package, "__init__.py")).read()
+    return re.search("__version__ = ['\"]([^'\"]+)['\"]", init_py).group(1)
 
-with open('README.md') as f:
-    long_description = f.read()
-    
+
+def get_long_description(long_description_file):
+    with open(long_description_file, encoding="utf-8") as f:
+        long_description = f.read()
+    return long_description
+
 
 setup(
-    name='vulners',
-    version=version,
-    description ='Python library and command-line utility for Vulners (https://vulners.com)',
-    long_description=long_description,
-    long_description_content_type='text/markdown',
-    author='Kirill Ermakov',
-    author_email='isox@vulners.com',
-    url='https://github.com/vulnersCom/api',
-    packages=find_packages(exclude=['samples']),
-    install_requires = [
-        'requests',
-        'six'
+    name="vulners",
+    version=get_version("vulners"),
+    description="Python library and command-line utility for Vulners (https://vulners.com)",
+    long_description=get_long_description("README.md"),
+    long_description_content_type="text/markdown",
+    author="Kirill Ermakov, Andrei Churin",
+    author_email="isox@vulners.com, aachurin@gmail.com",
+    url="https://github.com/vulnersCom/api",
+    packages=find_packages(exclude=["samples"]),
+    install_requires=[
+        "requests",
+        "six",
+        "appdirs"
     ],
-    keywords=['security', 'network', 'vulners', 'vulnerability', 'CVE'],
+    keywords=["security", "network", "vulners", "vulnerability", "CVE"],
     classifiers =[
         "Development Status :: 5 - Production/Stable",
         "Operating System :: OS Independent",

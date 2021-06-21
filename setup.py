@@ -11,8 +11,7 @@ def get_version(package):
 
 
 def get_long_description(long_description_file):
-    with open(long_description_file, encoding="utf-8") as f:
-        long_description = f.read()
+    long_description = open(long_description_file).read()
     return long_description
 
 

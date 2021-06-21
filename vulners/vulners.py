@@ -514,7 +514,7 @@ class DeprecatedVulnersApi(VulnersApi):
     def documentList(self, identificatorList, fields=None):
         warnings.warn(
             "documentList() is deprecated and will be removed in future release. "
-            "Use VulnersApi.get_bulletins() instead.",
+            "Use VulnersApi.get_multiple_bulletins() instead.",
             DeprecationWarning
         )
         return self.get_multiple_bulletins(identificatorList, fields=fields or self.default_fields)
@@ -530,7 +530,7 @@ class DeprecatedVulnersApi(VulnersApi):
     def referencesList(self, identificatorList, fields=None):
         warnings.warn(
             "referencesList() is deprecated and will be removed in future release. "
-            "Use VulnersApi.get_bulletins_references() instead.",
+            "Use VulnersApi.get_multiple_bulletin_references() instead.",
             DeprecationWarning
         )
         return self.get_multiple_bulletin_references(identificatorList, fields=fields or self.default_fields)

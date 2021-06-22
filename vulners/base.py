@@ -23,7 +23,9 @@ except AttributeError:
 
 
 class VulnersApiError(Exception):
-    pass
+    def __init__(self, http_status, data):
+        super(VulnersApiError, self).__init__(data)
+        self.http_status = http_status
 
 
 class VulnersApiMeta(type):
@@ -172,17 +174,16 @@ class VulnersApiBase(with_metaclass(VulnersApiMeta)):
 
     @staticmethod
     def adapt_response(response, method, expected_result):
-        if method == "delete":
-            return None
-        if expected_result == "json":
+        if method != "delete" and expected_result == "json":
             result = response.json()
-            if response.status_code == 400:
-                raise VulnersApiError(result)
-            if isinstance(result, dict) and "data" in result:
-                data = result["data"]
-                if isinstance(data, dict) and data.get("error"):
-                    raise VulnersApiError(data)
-                return data
+            if isinstance(result, dict):
+                if response.status_code >= 400:
+                    raise VulnersApiError(response.status_code, result)
+                if "data" in result:
+                    data = result["data"]
+                    if isinstance(data, dict) and data.get("error"):
+                        raise VulnersApiError(response.status_code, data)
+                    return data
             return result
         return response.content
 

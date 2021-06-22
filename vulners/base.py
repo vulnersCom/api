@@ -407,10 +407,6 @@ def validate_params(**params):
     return decorator
 
 
-def default_content_handler(data, headers):
-    return data
-
-
 class Endpoint(object):
     _mapping = {
         "str": String,
@@ -432,6 +428,7 @@ class Endpoint(object):
         params=None,
         result_type="json",
         content_handler=None,
+        wrapper=None
     ):
         assert method in ("get", "post", "put", "delete")
         assert isinstance(url, string_types)
@@ -457,6 +454,7 @@ class Endpoint(object):
         self.description = description
         self.result_type = result_type
         self.content_handler = content_handler
+        self.wrapper = wrapper
         if params:
             for k, v in params:
                 self.params[k] = v
@@ -467,7 +465,8 @@ class Endpoint(object):
         body_params = []
         path_params = []
         func_locals = {
-            "_content_wrapper": self.content_handler or default_content_handler
+            "_content_handler": self.content_handler,
+            "_wrapper": self.wrapper
         }
         func_locals_reverse = {}
         func_doc = [self.description or name, ""]
@@ -520,8 +519,8 @@ class Endpoint(object):
             "  '''{func_doc}'''\n"
             "  body_params = {{}}\n"
             "  {body_params}\n"
-            "  r = self._send_request({method!r}, {url!r}, body_params, {path_params}, {ratelimit_key!r}, {result!r})\n"
-            "  return _content_wrapper(*r)\n"
+            "  path_params = {{{path_params}}}\n" 
+            "  r = self._send_request({method!r}, {url!r}, body_params, path_params, {ratelimit_key!r}, {result!r})\n"
         ).format(
             name=name,
             func_args=", ".join(func_args),
@@ -529,10 +528,17 @@ class Endpoint(object):
             method=self.method,
             url=self.url,
             body_params="\n  ".join(body_params),
-            path_params="{%s}" % ", ".join(path_params),
+            path_params=", ".join(path_params),
             ratelimit_key=ratelimit_key,
             result=self.result_type,
         )
+        if self.content_handler:
+            code += "  r = _content_handler(*r)\n"
+        else:
+            code += "  r = r[0]\n"
+        if self.wrapper:
+            code += "  r = _wrapper(self, r)\n"
+        code += "  return r"
         exec(code, func_locals, func_locals)
         return func_locals[name]
 

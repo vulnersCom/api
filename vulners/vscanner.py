@@ -12,9 +12,72 @@ from .base import (
 )
 from .base import ResultSet
 
+try:
+    from collections.abc import Mapping
+except ImportError:
+    from collections import Mapping
+
 
 def make_result_set(content, headers):
     return ResultSet.from_dataset(content, int(headers["X-Total-Count"]))
+
+
+class MappingObject(Mapping):
+    __slots__ = ("_api",)
+
+    def __init__(self, api, data):
+        self._api = api
+        self.__dict__ = data
+
+    def __len__(self):
+        return len(self.__dict__)
+
+    def __getitem__(self, k):
+        return self.__dict__[k]
+
+    def __iter__(self):
+        return iter(self.__dict__)
+
+    def __repr__(self):
+        return repr(self.__dict__)
+
+
+class Project(MappingObject):
+    def update(self, **kwargs):
+        kwargs.setdefault("name", self.name)
+        kwargs.setdefault("license_id", self.license["id"])
+        kwargs.setdefault("notification", self.notification)
+        self.__dict__ = self._api.update_project(self._id, **kwargs).__dict__
+
+    def delete(self):
+        self._api.delete_project(self._id)
+
+    def get_tasks(self, *args, **kwargs):
+        return self._api.get_tasks(self._id, *args, **kwargs)
+
+    def create_task(self, *args, **kwargs):
+        return self._api.create_task(self._id, *args, **kwargs)
+
+    def get_results(self, *args, **kwargs):
+        return self._api.get_results(self._id, *args, **kwargs)
+
+    def delete_result(self, *args, **kwargs):
+        return self._api.delete_result(self._id, *args, **kwargs)
+
+
+class Task(MappingObject):
+    def update(self, **kwargs):
+        kwargs.setdefault("name", self.name)
+        kwargs.setdefault("networks", self.networks)
+        kwargs.setdefault("schedule", self.schedule)
+        kwargs.setdefault("enabled", self.enabled)
+        self.__dict__ = self._api.update_task(self.project_id, self._id, **kwargs).__dict__
+
+    def delete(self):
+        self._api.delete_task(self.project_id, self._id)
+
+    def start_task(self):
+        self.__dict__ = self._api.stark_task(self.project_id, self._id)
 
 
 class VScannerApi(VulnersApiBase):
@@ -33,6 +96,7 @@ class VScannerApi(VulnersApiBase):
             ("offset", Integer(default=0)),
             ("limit", Integer(default=50)),
         ],
+        wrapper=lambda api, c: [Project(api, x) for x in c],
     )
     get_quota = Endpoint(
         method="get",
@@ -56,6 +120,7 @@ class VScannerApi(VulnersApiBase):
                 ),
             ),
         ],
+        wrapper=Project
     )
     update_project = Endpoint(
         method="put",
@@ -74,6 +139,7 @@ class VScannerApi(VulnersApiBase):
                 ),
             ),
         ],
+        wrapper=Project
     )
     delete_project = Endpoint(
         method="delete",
@@ -85,6 +151,7 @@ class VScannerApi(VulnersApiBase):
         url="/api/v3/proxy/vscanner/projects/{uuid:project_id|Project id}/tasks",
         description="Get project tasks",
         params=[("offset", Integer(default=0)), ("limit", Integer(default=50))],
+        wrapper=lambda api, c: [Task(api, x) for x in c],
     )
     create_task = Endpoint(
         method="post",
@@ -96,6 +163,7 @@ class VScannerApi(VulnersApiBase):
             ("schedule", String(description="Crontab string")),
             ("enabled", Boolean(description="Enable/disable task")),
         ],
+        wrapper=Task
     )
     update_task = Endpoint(
         method="put",
@@ -107,11 +175,13 @@ class VScannerApi(VulnersApiBase):
             ("schedule", String(description="Crontab string")),
             ("enabled", Boolean(description="Enable/disable task")),
         ],
+        wrapper=Task
     )
     start_task = Endpoint(
         method="post",
         url="/api/v3/proxy/vscanner/projects/{uuid:project_id|Project id}/tasks/{uuid:task_id|Task id}/start",
         description="Start task asap.",
+        wrapper=Task
     )
     delete_task = Endpoint(
         method="delete",
@@ -190,7 +260,9 @@ class VScannerApi(VulnersApiBase):
     )
 
     def get_image_binary(self, image_uri, as_base64=False):
-        result, headers = self._send_request("get", "/vscanner/screen/" + image_uri, {}, {}, self.ratelimit_key, "binary")
+        result, headers = self._send_request(
+            "get", "/vscanner/screen/" + image_uri, {}, {}, self.ratelimit_key, "binary"
+        )
         if as_base64:
             return base64.b64encode(result)
         return result

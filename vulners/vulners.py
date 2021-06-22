@@ -2,15 +2,26 @@ import warnings
 import zipfile
 import io
 import json
-from . base import VulnersApiBase, ParamError, validate_params
-from . base import Endpoint, String, Integer, Dict, List, Tuple, Const, ResultSet
+from .base import VulnersApiBase, ParamError, validate_params
+from .base import Endpoint, String, Integer, Dict, List, Tuple, Const, ResultSet
 
 
 class VulnersApi(VulnersApiBase):
     search_size = 100
     default_fields = (
-        "id", "title", "description", "type", "bulletinFamily", "cvss", "published", "modified",
-        "lastseen", "href", "sourceHref", "sourceData", "cvelist"
+        "id",
+        "title",
+        "description",
+        "type",
+        "bulletinFamily",
+        "cvss",
+        "published",
+        "modified",
+        "lastseen",
+        "href",
+        "sourceHref",
+        "sourceData",
+        "cvelist",
     )
 
     __search = Endpoint(
@@ -21,14 +32,14 @@ class VulnersApi(VulnersApiBase):
             ("skip", Integer()),
             ("size", Integer()),
             ("fields", Tuple()),
-        ]
+        ],
     )
 
     @validate_params(
         query=String(),
         limit=Integer(minimum=1, maximum=100),
         offset=Integer(minimum=0, maximum=10000),
-        fields=Tuple(item=String())
+        fields=Tuple(item=String()),
     )
     def find(self, query, limit=20, offset=0, fields=default_fields):
         """
@@ -44,16 +55,20 @@ class VulnersApi(VulnersApiBase):
         """
         end = min(10000, offset + limit)
         if offset >= end:
-            return ResultSet.from_dataset([], self.__search(query, 0, 1, ["id"])["total"])
+            return ResultSet.from_dataset(
+                [], self.__search(query, 0, 1, ["id"])["total"]
+            )
         else:
             search = self.__search(query, offset, limit, fields)
-            return ResultSet.from_dataset([e["_source"] for e in search["search"]], search["total"])
+            return ResultSet.from_dataset(
+                [e["_source"] for e in search["search"]], search["total"]
+            )
 
     @validate_params(
         query=String(),
         limit=Integer(minimum=1, maximum=10000),
         offset=Integer(minimum=0, maximum=10000),
-        fields=Tuple(item=String())
+        fields=Tuple(item=String()),
     )
     def find_all(self, query, limit=20, offset=0, fields=default_fields):
         """
@@ -69,7 +84,9 @@ class VulnersApi(VulnersApiBase):
         """
         end = min(10000, offset + limit)
         if offset >= end:
-            return ResultSet.from_dataset([], self.__search(query, 0, 1, ["id"])["total"])
+            return ResultSet.from_dataset(
+                [], self.__search(query, 0, 1, ["id"])["total"]
+            )
         result = ResultSet()
         batch_size = min(self.search_size, limit)
         for skip in range(offset, end, batch_size):
@@ -85,9 +102,11 @@ class VulnersApi(VulnersApiBase):
         lookup_fields=Tuple(item=String()),
         limit=Integer(minimum=1, maximum=100),
         offset=Integer(minimum=0, maximum=10000),
-        fields=Tuple(item=String())
+        fields=Tuple(item=String()),
     )
-    def find_exploit(self, query, lookup_fields=None, limit=20, offset=0, fields=default_fields):
+    def find_exploit(
+        self, query, lookup_fields=None, limit=20, offset=0, fields=default_fields
+    ):
         """
         Search in Vulners database for the exploits.
 
@@ -113,9 +132,11 @@ class VulnersApi(VulnersApiBase):
         lookup_fields=Tuple(item=String()),
         limit=Integer(minimum=1, maximum=100),
         offset=Integer(minimum=0, maximum=10000),
-        fields=Tuple(item=String())
+        fields=Tuple(item=String()),
     )
-    def find_exploit_all(self, query, lookup_fields=None, limit=20, offset=0, fields=default_fields):
+    def find_exploit_all(
+        self, query, lookup_fields=None, limit=20, offset=0, fields=default_fields
+    ):
         """
         Search in Vulners database for the exploits and returns up to 10000 documents.
 
@@ -136,10 +157,7 @@ class VulnersApi(VulnersApiBase):
             search_query = "bulletinFamily:exploit AND %s" % query
         return self.find_all(search_query, limit, offset, fields)
 
-    get_web_application_rules = Endpoint(
-        method="get",
-        url="/api/v3/burp/rules/"
-    )
+    get_web_application_rules = Endpoint(method="get", url="/api/v3/burp/rules/")
 
     def _get_burp_software_content(content, _):
         result = {}
@@ -152,20 +170,13 @@ class VulnersApi(VulnersApiBase):
     __get_burp_software = Endpoint(
         method="post",
         url="/api/v3/burp/software/",
-        params=[
-            ("software", String()),
-            ("version", String()),
-            ("type", String())
-        ],
-        content_handler=_get_burp_software_content
+        params=[("software", String()), ("version", String()), ("type", String())],
+        content_handler=_get_burp_software_content,
     )
 
     del _get_burp_software_content
 
-    @validate_params(
-        name=String(),
-        version=String()
-    )
+    @validate_params(name=String(), version=String())
     def get_software_vulnerabilities(self, name, version):
         """
         Find software vulnerabilities using name and version.
@@ -175,9 +186,7 @@ class VulnersApi(VulnersApiBase):
         """
         return self.__get_burp_software(name, version, "software")
 
-    @validate_params(
-        cpe=String()
-    )
+    @validate_params(cpe=String())
     def get_cpe_vulnerabilities(self, cpe):
         """
         Find software vulnerabilities using CPE string. See CPE references at https://cpe.mitre.org/specification/
@@ -194,16 +203,18 @@ class VulnersApi(VulnersApiBase):
         url="/api/v3/search/id/",
         description="Fetch multiple bulletins by ids.",
         params=[
-            ("id", Tuple(item=String(), description="List of ID's. E.g., ['CVE-2017-14174']")),
-            ("fields", Tuple(item=String(), default=default_fields))
+            (
+                "id",
+                Tuple(
+                    item=String(), description="List of ID's. E.g., ['CVE-2017-14174']"
+                ),
+            ),
+            ("fields", Tuple(item=String(), default=default_fields)),
         ],
-        content_handler=lambda c, _: c["documents"]
+        content_handler=lambda c, _: c["documents"],
     )
 
-    @validate_params(
-        id=String(),
-        fields=Tuple(item=String())
-    )
+    @validate_params(id=String(), fields=Tuple(item=String()))
     def get_bulletin(self, id, fields=default_fields):
         """
         Fetch bulletin by id.
@@ -217,17 +228,19 @@ class VulnersApi(VulnersApiBase):
         url="/api/v3/search/id/",
         description="",
         params=[
-            ("id", List(item=String(), description="List of ID's. E.g., ['CVE-2017-14174']")),
+            (
+                "id",
+                List(
+                    item=String(), description="List of ID's. E.g., ['CVE-2017-14174']"
+                ),
+            ),
             ("fields", Tuple(item=String(), default=default_fields)),
-            ("references", Const(True))
+            ("references", Const(True)),
         ],
-        content_handler=lambda c, _: c["references"]
+        content_handler=lambda c, _: c["references"],
     )
 
-    @validate_params(
-        id=String(),
-        fields=Tuple(item=String())
-    )
+    @validate_params(id=String(), fields=Tuple(item=String()))
     def get_bulletin_references(self, id, fields=default_fields):
         """
         Fetch bulletin references by identificator
@@ -236,9 +249,7 @@ class VulnersApi(VulnersApiBase):
         """
         return self.get_multiple_bulletin_references([id], fields=fields).get(id, {})
 
-    @validate_params(
-        kbid=String()
-    )
+    @validate_params(kbid=String())
     def get_kb_seeds(self, kbid):
         """
         Returns superseeds and parentseeds for the given KB.
@@ -252,13 +263,10 @@ class VulnersApi(VulnersApiBase):
         candidate = self.get_bulletin(id=kbid, fields=["superseeds", "parentseeds"])
         return {
             "superseeds": candidate.get("superseeds", []),
-            "parentseeds": candidate.get("parentseeds", [])
+            "parentseeds": candidate.get("parentseeds", []),
         }
 
-    @validate_params(
-        kbid=String(),
-        fields=Tuple(item=String())
-    )
+    @validate_params(kbid=String(), fields=Tuple(item=String()))
     def get_kb_updates(self, kbid, fields=default_fields):
         """
         Returns list of updates for KB.
@@ -278,10 +286,22 @@ class VulnersApi(VulnersApiBase):
             "For collecting DEB use command: dpkg-query -W -f='${Package} ${Version} ${Architecture}\\\\n'\n"
         ),
         params=[
-            ("os", String(description="Full name of the OS. Like Ubuntu, Debian, rhel, oraclelinux")),
+            (
+                "os",
+                String(
+                    description="Full name of the OS. Like Ubuntu, Debian, rhel, oraclelinux"
+                ),
+            ),
             ("version", String(description="OS version")),
-            ("packages", List(item=String(), description="List of the installed packages", param="package"))
-        ]
+            (
+                "packages",
+                List(
+                    item=String(),
+                    description="List of the installed packages",
+                    param="package",
+                ),
+            ),
+        ],
     )
 
     software_audit = Endpoint(
@@ -293,10 +313,15 @@ class VulnersApi(VulnersApiBase):
             "[{'software': 'Mozilla Firefox', 'version': '80.0.1'}]\n"
         ),
         params=[
-            ("os", String(description="Full name of the OS. Like Ubuntu, Debian, rhel, oraclelinux")),
+            (
+                "os",
+                String(
+                    description="Full name of the OS. Like Ubuntu, Debian, rhel, oraclelinux"
+                ),
+            ),
             ("version", String(description="OS version", param="osVersion")),
-            ("packages", List(item=Dict(), description="List of the software dicts"))
-        ]
+            ("packages", List(item=Dict(), description="List of the software dicts")),
+        ],
     )
 
     kb_audit = Endpoint(
@@ -304,20 +329,26 @@ class VulnersApi(VulnersApiBase):
         url="/api/v3/audit/kb/",
         description="Windows KB audit function",
         params=[
-            ("os", String(description="Windows OS name, like 'Windows Server 2012 R2'")),
-            ("kb_list", List(item=String(), description="List of installed KB's, ['KB2918614', 'KB2918616']",
-                             param="kbList"))
-        ]
+            (
+                "os",
+                String(description="Windows OS name, like 'Windows Server 2012 R2'"),
+            ),
+            (
+                "kb_list",
+                List(
+                    item=String(),
+                    description="List of installed KB's, ['KB2918614', 'KB2918616']",
+                    param="kbList",
+                ),
+            ),
+        ],
     )
 
     get_suggestion = Endpoint(
         method="post",
         url="/api/v3/search/suggest/",
-        params=[
-            ("type", Const("distinct")),
-            ("field_name", String(param="fieldName"))
-        ],
-        content_handler=lambda c, _: c["suggest"]
+        params=[("type", Const("distinct")), ("field_name", String(param="fieldName"))],
+        content_handler=lambda c, _: c["suggest"],
     )
 
     get_ai_score = Endpoint(
@@ -326,19 +357,18 @@ class VulnersApi(VulnersApiBase):
         params=[
             ("text", String()),
         ],
-        content_handler=lambda c, _: c.get("score", 0)
+        content_handler=lambda c, _: c.get("score", 0),
     )
 
     query_autocomplete = Endpoint(
         method="post",
         url="/api/v3/search/autocomplete/",
         description="Ask Vulners for possible suggestions to complete your query",
-        params=[
-            ("query", String(description="Vulners Search query"))
-        ],
-        content_handler=lambda c, _: [q[0] for q in c["suggestions"]]
+        params=[("query", String(description="Vulners Search query"))],
+        content_handler=lambda c, _: [q[0] for q in c["suggestions"]],
     )
 
+    # noinspection PyTypeChecker
     def _unpack_json_file(c, _):
         with zipfile.ZipFile(io.BytesIO(c)) as zip_file:
             if len(zip_file.namelist()) > 1:
@@ -349,34 +379,25 @@ class VulnersApi(VulnersApiBase):
     __archive_collection = Endpoint(
         method="get",
         url="/api/v3/archive/collection/",
-        params=[
-            ("type", String()),
-            ("datefrom", String()),
-            ("dateto", String())
-        ],
+        params=[("type", String()), ("datefrom", String()), ("dateto", String())],
         result_type="zipjson",
-        content_handler=_unpack_json_file
+        content_handler=_unpack_json_file,
     )
 
     __distributive = Endpoint(
         method="get",
         url="/api/v3/archive/distributive/",
-        params=[
-            ("os", String()),
-            ("version", String())
-        ],
+        params=[("os", String()), ("version", String())],
         result_type="zipjson",
-        content_handler=_unpack_json_file
+        content_handler=_unpack_json_file,
     )
 
     del _unpack_json_file
 
-    @validate_params(
-        collection=String(),
-        start_date=String(),
-        end_date=String()
-    )
-    def get_collection(self, collection, start_date="1950-01-01", end_date="2199-01-01"):
+    @validate_params(collection=String(), start_date=String(), end_date=String())
+    def get_collection(
+        self, collection, start_date="1950-01-01", end_date="2199-01-01"
+    ):
         """
         Get entire collection data
 
@@ -387,12 +408,11 @@ class VulnersApi(VulnersApiBase):
             raise ParamError(
                 "Unknown %%s. Available values are %s" % (collections,), "collection"
             )
-        return self.__archive_collection(type=collection, datefrom=start_date, dateto=end_date)
+        return self.__archive_collection(
+            type=collection, datefrom=start_date, dateto=end_date
+        )
 
-    @validate_params(
-        os=String(),
-        version=String()
-    )
+    @validate_params(os=String(), version=String())
     def get_distributive(self, os, version):
         """
         Get dict with data for OS vulnerability assessment
@@ -402,7 +422,9 @@ class VulnersApi(VulnersApiBase):
         """
         supported_os = self.get_suggestion("affectedPackage.OS")
         if os.lower() not in [os_name.lower() for os_name in supported_os]:
-            raise ParamError("Unknown %%s. Available values are %s" % (supported_os,), "os")
+            raise ParamError(
+                "Unknown %%s. Available values are %s" % (supported_os,), "os"
+            )
         data = self.__distributive(os=os, version=version)
         return [bulletin["_source"] for bulletin in data]
 
@@ -412,65 +434,82 @@ _Unset = object()
 
 # noinspection PyPep8Naming
 class DeprecatedVulnersApi(VulnersApi):
-
     def __init__(self, *args, **kwargs):
         super(DeprecatedVulnersApi, self).__init__(*args, **kwargs)
         warnings.warn(
             "Vulners is deprecated and will be removed in future release. "
             "Use VulnersApi instead.",
-            DeprecationWarning
+            DeprecationWarning,
         )
 
     def search(self, query, limit=100, offset=0, fields=None):
         warnings.warn(
             "search() is deprecated and will be removed in future release. "
             "Use VulnersApi.find_all() instead.",
-            DeprecationWarning
+            DeprecationWarning,
         )
-        return self.find_all(query, limit=limit, offset=offset, fields=fields or self.default_fields)
+        return self.find_all(
+            query, limit=limit, offset=offset, fields=fields or self.default_fields
+        )
 
     def searchPage(self, query, pageSize=20, offset=0, fields=None):
         warnings.warn(
             "searchPage() is deprecated and will be removed in future release. "
             "Use VulnersApi.find() instead.",
-            DeprecationWarning
+            DeprecationWarning,
         )
-        return self.find(query, limit=pageSize, offset=offset, fields=fields or self.default_fields)
+        return self.find(
+            query, limit=pageSize, offset=offset, fields=fields or self.default_fields
+        )
 
-    def searchExploit(self, query, lookup_fields=None, limit=100, offset=0, fields=None):
+    def searchExploit(
+        self, query, lookup_fields=None, limit=100, offset=0, fields=None
+    ):
         warnings.warn(
             "searchExploit() is deprecated and will be removed in future release. "
             "Use VulnersApi.find_exploit_all() instead.",
-            DeprecationWarning
+            DeprecationWarning,
         )
         lookup_fields = lookup_fields or ()
         if isinstance(lookup_fields, (set, list)):
             lookup_fields = tuple(lookup_fields)
-        return self.find_exploit_all(query, lookup_fields=lookup_fields, limit=limit, offset=offset,
-                                     fields=fields or self.default_fields)
+        return self.find_exploit_all(
+            query,
+            lookup_fields=lookup_fields,
+            limit=limit,
+            offset=offset,
+            fields=fields or self.default_fields,
+        )
 
-    def searchExploitPage(self, query, lookup_fields=None, limit=100, offset=0, fields=None):
+    def searchExploitPage(
+        self, query, lookup_fields=None, limit=100, offset=0, fields=None
+    ):
         warnings.warn(
             "searchExploitPage() is deprecated and will be removed in future release. "
             "Use VulnersApi.find_exploit() instead.",
-            DeprecationWarning
+            DeprecationWarning,
         )
         lookup_fields = lookup_fields or ()
         if isinstance(lookup_fields, (set, list)):
             lookup_fields = tuple(lookup_fields)
-        return self.find_exploit(query, lookup_fields=lookup_fields, limit=limit, offset=offset,
-                                 fields=fields or self.default_fields)
+        return self.find_exploit(
+            query,
+            lookup_fields=lookup_fields,
+            limit=limit,
+            offset=offset,
+            fields=fields or self.default_fields,
+        )
 
     def softwareVulnerabilities(self, name, version, maxVulnerabilities=_Unset):
         warnings.warn(
             "softwareVulnerabilities() is deprecated and will be removed in future release. "
             "Use VulnersApi.get_software_vulnerabilities() instead.",
-            DeprecationWarning
+            DeprecationWarning,
         )
         if maxVulnerabilities is not _Unset:
             warnings.warn(
                 "maxVulnerabilities is deprecated and will be removed in future release.",
-                DeprecationWarning
+                DeprecationWarning,
             )
         return self.get_software_vulnerabilities(name, version)
 
@@ -478,12 +517,12 @@ class DeprecatedVulnersApi(VulnersApi):
         warnings.warn(
             "cpeVulnerabilities() is deprecated and will be removed in future release. "
             "Use VulnersApi.get_cpe_vulnerabilities() instead.",
-            DeprecationWarning
+            DeprecationWarning,
         )
         if maxVulnerabilities is not _Unset:
             warnings.warn(
                 "maxVulnerabilities is deprecated and will be removed in future release.",
-                DeprecationWarning
+                DeprecationWarning,
             )
         return self.get_cpe_vulnerabilities(cpeString)
 
@@ -491,7 +530,7 @@ class DeprecatedVulnersApi(VulnersApi):
         warnings.warn(
             "audit() is deprecated and will be removed in future release. "
             "Use VulnersApi.os_audit() instead.",
-            DeprecationWarning
+            DeprecationWarning,
         )
         return self.os_audit(os, os_version, package)
 
@@ -499,7 +538,7 @@ class DeprecatedVulnersApi(VulnersApi):
         warnings.warn(
             "kbAudit() is deprecated and will be removed in future release. "
             "Use VulnersApi.kb_audit() instead.",
-            DeprecationWarning
+            DeprecationWarning,
         )
         return self.kb_audit(os, kb_list)
 
@@ -507,7 +546,7 @@ class DeprecatedVulnersApi(VulnersApi):
         warnings.warn(
             "document() is deprecated and will be removed in future release. "
             "Use VulnersApi.get_bulletin() instead.",
-            DeprecationWarning
+            DeprecationWarning,
         )
         return self.get_bulletin(identificator, fields=fields or self.default_fields)
 
@@ -515,31 +554,37 @@ class DeprecatedVulnersApi(VulnersApi):
         warnings.warn(
             "documentList() is deprecated and will be removed in future release. "
             "Use VulnersApi.get_multiple_bulletins() instead.",
-            DeprecationWarning
+            DeprecationWarning,
         )
-        return self.get_multiple_bulletins(identificatorList, fields=fields or self.default_fields)
+        return self.get_multiple_bulletins(
+            identificatorList, fields=fields or self.default_fields
+        )
 
     def references(self, identificator, fields=None):
         warnings.warn(
             "references() is deprecated and will be removed in future release. "
             "Use VulnersApi.get_bulletin_references() instead.",
-            DeprecationWarning
+            DeprecationWarning,
         )
-        return self.get_bulletin_references(identificator, fields=fields or self.default_fields)
+        return self.get_bulletin_references(
+            identificator, fields=fields or self.default_fields
+        )
 
     def referencesList(self, identificatorList, fields=None):
         warnings.warn(
             "referencesList() is deprecated and will be removed in future release. "
             "Use VulnersApi.get_multiple_bulletin_references() instead.",
-            DeprecationWarning
+            DeprecationWarning,
         )
-        return self.get_multiple_bulletin_references(identificatorList, fields=fields or self.default_fields)
+        return self.get_multiple_bulletin_references(
+            identificatorList, fields=fields or self.default_fields
+        )
 
     def collections(self):
         warnings.warn(
             "collections() is deprecated and will be removed in future release. "
             "Use VulnersApi.get_suggestion('type') instead.",
-            DeprecationWarning
+            DeprecationWarning,
         )
         return self.get_suggestion("type")
 
@@ -547,7 +592,7 @@ class DeprecatedVulnersApi(VulnersApi):
         warnings.warn(
             "suggest() is deprecated and will be removed in future release. "
             "Use VulnersApi.get_suggestion() instead.",
-            DeprecationWarning
+            DeprecationWarning,
         )
         return self.get_suggestion(field_name)
 
@@ -555,7 +600,7 @@ class DeprecatedVulnersApi(VulnersApi):
         warnings.warn(
             "aiScore() is deprecated and will be removed in future release. "
             "Use VulnersApi.get_ai_score() instead.",
-            DeprecationWarning
+            DeprecationWarning,
         )
         return self.get_ai_score(text)
 
@@ -563,7 +608,7 @@ class DeprecatedVulnersApi(VulnersApi):
         warnings.warn(
             "rules() is deprecated and will be removed in future release. "
             "Use VulnersApi.get_web_application_rules() instead.",
-            DeprecationWarning
+            DeprecationWarning,
         )
         return self.get_web_application_rules()
 
@@ -571,7 +616,7 @@ class DeprecatedVulnersApi(VulnersApi):
         warnings.warn(
             "kbSuperseeds() is deprecated and will be removed in future release. "
             "Use VulnersApi.get_kb_seeds() instead.",
-            DeprecationWarning
+            DeprecationWarning,
         )
         return self.get_kb_seeds(kb_identificator)
 
@@ -579,23 +624,25 @@ class DeprecatedVulnersApi(VulnersApi):
         warnings.warn(
             "kbUpdates() is deprecated and will be removed in future release. "
             "Use VulnersApi.get_kb_updates() instead.",
-            DeprecationWarning
+            DeprecationWarning,
         )
-        return self.get_kb_updates(kb_identificator, fields=fields or self.default_fields)
+        return self.get_kb_updates(
+            kb_identificator, fields=fields or self.default_fields
+        )
 
     def autocomplete(self, query):
         warnings.warn(
             "autocomplete() is deprecated and will be removed in future release. "
             "Use VulnersApi.query_autocomplete() instead.",
-            DeprecationWarning
+            DeprecationWarning,
         )
         return self.query_autocomplete(query)
 
-    def archive(self, collection, start_date='1950-01-01', end_date='2199-01-01'):
+    def archive(self, collection, start_date="1950-01-01", end_date="2199-01-01"):
         warnings.warn(
             "archive() is deprecated and will be removed in future release. "
             "Use VulnersApi.get_collection() instead.",
-            DeprecationWarning
+            DeprecationWarning,
         )
         return self.get_collection(collection, start_date, end_date)
 
@@ -603,7 +650,7 @@ class DeprecatedVulnersApi(VulnersApi):
         warnings.warn(
             "distributive() is deprecated and will be removed in future release. "
             "Use VulnersApi.get_distributive() instead.",
-            DeprecationWarning
+            DeprecationWarning,
         )
         return self.get_distributive(os, version)
 

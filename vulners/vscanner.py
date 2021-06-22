@@ -1,5 +1,15 @@
-from . base import VulnersApiBase, Endpoint, String, Integer, Float, Dict, List, UUID, Boolean
-from . base import ResultSet
+from .base import (
+    VulnersApiBase,
+    Endpoint,
+    String,
+    Integer,
+    Float,
+    Dict,
+    List,
+    UUID,
+    Boolean,
+)
+from .base import ResultSet
 
 
 def make_result_set(content, headers):
@@ -12,7 +22,7 @@ class VScannerApi(VulnersApiBase):
     get_licenses = Endpoint(
         method="get",
         url="/api/v3/useraction/licenseids",
-        description="Get user's license ids."
+        description="Get user's license ids.",
     )
     get_projects = Endpoint(
         method="get",
@@ -21,12 +31,12 @@ class VScannerApi(VulnersApiBase):
         params=[
             ("offset", Integer(default=0)),
             ("limit", Integer(default=50)),
-        ]
+        ],
     )
     get_quota = Endpoint(
         method="get",
         url="/api/v3/proxy/vscanner/quota/{uuid:license_id|License id}",
-        description="Get api quota left."
+        description="Get api quota left.",
     )
     create_project = Endpoint(
         method="post",
@@ -35,10 +45,16 @@ class VScannerApi(VulnersApiBase):
         params=[
             ("name", String(description="New project name")),
             ("license_id", UUID(description="User's license id")),
-            ("notification", Dict(description=(
-                "Use VScannerApi.Notification or VScannerApi.DisabledNotification helpers "
-                "to create notification object.")))
-        ]
+            (
+                "notification",
+                Dict(
+                    description=(
+                        "Use VScannerApi.Notification or VScannerApi.DisabledNotification helpers "
+                        "to create notification object."
+                    )
+                ),
+            ),
+        ],
     )
     update_project = Endpoint(
         method="put",
@@ -47,24 +63,27 @@ class VScannerApi(VulnersApiBase):
         params=[
             ("name", String(description="Project name")),
             ("license_id", UUID(description="User's license id")),
-            ("notification", Dict(description=(
-                "Use VScannerApi.Notification or VScannerApi.DisabledNotification helpers "
-                "to create notification object.")))
-        ]
+            (
+                "notification",
+                Dict(
+                    description=(
+                        "Use VScannerApi.Notification or VScannerApi.DisabledNotification helpers "
+                        "to create notification object."
+                    )
+                ),
+            ),
+        ],
     )
     delete_project = Endpoint(
         method="delete",
         url="/api/v3/proxy/vscanner/projects/{uuid:project_id|Project id}",
-        description="Delete existing project."
+        description="Delete existing project.",
     )
     get_tasks = Endpoint(
         method="get",
         url="/api/v3/proxy/vscanner/projects/{uuid:project_id|Project id}/tasks",
         description="Get project tasks",
-        params=[
-            ("offset", Integer(default=0)),
-            ("limit", Integer(default=50))
-        ]
+        params=[("offset", Integer(default=0)), ("limit", Integer(default=50))],
     )
     create_task = Endpoint(
         method="post",
@@ -75,7 +94,7 @@ class VScannerApi(VulnersApiBase):
             ("networks", List(description="List of networks (ip or domains)")),
             ("schedule", String(description="Crontab string")),
             ("enabled", Boolean(description="Enable/disable task")),
-        ]
+        ],
     )
     update_task = Endpoint(
         method="put",
@@ -86,7 +105,7 @@ class VScannerApi(VulnersApiBase):
             ("networks", List(description="List of networks (ip or domains)")),
             ("schedule", String(description="Crontab string")),
             ("enabled", Boolean(description="Enable/disable task")),
-        ]
+        ],
     )
     start_task = Endpoint(
         method="post",
@@ -103,26 +122,70 @@ class VScannerApi(VulnersApiBase):
         url="/api/v3/proxy/vscanner/projects/{uuid:project_id|Project id}/results",
         description="Get results.",
         params=[
-            ("search", String(required=False,
-                              description="Search text occurrence in fields: name, ip or resolved.")),
-            ("ip_address", String(required=False,
-                                  description="Comma-separated list of ip-addresses, networks. "
-                                              "Example: '91.218.85.0/24,91.218.86.99'")),
-            ("include_ports", String(required=False,
-                                     description="Comma-separated list of ports. Example: '80,8080'.")),
-            ("exclude_ports", String(required=False,
-                                     description="Comma-separated list of ports. Example: '80,8080'.")),
+            (
+                "search",
+                String(
+                    required=False,
+                    description="Search text occurrence in fields: name, ip or resolved.",
+                ),
+            ),
+            (
+                "ip_address",
+                String(
+                    required=False,
+                    description="Comma-separated list of ip-addresses, networks. "
+                    "Example: '91.218.85.0/24,91.218.86.99'",
+                ),
+            ),
+            (
+                "include_ports",
+                String(
+                    required=False,
+                    description="Comma-separated list of ports. Example: '80,8080'.",
+                ),
+            ),
+            (
+                "exclude_ports",
+                String(
+                    required=False,
+                    description="Comma-separated list of ports. Example: '80,8080'.",
+                ),
+            ),
             ("min_cvss", Float(required=False, description="Minimum CVSS value.")),
+            ("max_cvss", Float(required=False, description="Maximum CVSS value.")),
             ("highlight", Boolean(default=False)),
+            (
+                "not_older_then",
+                String(
+                    required=False,
+                    description=(
+                        "Minimum published date. Example: '1d' not older than day, "
+                        "'5h' not older than 5 hours, '100m' not older than 100 minutes, "
+                        "'2021-07-21' published after the specified date, "
+                        "'2021-07-21T12:00:00Z' published after the specified time."
+                    ),
+                ),
+            ),
+            (
+                "sort",
+                String(
+                    required=False,
+                    description=(
+                        "Sort by field. Allowable values are 'ip', 'name', 'published', 'resolved',"
+                        "'min_cvss', 'max_cvss'. To sort in descending order, use '-'."
+                        "Default value is '-published'."
+                    ),
+                ),
+            ),
             ("offset", Integer(default=0)),
-            ("limit", Integer(default=50))
+            ("limit", Integer(default=50)),
         ],
-        content_handler=make_result_set
+        content_handler=make_result_set,
     )
     delete_result = Endpoint(
         method="delete",
         url="/api/v3/proxy/vscanner/projects/{uuid:project_id|Project id}/results/{uuid:result_id|Result id}",
-        description="Delete result by id."
+        description="Delete result by id.",
     )
 
     @staticmethod
@@ -135,7 +198,9 @@ class VScannerApi(VulnersApiBase):
         slack_webhooks: list of slack webhooks
         """
         if period not in ("disabled", "asap", "hourly", "daily"):
-            raise ValueError('period expected to be one of "disabled", "asap", "hourly" or "daily"')
+            raise ValueError(
+                'period expected to be one of "disabled", "asap", "hourly" or "daily"'
+            )
         return {
             "period": period,
             "email": emails or [],

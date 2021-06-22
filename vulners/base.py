@@ -17,7 +17,7 @@ from . import __version__
 
 
 try:
-    _getargspec = inspect.getfullargspec # noqa
+    _getargspec = inspect.getfullargspec  # noqa
 except AttributeError:
     _getargspec = inspect.getargspec  # noqa
 
@@ -43,7 +43,7 @@ class VulnersApiMeta(type):
 class RateLimitBucket(object):
     """An implementation of the Token Bucket algorithm."""
 
-    def __init__(self, rate=10., burst=1.):
+    def __init__(self, rate=10.0, burst=1.0):
         """Initialise an instance of the RateLimit allowing a default rate of 10 calls
         per 1 seconds when no arguments are supplied.
         :param rate:
@@ -54,7 +54,7 @@ class RateLimitBucket(object):
         self._allowance = self._burst
         self._last_check = time()
 
-    def update(self, rate, burst=1.):
+    def update(self, rate, burst=1.0):
         self._rate = float(rate)
         self._burst = min(float(burst), self._rate)
 
@@ -97,7 +97,9 @@ class PersistentCookieJar(cookies.RequestsCookieJar):
         if self._set_cookie_counter:
             with self._cookie_locks[self._file_path]:
                 with open(self._file_path, "wb") as cookie_file:
-                    cookie_file.write(json.dumps(self.get_dict(), ensure_ascii=True).encode("ascii"))
+                    cookie_file.write(
+                        json.dumps(self.get_dict(), ensure_ascii=True).encode("ascii")
+                    )
             self._set_cookie_counter = 0
 
     def _recover(self):
@@ -136,7 +138,9 @@ class VulnersApiBase(with_metaclass(VulnersApiMeta)):
 
     _ratelimits = defaultdict(RateLimitBucket)
 
-    def __init__(self, api_key, proxies=None, persistent=True, server_url="https://vulners.com"):
+    def __init__(
+        self, api_key, proxies=None, persistent=True, server_url="https://vulners.com"
+    ):
         """
         Create VScanner API object.
 
@@ -146,7 +150,9 @@ class VulnersApiBase(with_metaclass(VulnersApiMeta)):
             dict for proxy supporting. Example: {"https": "myproxy.com:3128"}
         """
         if not api_key:
-            raise ValueError("API key must be provided. You can obtain one for free at https://vulners.com")
+            raise ValueError(
+                "API key must be provided. You can obtain one for free at https://vulners.com"
+            )
 
         if not isinstance(api_key, string_types):
             raise TypeError("api_key parameter must be a string value")
@@ -158,14 +164,15 @@ class VulnersApiBase(with_metaclass(VulnersApiMeta)):
     def _create_session(self, proxies, server_url, persistent):
         assert proxies is None or isinstance(proxies, dict), "proxies must be a dict"
         session = requests.session()
-        retries = Retry(total=self.retry_count,
-                        status_forcelist=self.retry_codes)
+        retries = Retry(total=self.retry_count, status_forcelist=self.retry_codes)
         adapter = adapters.HTTPAdapter(max_retries=retries)
         session.mount(server_url, adapter)
-        session.headers.update({
-            "Connection": "Keep-Alive",
-            "User-Agent": "Vulners Python API %s" % __version__
-        })
+        session.headers.update(
+            {
+                "Connection": "Keep-Alive",
+                "User-Agent": "Vulners Python API %s" % __version__,
+            }
+        )
         if persistent:
             session.cookies = PersistentCookieJar()
         if proxies:
@@ -196,12 +203,20 @@ class VulnersApiBase(with_metaclass(VulnersApiMeta)):
         limit = headers.get("X-Vulners-Ratelimit-Reqlimit")
         if limit:
             try:
-                limit = float(limit) / 60.
+                limit = float(limit) / 60.0
             except (TypeError, ValueError):
                 return
             bucket.update(rate=limit)
 
-    def _send_request(self, method, url, body_params, path_params, ratelimit_key=None, result_type="json"):
+    def _send_request(
+        self,
+        method,
+        url,
+        body_params,
+        path_params,
+        ratelimit_key=None,
+        result_type="json",
+    ):
         body_params["apiKey"] = self._api_key
         url = self._server_url + url.format(**path_params)
         kwargs = {"params" if method in ("get", "delete") else "json": body_params}
@@ -251,7 +266,9 @@ class String(Param):
         if not isinstance(value, string_types):
             raise ParamError("%s expected to be a string", param)
         if self.choices is not None and value not in self.choices:
-            raise ParamError("%s expected to be on of (%s)" % ", ".join(self.choices), param)
+            raise ParamError(
+                "%%s expected to be on of (%s)" % ", ".join(self.choices), param
+            )
         return value
 
 
@@ -309,7 +326,6 @@ class Tuple(List):
 
 
 class Integer(Param):
-
     def __init__(self, minimum=None, maximum=None, **kwargs):
         super(Integer, self).__init__(**kwargs)
         self.minimum = minimum
@@ -359,28 +375,35 @@ def validate_params(**params):
             if param not in spec.args:
                 raise TypeError("No such argument %s" % param)
         spec_defaults = spec.defaults or ()
-        default_values = (_unset,) * (len(spec.args) - len(spec_defaults)) + spec_defaults
+        default_values = (_unset,) * (
+            len(spec.args) - len(spec_defaults)
+        ) + spec_defaults
         defaults = {k: v for k, v in zip(spec.args, default_values) if v is not _unset}
         args = ", ".join([arg for arg in spec.args])
-        func_args = ", ".join([
-            (name if default is _unset else ("%s=%r" % (name, default)))
-            for name, default in zip(spec.args, default_values)
-        ])
-        body = "\n  ".join([
-            (("if {var} is not _D[{var!r}]: " if var in defaults else "") +
-             "{var} = _V[{var!r}].validate({var!r}, {var})").format(var=var)
-            for var in params
-        ])
+        func_args = ", ".join(
+            [
+                (name if default is _unset else ("%s=%r" % (name, default)))
+                for name, default in zip(spec.args, default_values)
+            ]
+        )
+        body = "\n  ".join(
+            [
+                (
+                    ("if {var} is not _D[{var!r}]: " if var in defaults else "")
+                    + "{var} = _V[{var!r}].validate({var!r}, {var})"
+                ).format(var=var)
+                for var in params
+            ]
+        )
         code = (
-            "def {name}({func_args}):\n"
-            "  {body}\n"
-            "  return _func({args})"
+            "def {name}({func_args}):\n" "  {body}\n" "  return _func({args})"
         ).format(name=func.__name__, func_args=func_args, body=body, args=args)
         exec_locals = {"_V": params, "_D": defaults, "_func": func}
         exec(code, exec_locals, exec_locals)
         new_func = exec_locals[func.__name__]
         functools.update_wrapper(new_func, func)
         return new_func
+
     return decorator
 
 
@@ -401,7 +424,15 @@ class Endpoint(object):
     def __call__(self, *args, **kwargs):
         raise RuntimeError("Only for typing")
 
-    def __init__(self, method, url, description=None, params=None, result_type="json", content_handler=None):
+    def __init__(
+        self,
+        method,
+        url,
+        description=None,
+        params=None,
+        result_type="json",
+        content_handler=None,
+    ):
         assert method in ("get", "post", "put", "delete")
         assert isinstance(url, string_types)
         assert description is None or isinstance(description, string_types)
@@ -435,18 +466,18 @@ class Endpoint(object):
         func_args_with_default = []
         body_params = []
         path_params = []
-        func_locals = {"_content_wrapper": self.content_handler or default_content_handler}
+        func_locals = {
+            "_content_wrapper": self.content_handler or default_content_handler
+        }
         func_locals_reverse = {}
         func_doc = [self.description or name, ""]
         for key, param in self.params.items():
             if isinstance(param, Const):
                 const_key = "_const%d" % len(func_locals)
                 func_locals[const_key] = param.value
-                body_params.append((
-                    "body_params[{key!r}] = {const}"
-                ).format(
-                    key=key, const=const_key
-                ))
+                body_params.append(
+                    "body_params[{key!r}] = {const}".format(key=key, const=const_key)
+                )
                 continue
             if param.default is not _Nothing:
                 default_key = "_default%d" % len(func_locals)
@@ -461,26 +492,26 @@ class Endpoint(object):
                 func_locals[validate_key] = param.validate
                 func_locals_reverse[param.validate] = validate_key
             if key in self.path_params:
-                path_params.append((
-                    "{key!r}: {validator}({key!r}, {key})"
-                ).format(
-                    key=key, validator=validate_key
-                ))
+                path_params.append(
+                    "{key!r}: {validator}({key!r}, {key})".format(
+                        key=key, validator=validate_key
+                    )
+                )
             else:
                 param_name = param.param or key
                 if param.required:
-                    body_params.append((
-                        "body_params[{param_name!r}] = {validator}({key!r}, {key})"
-                    ).format(
-                        param_name=param_name, key=key, validator=validate_key
-                    ))
+                    body_params.append(
+                        (
+                            "body_params[{param_name!r}] = {validator}({key!r}, {key})"
+                        ).format(param_name=param_name, key=key, validator=validate_key)
+                    )
                 else:
-                    body_params.append((
-                        "if {key} is not None: "
-                        "body_params[{param_name!r}] = {validator}({key!r}, {key})"
-                    ).format(
-                        param_name=param_name, key=key, validator=validate_key
-                    ))
+                    body_params.append(
+                        (
+                            "if {key} is not None: "
+                            "body_params[{param_name!r}] = {validator}({key!r}, {key})"
+                        ).format(param_name=param_name, key=key, validator=validate_key)
+                    )
             if param.description:
                 func_doc.append("%s: %s" % (key, param.description or ""))
         func_args += func_args_with_default
@@ -500,7 +531,7 @@ class Endpoint(object):
             body_params="\n  ".join(body_params),
             path_params="{%s}" % ", ".join(path_params),
             ratelimit_key=ratelimit_key,
-            result=self.result_type
+            result=self.result_type,
         )
         exec(code, func_locals, func_locals)
         return func_locals[name]

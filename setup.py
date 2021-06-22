@@ -25,13 +25,9 @@ setup(
     author_email="isox@vulners.com, aachurin@gmail.com",
     url="https://github.com/vulnersCom/api",
     packages=find_packages(exclude=["samples"]),
-    install_requires=[
-        "requests",
-        "six",
-        "appdirs"
-    ],
+    install_requires=["requests", "six", "appdirs"],
     keywords=["security", "network", "vulners", "vulnerability", "CVE"],
-    classifiers =[
+    classifiers=[
         "Development Status :: 5 - Production/Stable",
         "Operating System :: OS Independent",
         "Programming Language :: Python",
@@ -40,6 +36,6 @@ setup(
         "Intended Audience :: Information Technology",
         "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
         "Topic :: Software Development :: Version Control",
-        "Topic :: Utilities"
+        "Topic :: Utilities",
     ],
 )

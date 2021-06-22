@@ -174,18 +174,21 @@ class VulnersApiBase(with_metaclass(VulnersApiMeta)):
 
     @staticmethod
     def adapt_response(response, method, expected_result):
-        if method != "delete" and expected_result == "json":
-            result = response.json()
-            if isinstance(result, dict):
-                if response.status_code >= 400:
-                    raise VulnersApiError(response.status_code, result)
-                if "data" in result:
-                    data = result["data"]
-                    if isinstance(data, dict) and data.get("error"):
-                        raise VulnersApiError(response.status_code, data)
-                    return data
+        if expected_result == "json":
+            if response.content:
+                result = response.json()
+            else:
+                result = None
+            if response.status_code >= 400:
+                raise VulnersApiError(response.status_code, result)
+            if isinstance(result, dict) and "data" in result:
+                data = result["data"]
+                if isinstance(data, dict) and data.get("error"):
+                    raise VulnersApiError(response.status_code, data)
+                return data
             return result
-        return response.content
+        else:
+            return response.content
 
     @staticmethod
     def _update_ratelimit(bucket, response):

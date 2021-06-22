@@ -1,3 +1,4 @@
+import base64
 from .base import (
     VulnersApiBase,
     Endpoint,
@@ -187,6 +188,12 @@ class VScannerApi(VulnersApiBase):
         url="/api/v3/proxy/vscanner/projects/{uuid:project_id|Project id}/results/{uuid:result_id|Result id}",
         description="Delete result by id.",
     )
+
+    def get_image_binary(self, image_uri, as_base64=False):
+        result, headers = self._send_request("get", "/vscanner/screen/" + image_uri, {}, {}, self.ratelimit_key, "binary")
+        if as_base64:
+            return base64.b64encode(result)
+        return result
 
     @staticmethod
     def Notification(period, emails=None, slack_webhooks=None):

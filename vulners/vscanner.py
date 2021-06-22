@@ -77,7 +77,7 @@ class Task(MappingObject):
         self._api.delete_task(self.project_id, self._id)
 
     def start_task(self):
-        self.__dict__ = self._api.stark_task(self.project_id, self._id)
+        self.__dict__ = self._api.stark_task(self.project_id, self._id).__dict__
 
 
 class VScannerApi(VulnersApiBase):

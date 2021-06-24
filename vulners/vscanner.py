@@ -61,6 +61,9 @@ class Project(MappingObject):
     def get_results(self, *args, **kwargs):
         return self._api.get_results(self._id, *args, **kwargs)
 
+    def get_statistics(self, *args, **kwargs):
+        return self._api.get_statistics(self._id, *args, **kwargs)
+
     def delete_result(self, *args, **kwargs):
         return self._api.delete_result(self._id, *args, **kwargs)
 
@@ -71,7 +74,9 @@ class Task(MappingObject):
         kwargs.setdefault("networks", self.networks)
         kwargs.setdefault("schedule", self.schedule)
         kwargs.setdefault("enabled", self.enabled)
-        self.__dict__ = self._api.update_task(self.project_id, self._id, **kwargs).__dict__
+        self.__dict__ = self._api.update_task(
+            self.project_id, self._id, **kwargs
+        ).__dict__
 
     def delete(self):
         self._api.delete_task(self.project_id, self._id)
@@ -120,7 +125,7 @@ class VScannerApi(VulnersApiBase):
                 ),
             ),
         ],
-        wrapper=Project
+        wrapper=Project,
     )
     update_project = Endpoint(
         method="put",
@@ -139,7 +144,7 @@ class VScannerApi(VulnersApiBase):
                 ),
             ),
         ],
-        wrapper=Project
+        wrapper=Project,
     )
     delete_project = Endpoint(
         method="delete",
@@ -163,7 +168,7 @@ class VScannerApi(VulnersApiBase):
             ("schedule", String(description="Crontab string")),
             ("enabled", Boolean(description="Enable/disable task")),
         ],
-        wrapper=Task
+        wrapper=Task,
     )
     update_task = Endpoint(
         method="put",
@@ -175,13 +180,13 @@ class VScannerApi(VulnersApiBase):
             ("schedule", String(description="Crontab string")),
             ("enabled", Boolean(description="Enable/disable task")),
         ],
-        wrapper=Task
+        wrapper=Task,
     )
     start_task = Endpoint(
         method="post",
         url="/api/v3/proxy/vscanner/projects/{uuid:project_id|Project id}/tasks/{uuid:task_id|Task id}/start",
         description="Start task asap.",
-        wrapper=Task
+        wrapper=Task,
     )
     delete_task = Endpoint(
         method="delete",
@@ -257,6 +262,35 @@ class VScannerApi(VulnersApiBase):
         method="delete",
         url="/api/v3/proxy/vscanner/projects/{uuid:project_id|Project id}/results/{uuid:result_id|Result id}",
         description="Delete result by id.",
+    )
+    get_statistics = Endpoint(
+        method="get",
+        url="/api/v3/proxy/vscanner/projects/{uuid:project_id|Project id}/statistics",
+        description="Get statistics.",
+        params=[
+            (
+                "agg",
+                String(
+                    required=True,
+                    description=(
+                        "Comma-separated list of aggregations: "
+                        "total_hosts, vulnerable_hosts, unique_cve, min_max_cvss"
+                    ),
+                ),
+            ),
+            (
+                "not_older_then",
+                String(
+                    required=False,
+                    description=(
+                        "Minimum published date. Example: '1d' not older than day, "
+                        "'5h' not older than 5 hours, '100m' not older than 100 minutes, "
+                        "'2021-07-21' published after the specified date, "
+                        "'2021-07-21T12:00:00Z' published after the specified time."
+                    ),
+                ),
+            ),
+        ],
     )
 
     def get_image_binary(self, image_uri, as_base64=False):

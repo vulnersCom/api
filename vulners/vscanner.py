@@ -274,7 +274,8 @@ class VScannerApi(VulnersApiBase):
                     required=True,
                     description=(
                         "Comma-separated list of aggregations: "
-                        "total_hosts, vulnerable_hosts, unique_cve, min_max_cvss"
+                        "total_hosts, vulnerable_hosts, unique_cve, min_max_cvss, "
+                        "vulnerabilities_rank, vulnerable_hosts_rank"
                     ),
                 ),
             ),

@@ -194,6 +194,12 @@ class VulnersApiBase(with_metaclass(VulnersApiMeta)):
                     raise VulnersApiError(response.status_code, data)
                 return data
             return result
+        elif response.status_code >= 400:
+            if response.content:
+                result = response.json()
+            else:
+                result = None
+            raise VulnersApiError(response.status_code, result)
         else:
             return response.content
 

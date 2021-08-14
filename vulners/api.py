@@ -251,7 +251,7 @@ class Vulners(object):
             raise TypeError("Datefrom expected to be a string")
         if not isinstance(dateto, string_types):
             raise TypeError("Dateto expected to be a string")
-        return self.vulners_get_request('archive', {'type':type, 'datefrom':datefrom, 'dateto':dateto})
+        return self.vulners_get_request('archive', {'type':type, 'datefrom':'' or datefrom, 'dateto':'' or dateto})
 
     def __distributive(self, os, version):
         """
@@ -702,7 +702,7 @@ class Vulners(object):
         """
         return self.vulners_get_request('rules', {}).get('rules', {})
 
-    def archive(self, collection, start_date='1950-01-01', end_date='2199-01-01'):
+    def archive(self, collection, start_date='', end_date=''):
         """
         Get dict with entire collection data
 

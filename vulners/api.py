@@ -478,7 +478,7 @@ class Vulners(object):
         dataDocs = []
 
         for skip in range(offset, total_bulletins, min(self.search_size, limit or self.search_size)):
-            new_page = self.searchPage(query, min(self.search_size, limit or self.search_size), skip, fields or self.default_fields + ['sourceData'])
+            new_page = self.searchPage(searchQuery, min(self.search_size, limit or self.search_size), skip, fields or self.default_fields + ['sourceData'])
             dataDocs += new_page
             total = max(new_page.total, total)
         return AttributeList(dataDocs, total = total)

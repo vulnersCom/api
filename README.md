@@ -2,12 +2,12 @@
 
 
 # Description
-Python 2/3 library for the [Vulners Database](https://vulners.com).
-It provides *search, data retrieval, archive and vulnerability scanning* API's for the integration purposes.
-With this library you can create powerful security tools and get access to the world largest security database.
+Python 2/3 library for the [Vulners Database](https://vulners.com)
+provides *search, data retrieval, archive and API's vulnerability scanning* for the integration purposes.
+Create powerful security tools and get access to the world largest security database.
 
 ## Python version
-Library was tested on a *python2* and *python3*.
+Library was tested on *python2* and *python3*.
 
 ## How to install
 
@@ -22,13 +22,13 @@ pip install -U vulners
 ## Obtaining Vulners API key
 
 Please, register at [Vulners website](https://vulners.com).
-Go to the personal menu by clicking at your name at the right top corner.
+Go to the personal menu by clicking on your name in the right top corner.
 Follow "API KEYS" tab.
-Generate API key with scope "api" and use it with the library.
+Generate an API key with scope "api" and use it with the library.
 
 # Functions and methods
 
-All the callable methods are using [Vulners REST API](https://vulners.com/docs).
+All the callable methods use [Vulners REST API](https://vulners.com/docs).
 
 ### Search in database
 ```python

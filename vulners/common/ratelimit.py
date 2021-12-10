@@ -23,7 +23,9 @@ import multiprocessing
 import time
 from functools import wraps
 
-
+# Defining dedicated logger
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 # -----------------------------------------------------------------------------
 # class LastTime to be used with rate_limited
 #
@@ -41,7 +43,7 @@ class LastTime:
         self.cnt = multiprocessing.Value('i', 0)
         self.last_time_called = multiprocessing.Value('d', 0.0)
 
-        logging.debug('\t__init__: name=[{!s}]'.format(self.name))
+        logger.debug('\t__init__: name=[{!s}]'.format(self.name))
 
     def acquire(self):
         self.ratelock.acquire()
@@ -64,7 +66,7 @@ class LastTime:
 
     def debug(self, debugname='LT'):
         now=time.time()
-        logging.debug('___Rate name:[{!s}] '
+        logger.debug('___Rate name:[{!s}] '
                       'debug=[{!s}] '
                       '\n\t        cnt:[{!s}] '
                       '\n\tlast_called:{!s} '
@@ -109,7 +111,7 @@ def rate_limited(ratelimit_dict):
             max_per_second = ratelimit_dict.get(api_short_name, ratelimit_dict.get('default'))
             min_interval = 1.0 / max_per_second
 
-            logging.debug('___Rate_limited f():[{!s}]: '
+            logger.debug('___Rate_limited f():[{!s}]: '
                             'Max_per_Second:[{!s}]'
                             .format(func.__name__, max_per_second))
 
@@ -120,7 +122,7 @@ def rate_limited(ratelimit_dict):
 
                 elapsed = xfrom - LT.get_last_time_called()
                 left_to_wait = min_interval - elapsed
-                logging.debug('___Rate f():[{!s}] '
+                logger.debug('___Rate f():[{!s}] '
                               'cnt:[{!s}] '
                               '\n\tlast_called:{!s} '
                               '\n\t time now():{!s} '

@@ -3,7 +3,7 @@ import zipfile
 import io
 import json
 from .base import VulnersApiBase, ParamError, validate_params
-from .base import Endpoint, String, Integer, Dict, List, Tuple, Const, ResultSet
+from .base import Endpoint, String, Integer, Dict, List, Tuple, Const, ResultSet, Boolean
 
 
 class VulnersApi(VulnersApiBase):
@@ -170,7 +170,7 @@ class VulnersApi(VulnersApiBase):
     __get_burp_software = Endpoint(
         method="post",
         url="/api/v3/burp/software/",
-        params=[("software", String()), ("version", String()), ("type", String())],
+        params=[("software", String()), ("version", String()), ("type", String()), ("exactmatch", Boolean(default=False))],
         content_handler=_get_burp_software_content,
     )
 
@@ -187,16 +187,17 @@ class VulnersApi(VulnersApiBase):
         return self.__get_burp_software(name, version, "software")
 
     @validate_params(cpe=String())
-    def get_cpe_vulnerabilities(self, cpe):
+    def get_cpe_vulnerabilities(self, cpe, exactmatch=False):
         """
         Find software vulnerabilities using CPE string. See CPE references at https://cpe.mitre.org/specification/
 
         cpe: CPE software string, see https://cpe.mitre.org/specification/
+        exactmatch:  if true searches only for bulletins corresponding to the specified minor version and revision
         """
         if len(cpe.split(":")) <= 4:
             raise ParamError("Malformed %s", "cpe")
         version = cpe.split(":")[4]
-        return self.__get_burp_software(cpe, version, "cpe")
+        return self.__get_burp_software(cpe, version, "cpe", exactmatch=exactmatch)
 
     get_multiple_bulletins = Endpoint(
         method="post",

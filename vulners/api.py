@@ -356,7 +356,7 @@ class Vulners(object):
             raise TypeError("kb_list expected to be a list or set")
         return self.vulners_post_request('kbAudit', {"os":os, 'kbList':kb_list})
 
-    def __burpSoftware(self, software, version, type, maxVulnerabilities):
+    def __burpSoftware(self, software, version, type, maxVulnerabilities, exactmatch=False):
         """
         Tech Burp Software scanner call wrapper for internal lib usage
 
@@ -371,7 +371,13 @@ class Vulners(object):
             raise TypeError("Version query expected to be a string")
         if not isinstance(type, string_types) or type not in ('software', 'cpe'):
             raise TypeError("Type query expected to be a string and in [software, cpe]")
-        return self.vulners_post_request('software', {"software":software, 'version':version, 'type':type, 'maxVulnerabilities':maxVulnerabilities})
+        if not isinstance(exactmatch, bool):
+            raise TypeError("exactmatch query expected to be a boolean")
+        return self.vulners_post_request('software', {"software":software,
+                                                      'version':version,
+                                                      'type':type,
+                                                      'maxVulnerabilities':maxVulnerabilities,
+                                                      'exactmatch':exactmatch})
 
     def __suggest(self, type, field_name):
         """
@@ -527,21 +533,24 @@ class Vulners(object):
             dataDocs[elementData.get('bulletinFamily')] = dataDocs.get(elementData.get('bulletinFamily'), []) + [elementData]
         return dataDocs
 
-    def cpeVulnerabilities(self, cpeString, maxVulnerabilities = 50):
+    def cpeVulnerabilities(self, cpeString, maxVulnerabilities = 50, exactmatch = False):
         """
         Find software vulnerabilities using CPE string. See CPE references at https://cpe.mitre.org/specification/
 
         :param cpe: CPE software string, see https://cpe.mitre.org/specification/
         :param maxVulnerabilities: Maximum count of found vulnerabilities before marking it as False Positive
+        :param exactmatch: if true searches for bulletins corresponding to the specified minor version and revision
         :return: {merged by family dict}
         """
         if not isinstance(maxVulnerabilities, int):
             raise TypeError("maxVulnerabilities parameter suggested to be integer")
+        if not isinstance(exactmatch, bool):
+            raise TypeError("exactmatch parameter suggested to be boolean")
         dataDocs = {}
         if len(cpeString.split(":")) <= 4:
             raise ValueError("Malformed CPE string. Please, refer to the https://cpe.mitre.org/specification/. Awaiting like 'cpe:/a:cybozu:garoon:4.2.1'")
         version = cpeString.split(":")[4]
-        results = self.__burpSoftware(cpeString, version, type='cpe', maxVulnerabilities = maxVulnerabilities)
+        results = self.__burpSoftware(cpeString, version, type='cpe', maxVulnerabilities = maxVulnerabilities, exactmatch=exactmatch)
         for element in results.get('search', []):
             elementData = element.get('_source')
             dataDocs[elementData.get('bulletinFamily')] = dataDocs.get(elementData.get('bulletinFamily'), []) + [elementData]

@@ -547,9 +547,17 @@ class Vulners(object):
         if not isinstance(exactmatch, bool):
             raise TypeError("exactmatch parameter suggested to be boolean")
         dataDocs = {}
-        if len(cpeString.split(":")) <= 4:
-            raise ValueError("Malformed CPE string. Please, refer to the https://cpe.mitre.org/specification/. Awaiting like 'cpe:/a:cybozu:garoon:4.2.1'")
-        version = cpeString.split(":")[4]
+
+        cpe_split = cpeString.split(":")
+        if len(cpe_split) <= 4:
+            raise ValueError("Malformed CPE string. Please, refer to the https://cpe.mitre.org/specification/.")
+        if cpe_split[1] == '2.3':
+            version = cpe_split[5]
+        elif cpe_split[1] in '/a/o/h':
+            version = cpe_split[4]
+        else:
+            raise ValueError("Malformed CPE string. Please, refer to the https://cpe.mitre.org/specification/.")
+
         results = self.__burpSoftware(cpeString, version, type='cpe', maxVulnerabilities = maxVulnerabilities, exactmatch=exactmatch)
         for element in results.get('search', []):
             elementData = element.get('_source')

@@ -194,9 +194,16 @@ class VulnersApi(VulnersApiBase):
         cpe: CPE software string, see https://cpe.mitre.org/specification/
         exactmatch:  if true searches only for bulletins corresponding to the specified minor version and revision
         """
-        if len(cpe.split(":")) <= 4:
+        cpe_split = cpe.split(":")
+        if len(cpe_split) <= 4:
             raise ParamError("Malformed %s", "cpe")
-        version = cpe.split(":")[4]
+        if cpe_split[1] == '2.3':
+            version = cpe_split[5]
+        elif cpe_split[1] in '/a/o/h':
+            version = cpe_split[4]
+        else:
+            raise ParamError("Malformed %s", "cpe")
+
         return self.__get_burp_software(cpe, version, "cpe", exactmatch=exactmatch)
 
     get_multiple_bulletins = Endpoint(

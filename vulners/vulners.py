@@ -436,6 +436,40 @@ class VulnersApi(VulnersApiBase):
         data = self.__distributive(os=os, version=version)
         return [bulletin["_source"] for bulletin in data]
 
+    __report = Endpoint(
+        method="get",
+        url="/api/v3/reports/vulnsreport",
+        params=[("reporttype", String(description="One of strings [vulnssummary, vulnslist, ipsummary, scanlist]"))],
+        content_handler=lambda x, _: x['report']
+    )
+
+    def vulnssummary_report(self):
+        """
+        Get Linux Audit results. Return summary for all found vulnerabilities - id, title, score, severity etc
+        """
+        return self.__report("vulnssummary")
+
+    def vulnslist_report(self):
+        """
+        Get Linux Audit results. Return list of vulnerabilities found on hosts:
+            vulnerability id, vulnerability title, vulnerability severity, host information,  etc
+        """
+        return self.__report("vulnslist")
+
+    def ipsummary_report(self):
+        """
+        Get Linux Audit results. Return summary for hosts:
+            agent id, host ip, host fqdn, os name and version, found vulnerabilities count and severity
+        """
+        return self.__report("ipsummary")
+
+    def scanlist_report(self):
+        """
+        Get Linux Audit results. Return list of scans:
+           host ip and fqdn, os name and version, scan date, cvss score
+        """
+        return self.__report("scanlist")
+
 
 _Unset = object()
 

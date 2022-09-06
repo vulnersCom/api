@@ -441,10 +441,10 @@ class VulnersApi(VulnersApiBase):
         url="/api/v3/reports/vulnsreport",
         params=[
             ("reporttype", String(description="One of strings [vulnssummary, vulnslist, ipsummary, scanlist]")),
-            ("skip", Integer()),
-            ("size", Integer()),
-            ("filter", Dict()),
-            ("sort", String()),
+            ("skip", Integer(description="Skip this amount of items. 10000 is the hard limit")),
+            ("size", Integer(description="The maximum number of items to return. 10000 is the hard limit")),
+            ("filter", Dict(description="Dict of fields to filter, eg { 'OS': 'Centos', 'OSVersion': '7'}")),
+            ("sort", String(description="Field to sort, eg 'severity' or '-severity' to sort desc")),
         ],
         content_handler=lambda x, _: x['report']
     )

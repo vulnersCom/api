@@ -437,38 +437,92 @@ class VulnersApi(VulnersApiBase):
         return [bulletin["_source"] for bulletin in data]
 
     __report = Endpoint(
-        method="get",
+        method="post",
         url="/api/v3/reports/vulnsreport",
-        params=[("reporttype", String(description="One of strings [vulnssummary, vulnslist, ipsummary, scanlist]"))],
+        params=[
+            ("reporttype", String(description="One of strings [vulnssummary, vulnslist, ipsummary, scanlist]")),
+            ("skip", Integer()),
+            ("size", Integer()),
+            ("filter", Dict()),
+            ("sort", String()),
+        ],
         content_handler=lambda x, _: x['report']
     )
 
-    def vulnssummary_report(self):
+    @validate_params(
+        limit=Integer(minimum=1, maximum=10000),
+        offset=Integer(minimum=0, maximum=10000),
+        filter=Dict(),
+        sort=String()
+    )
+    def vulnssummary_report(self, limit=30, offset=0, filter=None, sort=''):
         """
         Get Linux Audit results. Return summary for all found vulnerabilities - id, title, score, severity etc
-        """
-        return self.__report("vulnssummary")
 
-    def vulnslist_report(self):
+        limit: The maximum number of items to return. 10000 is the hard limit.
+        offset: Skip this amount of items. 10000 is the hard limit.
+        filter: Dict of fields to filter, eg { 'OS': 'Centos', 'OSVersion': '7'}
+        sort: Field to sort, eg 'severity' or '-severity' to sort desc
+        """
+
+        return self.__report("vulnssummary", offset, limit, filter or {}, sort)
+
+    @validate_params(
+        limit=Integer(minimum=1, maximum=10000),
+        offset=Integer(minimum=0, maximum=10000),
+        filter=Dict(),
+        sort=String()
+    )
+    def vulnslist_report(self, limit=30, offset=0, filter=None, sort=''):
         """
         Get Linux Audit results. Return list of vulnerabilities found on hosts:
             vulnerability id, vulnerability title, vulnerability severity, host information,  etc
-        """
-        return self.__report("vulnslist")
 
-    def ipsummary_report(self):
+        limit: The maximum number of items to return. 10000 is the hard limit.
+        offset: Skip this amount of items. 10000 is the hard limit.
+        filter: Dict of fields to filter, eg { 'OS': 'Centos', 'OSVersion': '7'}
+        sort: Field to sort, eg 'severity' or '-severity' to sort desc
+        """
+
+        return self.__report("vulnslist", offset, limit, filter or {}, sort)
+
+    @validate_params(
+        limit=Integer(minimum=1, maximum=10000),
+        offset=Integer(minimum=0, maximum=10000),
+        filter=Dict(),
+        sort=String()
+    )
+    def ipsummary_report(self, limit=30, offset=0, filter=None, sort=''):
         """
         Get Linux Audit results. Return summary for hosts:
             agent id, host ip, host fqdn, os name and version, found vulnerabilities count and severity
-        """
-        return self.__report("ipsummary")
 
-    def scanlist_report(self):
+        limit: The maximum number of items to return. 10000 is the hard limit.
+        offset: Skip this amount of items. 10000 is the hard limit.
+        filter: Dict of fields to filter, eg { 'OS': 'Centos', 'OSVersion': '7'}
+        sort: Field to sort, eg 'total' or '-total' to sort desc
+        """
+
+        return self.__report("ipsummary", offset, limit, filter or {}, sort)
+
+    @validate_params(
+        limit=Integer(minimum=1, maximum=10000),
+        offset=Integer(minimum=0, maximum=10000),
+        filter=Dict(),
+        sort=String()
+    )
+    def scanlist_report(self, limit=30, offset=0, filter=None, sort=''):
         """
         Get Linux Audit results. Return list of scans:
            host ip and fqdn, os name and version, scan date, cvss score
+
+        limit: The maximum number of items to return. 10000 is the hard limit.
+        offset: Skip this amount of items. 10000 is the hard limit.
+        filter: Dict of fields to filter, eg { 'OS': 'Centos', 'OSVersion': '7'}
+        sort: Field to sort, eg 'modified' or '-modified' to sort desc
         """
-        return self.__report("scanlist")
+
+        return self.__report("scanlist", offset, limit, filter or {}, sort)
 
 
 _Unset = object()

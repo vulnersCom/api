@@ -48,7 +48,7 @@ class Vulners(object):
     # Default URL's for the Vulners API
     api_endpoints = {
         'search': "/api/v3/search/lucene/",
-        'software': "/api/v3/burp/software/",
+        'software': "/api/v3/burp/softwareapi/",
         'id': "/api/v3/search/id/",
         'suggest': "/api/v3/search/suggest/",
         'ai': "/api/v3/ai/scoretext/",

@@ -169,7 +169,7 @@ class VulnersApi(VulnersApiBase):
 
     __get_burp_software = Endpoint(
         method="post",
-        url="/api/v3/burp/software/",
+        url="/api/v3/burp/softwareapi/",
         params=[("software", String()), ("version", String()), ("type", String()), ("exactmatch", Boolean(default=False))],
         content_handler=_get_burp_software_content,
     )

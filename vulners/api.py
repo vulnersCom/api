@@ -621,7 +621,7 @@ class Vulners(object):
 
     def winaudit(self, os, os_version, kb_list, software):
         """
-        Tech Windows KB and software audit call wrapper for internal lib usage
+        Windows KB and software audit function
 
         :param os_name: Windows OS name, like 'Windows Server 2012 R2'
         :param os_version: Windows OS version, like '10.0.19045'
@@ -629,7 +629,9 @@ class Vulners(object):
         :param software: List of the software dicts, {'software': 'Microsoft Edge', 'version': '107.0.1418.56'}
         :return:  {'packages':[LIST OF VULNERABLE PACKAGES],
                     'reasons':LIST OF REASONS,
-                    'vulnerabilities':[LIST OF VULNERABILITY IDs]}
+                    'vulnerabilities':[LIST OF VULNERABILITY IDs],
+                    'cvss':{CVSS score and vector},
+                    'cvelist: [LIST OF CVEs]}
         """
         if not isinstance(os, string_types):
             raise TypeError("OS expected to be a string")

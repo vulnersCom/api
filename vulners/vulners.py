@@ -352,6 +352,36 @@ class VulnersApi(VulnersApiBase):
         ],
     )
 
+    winaudit = Endpoint(
+        method="post",
+        url="/api/v3/audit/winaudit/",
+        description="Windows KB and software audit function",
+        params=[
+            (
+                "os",
+                String(description="Windows OS name, like 'Windows Server 2012 R2'"),
+            ),
+            (
+                "os_version",
+                String(description="Windows OS version, like '10.0.19045'"),
+            ),
+            (
+                "kb_list",
+                List(
+                    item=String(),
+                    description="List of installed KB's, ['KB2918614', 'KB2918616']"
+                ),
+            ),
+            (
+                "software",
+                List(
+                    item=Dict(),
+                    description="List of the software dicts, {'software': 'Microsoft Edge', 'version': '107.0.1418.56'}",
+                ),
+            ),
+        ],
+    )
+
     get_suggestion = Endpoint(
         method="post",
         url="/api/v3/search/suggest/",

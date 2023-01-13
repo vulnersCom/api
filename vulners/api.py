@@ -612,6 +612,24 @@ class Vulners(object):
         """
         return self.__kbAudit(os, kb_list)
 
+    def winaudit(self, os, os_version, kb_list, software ):
+        """
+        Tech Windows KB and software audit call wrapper for internal lib usage
+
+        :param os_name: Window
+        :param kb_list: List of installed KB's
+        :return: {'cvelist':[], 'kbMissed':[]}
+        """
+        if not isinstance(os, string_types):
+            raise TypeError("OS expected to be a string")
+        if not isinstance(os_version, string_types):
+            raise TypeError("OS version expected to be a string")
+        if not isinstance(kb_list, (list, set)):
+            raise TypeError("kb_list expected to be a list or set")
+        if not isinstance(software, (list, set)) or not all(isinstance(item, dict) for item in software):
+            raise TypeError("software expected to be a list or set of dicts")
+        return self.vulners_post_request('kbAudit', {"os":os, 'kbList':kb_list})
+
     def kbSuperseeds(self, kb_identificator):
         """
         Returns list of superseeds KB's and parentseeds KB's.

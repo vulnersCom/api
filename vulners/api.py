@@ -59,6 +59,7 @@ class Vulners(object):
         'autocomplete': "/api/v3/search/autocomplete/",
         'distributive': "/api/v3/archive/distributive/",
         'kbAudit':"/api/v3/audit/kb/",
+        'winaudit': "/api/v3/audit/winaudit/",
         'softwareAudit':"/api/v3/burp/packages/"
     }
 
@@ -611,6 +612,31 @@ class Vulners(object):
         :return: {'cvelist':[], 'kbMissed':[]}
         """
         return self.__kbAudit(os, kb_list)
+
+    def winaudit(self, os, os_version, kb_list, software):
+        """
+        Windows KB and software audit function
+
+        :param os_name: Windows OS name, like 'Windows Server 2012 R2'
+        :param os_version: Windows OS version, like '10.0.19045'
+        :param kb_list: List of installed KB's, ['KB2918614', 'KB2918616']
+        :param software: List of the software dicts, {'software': 'Microsoft Edge', 'version': '107.0.1418.56'}
+        :return:  {'packages':[LIST OF VULNERABLE PACKAGES],
+                    'reasons':LIST OF REASONS,
+                    'vulnerabilities':[LIST OF VULNERABILITY IDs],
+                    'cvss':{CVSS score and vector},
+                    'cvelist: [LIST OF CVEs]}
+        """
+        if not isinstance(os, string_types):
+            raise TypeError("OS expected to be a string")
+        if not isinstance(os_version, string_types):
+            raise TypeError("OS version expected to be a string")
+        if not isinstance(kb_list, (list, set)):
+            raise TypeError("kb_list expected to be a list or set")
+        if not isinstance(software, (list, set)) or not all(isinstance(item, dict) for item in software):
+            raise TypeError("software expected to be a list or set of dicts")
+        return self.vulners_post_request('winaudit',
+                                         {"os": os, "os_version": os_version, "kb_list": kb_list, "software": software})
 
     def kbSuperseeds(self, kb_identificator):
         """

@@ -92,8 +92,8 @@ class VulnersApi(VulnersApiBase):
         for skip in range(offset, end, batch_size):
             chunk = self.__search(query, skip, min(batch_size, end - skip), fields)
             result += [e["_source"] for e in chunk["search"]]
+            result.total = chunk["total"]
             if len(chunk["search"]) < batch_size:
-                result.total = chunk["total"]
                 break
         return result
 

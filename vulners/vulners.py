@@ -3,7 +3,7 @@ import zipfile
 import io
 import json
 from .base import VulnersApiBase, ParamError, validate_params
-from .base import Endpoint, String, Integer, Dict, List, Tuple, Const, ResultSet
+from .base import Endpoint, String, Integer, Dict, List, Tuple, Const, ResultSet, Boolean
 
 
 class VulnersApi(VulnersApiBase):
@@ -169,8 +169,8 @@ class VulnersApi(VulnersApiBase):
 
     __get_burp_software = Endpoint(
         method="post",
-        url="/api/v3/burp/software/",
-        params=[("software", String()), ("version", String()), ("type", String())],
+        url="/api/v3/burp/softwareapi/",
+        params=[("software", String()), ("version", String()), ("type", String()), ("exactmatch", Boolean(default=False))],
         content_handler=_get_burp_software_content,
     )
 
@@ -187,16 +187,24 @@ class VulnersApi(VulnersApiBase):
         return self.__get_burp_software(name, version, "software")
 
     @validate_params(cpe=String())
-    def get_cpe_vulnerabilities(self, cpe):
+    def get_cpe_vulnerabilities(self, cpe, exactmatch=False):
         """
         Find software vulnerabilities using CPE string. See CPE references at https://cpe.mitre.org/specification/
 
         cpe: CPE software string, see https://cpe.mitre.org/specification/
+        exactmatch:  if true searches only for bulletins corresponding to the specified minor version and revision
         """
-        if len(cpe.split(":")) <= 4:
+        cpe_split = cpe.split(":")
+        if len(cpe_split) <= 4:
             raise ParamError("Malformed %s", "cpe")
-        version = cpe.split(":")[4]
-        return self.__get_burp_software(cpe, version, "cpe")
+        if cpe_split[1] == '2.3':
+            version = cpe_split[5]
+        elif cpe_split[1] in '/a/o/h':
+            version = cpe_split[4]
+        else:
+            raise ParamError("Malformed %s", "cpe")
+
+        return self.__get_burp_software(cpe, version, "cpe", exactmatch=exactmatch)
 
     get_multiple_bulletins = Endpoint(
         method="post",
@@ -344,6 +352,36 @@ class VulnersApi(VulnersApiBase):
         ],
     )
 
+    winaudit = Endpoint(
+        method="post",
+        url="/api/v3/audit/winaudit/",
+        description="Windows KB and software audit function",
+        params=[
+            (
+                "os",
+                String(description="Windows OS name, like 'Windows Server 2012 R2'"),
+            ),
+            (
+                "os_version",
+                String(description="Windows OS version, like '10.0.19045'"),
+            ),
+            (
+                "kb_list",
+                List(
+                    item=String(),
+                    description="List of installed KB's, ['KB2918614', 'KB2918616']"
+                ),
+            ),
+            (
+                "software",
+                List(
+                    item=Dict(),
+                    description="List of the software dicts, {'software': 'Microsoft Edge', 'version': '107.0.1418.56'}",
+                ),
+            ),
+        ],
+    )
+
     get_suggestion = Endpoint(
         method="post",
         url="/api/v3/search/suggest/",
@@ -427,6 +465,94 @@ class VulnersApi(VulnersApiBase):
             )
         data = self.__distributive(os=os, version=version)
         return [bulletin["_source"] for bulletin in data]
+
+    __report = Endpoint(
+        method="post",
+        url="/api/v3/reports/vulnsreport",
+        params=[
+            ("reporttype", String(description="One of strings [vulnssummary, vulnslist, ipsummary, scanlist]")),
+            ("skip", Integer(description="Skip this amount of items. 10000 is the hard limit")),
+            ("size", Integer(description="The maximum number of items to return. 10000 is the hard limit")),
+            ("filter", Dict(description="Dict of fields to filter, eg { 'OS': 'Centos', 'OSVersion': '7'}")),
+            ("sort", String(description="Field to sort, eg 'severity' or '-severity' to sort desc")),
+        ],
+        content_handler=lambda x, _: x['report']
+    )
+
+    @validate_params(
+        limit=Integer(minimum=1, maximum=10000),
+        offset=Integer(minimum=0, maximum=10000),
+        filter=Dict(),
+        sort=String()
+    )
+    def vulnssummary_report(self, limit=30, offset=0, filter=None, sort=''):
+        """
+        Get Linux Audit results. Return summary for all found vulnerabilities - id, title, score, severity etc
+
+        limit: The maximum number of items to return. 10000 is the hard limit.
+        offset: Skip this amount of items. 10000 is the hard limit.
+        filter: Dict of fields to filter, eg { 'OS': 'Centos', 'OSVersion': '7'}
+        sort: Field to sort, eg 'severity' or '-severity' to sort desc
+        """
+
+        return self.__report("vulnssummary", offset, limit, filter or {}, sort)
+
+    @validate_params(
+        limit=Integer(minimum=1, maximum=10000),
+        offset=Integer(minimum=0, maximum=10000),
+        filter=Dict(),
+        sort=String()
+    )
+    def vulnslist_report(self, limit=30, offset=0, filter=None, sort=''):
+        """
+        Get Linux Audit results. Return list of vulnerabilities found on hosts:
+            vulnerability id, vulnerability title, vulnerability severity, host information,  etc
+
+        limit: The maximum number of items to return. 10000 is the hard limit.
+        offset: Skip this amount of items. 10000 is the hard limit.
+        filter: Dict of fields to filter, eg { 'OS': 'Centos', 'OSVersion': '7'}
+        sort: Field to sort, eg 'severity' or '-severity' to sort desc
+        """
+
+        return self.__report("vulnslist", offset, limit, filter or {}, sort)
+
+    @validate_params(
+        limit=Integer(minimum=1, maximum=10000),
+        offset=Integer(minimum=0, maximum=10000),
+        filter=Dict(),
+        sort=String()
+    )
+    def ipsummary_report(self, limit=30, offset=0, filter=None, sort=''):
+        """
+        Get Linux Audit results. Return summary for hosts:
+            agent id, host ip, host fqdn, os name and version, found vulnerabilities count and severity
+
+        limit: The maximum number of items to return. 10000 is the hard limit.
+        offset: Skip this amount of items. 10000 is the hard limit.
+        filter: Dict of fields to filter, eg { 'OS': 'Centos', 'OSVersion': '7'}
+        sort: Field to sort, eg 'total' or '-total' to sort desc
+        """
+
+        return self.__report("ipsummary", offset, limit, filter or {}, sort)
+
+    @validate_params(
+        limit=Integer(minimum=1, maximum=10000),
+        offset=Integer(minimum=0, maximum=10000),
+        filter=Dict(),
+        sort=String()
+    )
+    def scanlist_report(self, limit=30, offset=0, filter=None, sort=''):
+        """
+        Get Linux Audit results. Return list of scans:
+           host ip and fqdn, os name and version, scan date, cvss score
+
+        limit: The maximum number of items to return. 10000 is the hard limit.
+        offset: Skip this amount of items. 10000 is the hard limit.
+        filter: Dict of fields to filter, eg { 'OS': 'Centos', 'OSVersion': '7'}
+        sort: Field to sort, eg 'modified' or '-modified' to sort desc
+        """
+
+        return self.__report("scanlist", offset, limit, filter or {}, sort)
 
 
 _Unset = object()

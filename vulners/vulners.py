@@ -554,6 +554,39 @@ class VulnersApi(VulnersApiBase):
 
         return self.__report("scanlist", offset, limit, filter or {}, sort)
 
+    get_webhooks = Endpoint(
+        method="post",
+        url="/api/v3/subscriptions/listWebhookSubscriptions/",
+        content_handler=lambda hooks, _: hooks["subscriptions"]
+    )
+
+    add_webhook = Endpoint(
+        method="post",
+        url="/api/v3/subscriptions/addWebhookSubscription/",
+        params=[
+            ("query", String()),
+            ("active", Boolean(default=True)),
+        ],
+        content_handler=lambda hook, _: hook["subscription"]
+    )
+
+    enable_webhook = Endpoint(
+        method="post",
+        url="/api/v3/subscriptions/enableWebhookSubscription/",
+        params=[
+            ("subscriptionid", String()),
+            ("active", Boolean()),
+        ]
+    )
+
+    delete_webhook = Endpoint(
+        method="post",
+        url="/api/v3/subscriptions/deleteWebhookSubscription/",
+        params=[
+            ("subscriptionid", String()),
+        ]
+    )
+
 
 _Unset = object()
 

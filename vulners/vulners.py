@@ -587,6 +587,15 @@ class VulnersApi(VulnersApiBase):
         ]
     )
 
+    read_webhook = Endpoint(
+        method="get",
+        url="/api/v3/subscriptions/webhook",
+        params=[
+            ("subscriptionid", String()),
+            ("newest_only", String(default="true"))
+        ]
+    )
+
 
 _Unset = object()
 

@@ -430,6 +430,13 @@ class VulnersApi(VulnersApiBase):
         content_handler=_unpack_json_file,
     )
 
+    getsploit = Endpoint(
+        method="get",
+        url="/api/v3/archive/getsploit/",
+        params=[],
+        result_type="zip",
+    )
+
     del _unpack_json_file
 
     @validate_params(collection=String(), start_date=String(), end_date=String())
@@ -595,6 +602,25 @@ class VulnersApi(VulnersApiBase):
             ("newest_only", String(default="true"))
         ]
     )
+
+    @validate_params(
+        limit=Integer(minimum=1, maximum=10000),
+        offset=Integer(minimum=0, maximum=10000),
+        filter=Dict(),
+        sort=String()
+    )
+    def hostvulns_report(self, limit=30, offset=0, filter=None, sort=''):
+        """
+        Get Linux Audit results. Return list of hosts and host vulnerabilities:
+           host ip and fqdn, os name and version, cumulative fix, vulnerability ids
+
+        limit: The maximum number of items to return. 10000 is the hard limit.
+        offset: Skip this amount of items. 10000 is the hard limit.
+        filter: Dict of fields to filter, eg { 'OS': 'Centos', 'OSVersion': '7'}
+        sort: Field to sort, eg 'modified' or '-modified' to sort desc
+        """
+
+        return self.__report("hostvulns", offset, limit, filter or {}, sort)
 
 
 _Unset = object()

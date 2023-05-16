@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-__version__ = "2.0.9"
+__version__ = "2.0.10"
 
 import warnings
 from .vulners import VulnersApi, Vulners

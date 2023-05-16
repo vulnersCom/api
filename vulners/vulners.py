@@ -257,6 +257,31 @@ class VulnersApi(VulnersApiBase):
         """
         return self.get_multiple_bulletin_references([id], fields=fields).get(id, {})
 
+    get_multiple_documents_with_references = Endpoint(
+        method="post",
+        url="/api/v3/search/id/",
+        description="",
+        params=[
+            (
+                "id",
+                List(
+                    item=String(), description="List of ID's. E.g., ['CVE-2017-14174']"
+                ),
+            ),
+            ("fields", Tuple(item=String(), default=default_fields)),
+            ("references", Const(True)),
+        ]
+    )
+
+    @validate_params(id=String(), fields=Tuple(item=String()))
+    def get_document_with_references(self, id, fields=default_fields):
+        """
+        Fetch bulletin with references by identificator
+
+        identificator: Bulletin ID. E.g., "CVE-2017-14174"
+        """
+        return self.get_multiple_documents_with_references([id], fields=fields)
+
     @validate_params(kbid=String())
     def get_kb_seeds(self, kbid):
         """

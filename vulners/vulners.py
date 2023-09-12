@@ -1,9 +1,22 @@
-import warnings
-import zipfile
 import io
 import json
-from .base import VulnersApiBase, ParamError, validate_params
-from .base import Endpoint, String, Integer, Dict, List, Tuple, Const, ResultSet, Boolean
+import warnings
+import zipfile
+
+from .base import (
+    Boolean,
+    Const,
+    Dict,
+    Endpoint,
+    Integer,
+    List,
+    ParamError,
+    ResultSet,
+    String,
+    Tuple,
+    VulnersApiBase,
+    validate_params,
+)
 
 
 class VulnersApi(VulnersApiBase):
@@ -55,14 +68,10 @@ class VulnersApi(VulnersApiBase):
         """
         end = min(10000, offset + limit)
         if offset >= end:
-            return ResultSet.from_dataset(
-                [], self.__search(query, 0, 1, ["id"])["total"]
-            )
+            return ResultSet.from_dataset([], self.__search(query, 0, 1, ["id"])["total"])
         else:
             search = self.__search(query, offset, limit, fields)
-            return ResultSet.from_dataset(
-                [e["_source"] for e in search["search"]], search["total"]
-            )
+            return ResultSet.from_dataset([e["_source"] for e in search["search"]], search["total"])
 
     @validate_params(
         query=String(),
@@ -84,9 +93,7 @@ class VulnersApi(VulnersApiBase):
         """
         end = min(10000, offset + limit)
         if offset >= end:
-            return ResultSet.from_dataset(
-                [], self.__search(query, 0, 1, ["id"])["total"]
-            )
+            return ResultSet.from_dataset([], self.__search(query, 0, 1, ["id"])["total"])
         result = ResultSet()
         batch_size = min(self.search_size, limit)
         for skip in range(offset, end, batch_size):
@@ -104,9 +111,7 @@ class VulnersApi(VulnersApiBase):
         offset=Integer(minimum=0, maximum=10000),
         fields=Tuple(item=String()),
     )
-    def find_exploit(
-        self, query, lookup_fields=None, limit=20, offset=0, fields=default_fields
-    ):
+    def find_exploit(self, query, lookup_fields=None, limit=20, offset=0, fields=default_fields):
         """
         Search in Vulners database for the exploits.
 
@@ -170,7 +175,12 @@ class VulnersApi(VulnersApiBase):
     __get_burp_software = Endpoint(
         method="post",
         url="/api/v3/burp/softwareapi/",
-        params=[("software", String()), ("version", String()), ("type", String()), ("exactmatch", Boolean(default=False))],
+        params=[
+            ("software", String()),
+            ("version", String()),
+            ("type", String()),
+            ("exactmatch", Boolean(default=False)),
+        ],
         content_handler=_get_burp_software_content,
     )
 
@@ -197,9 +207,9 @@ class VulnersApi(VulnersApiBase):
         cpe_split = cpe.split(":")
         if len(cpe_split) <= 4:
             raise ParamError("Malformed %s", "cpe")
-        if cpe_split[1] == '2.3':
+        if cpe_split[1] == "2.3":
             version = cpe_split[5]
-        elif cpe_split[1] in '/a/o/h':
+        elif cpe_split[1] in "/a/o/h":
             version = cpe_split[4]
         else:
             raise ParamError("Malformed %s", "cpe")
@@ -213,9 +223,7 @@ class VulnersApi(VulnersApiBase):
         params=[
             (
                 "id",
-                Tuple(
-                    item=String(), description="List of ID's. E.g., ['CVE-2017-14174']"
-                ),
+                Tuple(item=String(), description="List of ID's. E.g., ['CVE-2017-14174']"),
             ),
             ("fields", Tuple(item=String(), default=default_fields)),
         ],
@@ -238,9 +246,7 @@ class VulnersApi(VulnersApiBase):
         params=[
             (
                 "id",
-                List(
-                    item=String(), description="List of ID's. E.g., ['CVE-2017-14174']"
-                ),
+                List(item=String(), description="List of ID's. E.g., ['CVE-2017-14174']"),
             ),
             ("fields", Tuple(item=String(), default=default_fields)),
             ("references", Const(True)),
@@ -264,13 +270,11 @@ class VulnersApi(VulnersApiBase):
         params=[
             (
                 "id",
-                List(
-                    item=String(), description="List of ID's. E.g., ['CVE-2017-14174']"
-                ),
+                List(item=String(), description="List of ID's. E.g., ['CVE-2017-14174']"),
             ),
             ("fields", Tuple(item=String(), default=default_fields)),
             ("references", Const(True)),
-        ]
+        ],
     )
 
     @validate_params(id=String(), fields=Tuple(item=String()))
@@ -321,9 +325,7 @@ class VulnersApi(VulnersApiBase):
         params=[
             (
                 "os",
-                String(
-                    description="Full name of the OS. Like Ubuntu, Debian, rhel, oraclelinux"
-                ),
+                String(description="Full name of the OS. Like Ubuntu, Debian, rhel, oraclelinux"),
             ),
             ("version", String(description="OS version")),
             (
@@ -348,9 +350,7 @@ class VulnersApi(VulnersApiBase):
         params=[
             (
                 "os",
-                String(
-                    description="Full name of the OS. Like Ubuntu, Debian, rhel, oraclelinux"
-                ),
+                String(description="Full name of the OS. Like Ubuntu, Debian, rhel, oraclelinux"),
             ),
             ("version", String(description="OS version", param="osVersion")),
             ("packages", List(item=Dict(), description="List of the software dicts")),
@@ -393,8 +393,7 @@ class VulnersApi(VulnersApiBase):
             (
                 "kb_list",
                 List(
-                    item=String(),
-                    description="List of installed KB's, ['KB2918614', 'KB2918616']"
+                    item=String(), description="List of installed KB's, ['KB2918614', 'KB2918616']"
                 ),
             ),
             (
@@ -465,9 +464,7 @@ class VulnersApi(VulnersApiBase):
     del _unpack_json_file
 
     @validate_params(collection=String(), start_date=String(), end_date=String())
-    def get_collection(
-        self, collection, start_date="1950-01-01", end_date="2199-01-01"
-    ):
+    def get_collection(self, collection, start_date="1950-01-01", end_date="2199-01-01"):
         """
         Get entire collection data
 
@@ -475,12 +472,8 @@ class VulnersApi(VulnersApiBase):
         """
         collections = self.get_suggestion("type")
         if collection not in collections:
-            raise ParamError(
-                "Unknown %%s. Available values are %s" % (collections,), "collection"
-            )
-        return self.__archive_collection(
-            type=collection, datefrom=start_date, dateto=end_date
-        )
+            raise ParamError("Unknown %%s. Available values are %s" % (collections,), "collection")
+        return self.__archive_collection(type=collection, datefrom=start_date, dateto=end_date)
 
     @validate_params(os=String(), version=String())
     def get_distributive(self, os, version):
@@ -492,9 +485,7 @@ class VulnersApi(VulnersApiBase):
         """
         supported_os = self.get_suggestion("affectedPackage.OS")
         if os.lower() not in [os_name.lower() for os_name in supported_os]:
-            raise ParamError(
-                "Unknown %%s. Available values are %s" % (supported_os,), "os"
-            )
+            raise ParamError("Unknown %%s. Available values are %s" % (supported_os,), "os")
         data = self.__distributive(os=os, version=version)
         return [bulletin["_source"] for bulletin in data]
 
@@ -502,22 +493,38 @@ class VulnersApi(VulnersApiBase):
         method="post",
         url="/api/v3/reports/vulnsreport",
         params=[
-            ("reporttype", String(description="One of strings [vulnssummary, vulnslist, ipsummary, scanlist]")),
+            (
+                "reporttype",
+                String(description="One of strings [vulnssummary, vulnslist, ipsummary, scanlist]"),
+            ),
             ("skip", Integer(description="Skip this amount of items. 10000 is the hard limit")),
-            ("size", Integer(description="The maximum number of items to return. 10000 is the hard limit")),
-            ("filter", Dict(description="Dict of fields to filter, eg { 'OS': 'Centos', 'OSVersion': '7'}")),
-            ("sort", String(description="Field to sort, eg 'severity' or '-severity' to sort desc")),
+            (
+                "size",
+                Integer(
+                    description="The maximum number of items to return. 10000 is the hard limit"
+                ),
+            ),
+            (
+                "filter",
+                Dict(
+                    description="Dict of fields to filter, eg { 'OS': 'Centos', 'OSVersion': '7'}"
+                ),
+            ),
+            (
+                "sort",
+                String(description="Field to sort, eg 'severity' or '-severity' to sort desc"),
+            ),
         ],
-        content_handler=lambda x, _: x['report']
+        content_handler=lambda x, _: x["report"],
     )
 
     @validate_params(
         limit=Integer(minimum=1, maximum=10000),
         offset=Integer(minimum=0, maximum=10000),
         filter=Dict(),
-        sort=String()
+        sort=String(),
     )
-    def vulnssummary_report(self, limit=30, offset=0, filter=None, sort=''):
+    def vulnssummary_report(self, limit=30, offset=0, filter=None, sort=""):
         """
         Get Linux Audit results. Return summary for all found vulnerabilities - id, title, score, severity etc
 
@@ -533,9 +540,9 @@ class VulnersApi(VulnersApiBase):
         limit=Integer(minimum=1, maximum=10000),
         offset=Integer(minimum=0, maximum=10000),
         filter=Dict(),
-        sort=String()
+        sort=String(),
     )
-    def vulnslist_report(self, limit=30, offset=0, filter=None, sort=''):
+    def vulnslist_report(self, limit=30, offset=0, filter=None, sort=""):
         """
         Get Linux Audit results. Return list of vulnerabilities found on hosts:
             vulnerability id, vulnerability title, vulnerability severity, host information,  etc
@@ -552,9 +559,9 @@ class VulnersApi(VulnersApiBase):
         limit=Integer(minimum=1, maximum=10000),
         offset=Integer(minimum=0, maximum=10000),
         filter=Dict(),
-        sort=String()
+        sort=String(),
     )
-    def ipsummary_report(self, limit=30, offset=0, filter=None, sort=''):
+    def ipsummary_report(self, limit=30, offset=0, filter=None, sort=""):
         """
         Get Linux Audit results. Return summary for hosts:
             agent id, host ip, host fqdn, os name and version, found vulnerabilities count and severity
@@ -571,9 +578,9 @@ class VulnersApi(VulnersApiBase):
         limit=Integer(minimum=1, maximum=10000),
         offset=Integer(minimum=0, maximum=10000),
         filter=Dict(),
-        sort=String()
+        sort=String(),
     )
-    def scanlist_report(self, limit=30, offset=0, filter=None, sort=''):
+    def scanlist_report(self, limit=30, offset=0, filter=None, sort=""):
         """
         Get Linux Audit results. Return list of scans:
            host ip and fqdn, os name and version, scan date, cvss score
@@ -589,7 +596,7 @@ class VulnersApi(VulnersApiBase):
     get_webhooks = Endpoint(
         method="post",
         url="/api/v3/subscriptions/listWebhookSubscriptions/",
-        content_handler=lambda hooks, _: hooks["subscriptions"]
+        content_handler=lambda hooks, _: hooks["subscriptions"],
     )
 
     add_webhook = Endpoint(
@@ -599,7 +606,7 @@ class VulnersApi(VulnersApiBase):
             ("query", String()),
             ("active", Boolean(default=True)),
         ],
-        content_handler=lambda hook, _: hook["subscription"]
+        content_handler=lambda hook, _: hook["subscription"],
     )
 
     enable_webhook = Endpoint(
@@ -608,7 +615,7 @@ class VulnersApi(VulnersApiBase):
         params=[
             ("subscriptionid", String()),
             ("active", Boolean()),
-        ]
+        ],
     )
 
     delete_webhook = Endpoint(
@@ -616,25 +623,22 @@ class VulnersApi(VulnersApiBase):
         url="/api/v3/subscriptions/deleteWebhookSubscription/",
         params=[
             ("subscriptionid", String()),
-        ]
+        ],
     )
 
     read_webhook = Endpoint(
         method="get",
         url="/api/v3/subscriptions/webhook",
-        params=[
-            ("subscriptionid", String()),
-            ("newest_only", String(default="true"))
-        ]
+        params=[("subscriptionid", String()), ("newest_only", String(default="true"))],
     )
 
     @validate_params(
         limit=Integer(minimum=1, maximum=10000),
         offset=Integer(minimum=0, maximum=10000),
         filter=Dict(),
-        sort=String()
+        sort=String(),
     )
-    def hostvulns_report(self, limit=30, offset=0, filter=None, sort=''):
+    def hostvulns_report(self, limit=30, offset=0, filter=None, sort=""):
         """
         Get Linux Audit results. Return list of hosts and host vulnerabilities:
            host ip and fqdn, os name and version, cumulative fix, vulnerability ids
@@ -677,13 +681,9 @@ class DeprecatedVulnersApi(VulnersApi):
             "Use VulnersApi.find() instead.",
             DeprecationWarning,
         )
-        return self.find(
-            query, limit=pageSize, offset=offset, fields=fields or self.default_fields
-        )
+        return self.find(query, limit=pageSize, offset=offset, fields=fields or self.default_fields)
 
-    def searchExploit(
-        self, query, lookup_fields=None, limit=100, offset=0, fields=None
-    ):
+    def searchExploit(self, query, lookup_fields=None, limit=100, offset=0, fields=None):
         warnings.warn(
             "searchExploit() is deprecated and will be removed in future release. "
             "Use VulnersApi.find_exploit_all() instead.",
@@ -700,9 +700,7 @@ class DeprecatedVulnersApi(VulnersApi):
             fields=fields or self.default_fields,
         )
 
-    def searchExploitPage(
-        self, query, lookup_fields=None, limit=100, offset=0, fields=None
-    ):
+    def searchExploitPage(self, query, lookup_fields=None, limit=100, offset=0, fields=None):
         warnings.warn(
             "searchExploitPage() is deprecated and will be removed in future release. "
             "Use VulnersApi.find_exploit() instead.",
@@ -775,9 +773,7 @@ class DeprecatedVulnersApi(VulnersApi):
             "Use VulnersApi.get_multiple_bulletins() instead.",
             DeprecationWarning,
         )
-        return self.get_multiple_bulletins(
-            identificatorList, fields=fields or self.default_fields
-        )
+        return self.get_multiple_bulletins(identificatorList, fields=fields or self.default_fields)
 
     def references(self, identificator, fields=None):
         warnings.warn(
@@ -785,9 +781,7 @@ class DeprecatedVulnersApi(VulnersApi):
             "Use VulnersApi.get_bulletin_references() instead.",
             DeprecationWarning,
         )
-        return self.get_bulletin_references(
-            identificator, fields=fields or self.default_fields
-        )
+        return self.get_bulletin_references(identificator, fields=fields or self.default_fields)
 
     def referencesList(self, identificatorList, fields=None):
         warnings.warn(
@@ -845,9 +839,7 @@ class DeprecatedVulnersApi(VulnersApi):
             "Use VulnersApi.get_kb_updates() instead.",
             DeprecationWarning,
         )
-        return self.get_kb_updates(
-            kb_identificator, fields=fields or self.default_fields
-        )
+        return self.get_kb_updates(kb_identificator, fields=fields or self.default_fields)
 
     def autocomplete(self, query):
         warnings.warn(

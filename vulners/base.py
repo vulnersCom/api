@@ -1,19 +1,21 @@
-import os
-import stat
-import re
-import uuid
-import requests
-import threading
-import json
 import functools
 import inspect
-from time import time, sleep
-from collections import defaultdict, OrderedDict
-from six import string_types, with_metaclass
-from requests import adapters, cookies
-from urllib3.util.retry import Retry
+import os
+import re
+import stat
+import uuid
+from collections import OrderedDict, defaultdict
+from http import cookiejar
+from importlib.metadata import version
+from time import sleep, time
+
+import requests
 from appdirs import user_cache_dir
-from . import __version__
+from requests import adapters, cookies
+from six import string_types, with_metaclass
+from urllib3.util.retry import Retry
+
+__version__ = version("vulners")
 
 
 try:
@@ -77,57 +79,39 @@ class RateLimitBucket(object):
             break
 
 
-class PersistentCookieJar(cookies.RequestsCookieJar):
-
-    _cookie_locks = defaultdict(threading.RLock)
-
-    def __init__(self, file_path=None, *args, **kwargs):
-        super(PersistentCookieJar, self).__init__(*args, **kwargs)
-        self._set_cookie_counter = 0
-        if file_path:
-            self._file_path = file_path
-        else:
+class PersistentCookieJar(cookiejar.MozillaCookieJar, cookies.RequestsCookieJar):
+    def __init__(self, filename=None, *args, **kwargs):
+        if filename is None:
             cache_dir = user_cache_dir("Vulners", "Vulners.Inc")
             if not os.path.exists(cache_dir):
                 os.makedirs(cache_dir)
-            self._file_path = os.path.join(cache_dir, "cookies.txt")
+            filename = os.path.join(cache_dir, "mozilla_cookies.jar")
+        super().__init__(filename, *args, **kwargs)
+        self._set_cookie_counter = 0
         self._recover()
-
-    def dump(self):
-        if self._set_cookie_counter:
-            with self._cookie_locks[self._file_path]:
-                with open(self._file_path, "wb") as cookie_file:
-                    cookie_file.write(
-                        json.dumps(self.get_dict(), ensure_ascii=True).encode("ascii")
-                    )
-            self._set_cookie_counter = 0
 
     def _recover(self):
         try:
-            mode = os.stat(self._file_path).st_mode
+            mode = os.stat(self.filename).st_mode
         except OSError:
             return
         if not stat.S_ISREG(mode):
-            raise OSError("%s is not a regular file" % self._file_path)
-        with self._cookie_locks[self._file_path]:
-            with open(self._file_path, "rb") as cookie_file:
-                try:
-                    cookies_dict = json.loads(cookie_file.read())
-                except (TypeError, ValueError):
-                    return
-        if not isinstance(cookies_dict, dict):
-            return
-            # this method internally calls set_cookie
-        self.update(cookies_dict)
-        self._set_cookie_counter = 0
+            raise OSError("%s is not a regular file" % self.filename)
+        with self._cookies_lock:
+            self.load(ignore_discard=True, ignore_expires=True)
+            self._set_cookie_counter = 0
 
     def extract_cookies(self, response, request):
-        super(PersistentCookieJar, self).extract_cookies(response, request)
-        self.dump()
+        with self._cookies_lock:
+            super().extract_cookies(response, request)
+            if self._set_cookie_counter > 0:
+                self.save(ignore_discard=True, ignore_expires=True)
+                self._set_cookie_counter = 0
 
     def set_cookie(self, *args, **kwargs):
-        self._set_cookie_counter += 1
-        return super(PersistentCookieJar, self).set_cookie(*args, **kwargs)
+        with self._cookies_lock:
+            self._set_cookie_counter += 1
+            return super().set_cookie(*args, **kwargs)
 
 
 class VulnersApiBase(with_metaclass(VulnersApiMeta)):
@@ -138,9 +122,7 @@ class VulnersApiBase(with_metaclass(VulnersApiMeta)):
 
     _ratelimits = defaultdict(RateLimitBucket)
 
-    def __init__(
-        self, api_key, proxies=None, persistent=True, server_url="https://vulners.com"
-    ):
+    def __init__(self, api_key, proxies=None, persistent=True, server_url="https://vulners.com"):
         """
         Create VScanner API object.
 
@@ -248,10 +230,13 @@ class ParamError(ValueError):
 
 
 class Param(object):
-    def __init__(self, default=_Nothing, description=None, required=True, param=None):
+    def __init__(
+        self, default=_Nothing, description=None, required=True, allow_null=False, param=None
+    ):
         if not required:
             if default is _Nothing:
                 default = None
+        self.allow_null = allow_null
         self.param = param
         self.default = default
         self.required = required
@@ -269,18 +254,19 @@ class String(Param):
         self.choices = choices
 
     def validate(self, param, value):
+        if value is None and self.allow_null:
+            return value
         if not isinstance(value, string_types):
             raise ParamError("%s expected to be a string", param)
         if self.choices is not None and value not in self.choices:
-            raise ParamError(
-                "%%s expected to be on of (%s)" % ", ".join(self.choices), param
-            )
+            raise ParamError("%%s expected to be on of (%s)" % ", ".join(self.choices), param)
         return value
 
 
 class UUID(Param):
-    @staticmethod
-    def validate(param, value):
+    def validate(self, param, value):
+        if value is None and self.allow_null:
+            return value
         try:
             return str(uuid.UUID(value))
         except (TypeError, ValueError):
@@ -288,8 +274,9 @@ class UUID(Param):
 
 
 class Dict(Param):
-    @staticmethod
-    def validate(param, value):
+    def validate(self, param, value):
+        if value is None and self.allow_null:
+            return value
         if not isinstance(value, dict):
             raise ParamError("%s expected to be a dict", param)
         return value
@@ -311,6 +298,8 @@ class List(Param):
         return result
 
     def validate(self, param, value):
+        if value is None and self.allow_null:
+            return value
         if not isinstance(value, list):
             raise ParamError("%s expected to be a list", param)
         if self.item is not None:
@@ -324,6 +313,8 @@ class Tuple(List):
         self.accept_list = accept_list
 
     def validate(self, param, value):
+        if value is None and self.allow_null:
+            return value
         if not isinstance(value, (list, tuple) if self.accept_list else tuple):
             raise ParamError("%s expected to be a tuple", param)
         if self.item is not None:
@@ -338,6 +329,8 @@ class Integer(Param):
         self.maximum = maximum
 
     def validate(self, param, value):
+        if value is None and self.allow_null:
+            return value
         if not isinstance(value, int):
             raise ParamError("%s expected to be an int", param)
         if self.minimum is not None and value < self.minimum:
@@ -354,6 +347,8 @@ class Float(Param):
         self.maximum = maximum
 
     def validate(self, param, value):
+        if value is None and self.allow_null:
+            return value
         if not isinstance(value, float):
             raise TypeError("%s expected to be a float" % param)
         if self.minimum is not None and value < self.minimum:
@@ -364,8 +359,9 @@ class Float(Param):
 
 
 class Boolean(Param):
-    @staticmethod
-    def validate(param, value):
+    def validate(self, param, value):
+        if value is None and self.allow_null:
+            return value
         if not isinstance(value, bool):
             raise TypeError("%s expected to be a bool" % param)
         return value
@@ -381,9 +377,7 @@ def validate_params(**params):
             if param not in spec.args:
                 raise TypeError("No such argument %s" % param)
         spec_defaults = spec.defaults or ()
-        default_values = (_unset,) * (
-            len(spec.args) - len(spec_defaults)
-        ) + spec_defaults
+        default_values = (_unset,) * (len(spec.args) - len(spec_defaults)) + spec_defaults
         defaults = {k: v for k, v in zip(spec.args, default_values) if v is not _unset}
         args = ", ".join([arg for arg in spec.args])
         func_args = ", ".join(
@@ -401,9 +395,9 @@ def validate_params(**params):
                 for var in params
             ]
         )
-        code = (
-            "def {name}({func_args}):\n" "  {body}\n" "  return _func({args})"
-        ).format(name=func.__name__, func_args=func_args, body=body, args=args)
+        code = "def {name}({func_args}):\n  {body}\n  return _func({args})".format(
+            name=func.__name__, func_args=func_args, body=body, args=args
+        )
         exec_locals = {"_V": params, "_D": defaults, "_func": func}
         exec(code, exec_locals, exec_locals)
         new_func = exec_locals[func.__name__]
@@ -434,7 +428,7 @@ class Endpoint(object):
         params=None,
         result_type="json",
         content_handler=None,
-        wrapper=None
+        wrapper=None,
     ):
         assert method in ("get", "post", "put", "delete")
         assert isinstance(url, string_types)
@@ -470,10 +464,7 @@ class Endpoint(object):
         func_args_with_default = []
         body_params = []
         path_params = []
-        func_locals = {
-            "_content_handler": self.content_handler,
-            "_wrapper": self.wrapper
-        }
+        func_locals = {"_content_handler": self.content_handler, "_wrapper": self.wrapper}
         func_locals_reverse = {}
         func_doc = [self.description or name, ""]
         for key, param in self.params.items():
@@ -498,17 +489,15 @@ class Endpoint(object):
                 func_locals_reverse[param.validate] = validate_key
             if key in self.path_params:
                 path_params.append(
-                    "{key!r}: {validator}({key!r}, {key})".format(
-                        key=key, validator=validate_key
-                    )
+                    "{key!r}: {validator}({key!r}, {key})".format(key=key, validator=validate_key)
                 )
             else:
                 param_name = param.param or key
                 if param.required:
                     body_params.append(
-                        (
-                            "body_params[{param_name!r}] = {validator}({key!r}, {key})"
-                        ).format(param_name=param_name, key=key, validator=validate_key)
+                        "body_params[{param_name!r}] = {validator}({key!r}, {key})".format(
+                            param_name=param_name, key=key, validator=validate_key
+                        )
                     )
                 else:
                     body_params.append(
@@ -525,7 +514,7 @@ class Endpoint(object):
             "  '''{func_doc}'''\n"
             "  body_params = {{}}\n"
             "  {body_params}\n"
-            "  path_params = {{{path_params}}}\n" 
+            "  path_params = {{{path_params}}}\n"
             "  r = self._send_request({method!r}, {url!r}, body_params, path_params, {ratelimit_key!r}, {result!r})\n"
         ).format(
             name=name,

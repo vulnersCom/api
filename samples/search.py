@@ -4,6 +4,7 @@
 # Vulners search API usage example
 
 import os
+
 import vulners
 
 vulners_api = vulners.VulnersApi(api_key=os.environ["KEY"])

@@ -1,0 +1,45 @@
+[tool.poetry]
+name = "vulners"
+version = "2.1.0"
+description = "Python library and command-line utility for Vulners (https://vulners.com)"
+readme = "README.md"
+authors = ["Kirill Ermakov <isox@vulners.com>", "Andrei Churin <a.churin@qiwi.com>"]
+keywords = ["security", "network", "vulners", "vulnerability", "CVE"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Topic :: Software Development :: Version Control",
+    "Topic :: Utilities",
+]
+packages = [
+    { include = "vulners" },
+]
+
+[tool.poetry.dependencies]
+python = ">=3.8"
+requests = "^2.31.0"
+six = "^1.16.0"
+appdirs = "^1.4.4"
+
+[tool.poetry.dev-dependencies]
+black = "^23.9.1"
+isort = "^5.12.0"
+autoflake = "^2.2.1"
+
+[tool.black]
+line-length = 100
+target-version = ['py311']
+
+[tool.isort]
+profile = "black"
+line_length = 100
+
+[build-system]
+requires = ["poetry-core>=1.0.0", "setuptools"]
+build-backend = "poetry.core.masonry.api"
+

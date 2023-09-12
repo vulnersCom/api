@@ -1,11 +1,7 @@
-# -*- coding: utf-8 -*-
-
-__version__ = "2.0.10"
-
 import warnings
-from .vulners import VulnersApi, Vulners
-from .vscanner import VScannerApi
-from .base import VulnersApiError
 
+from .base import VulnersApiError
+from .vscanner import VScannerApi
+from .vulners import Vulners, VulnersApi
 
 warnings.simplefilter("always", DeprecationWarning)

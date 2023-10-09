@@ -20,7 +20,7 @@ from .base import (
 
 
 class VulnersApi(VulnersApiBase):
-    search_size = 100
+    search_size = 1000
     default_fields = (
         "id",
         "title",

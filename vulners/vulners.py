@@ -651,6 +651,18 @@ class VulnersApi(VulnersApiBase):
 
         return self.__report("hostvulns", offset, limit, filter or {}, sort)
 
+    @validate_params(id=String())
+    def get_bulletin_history(self, id):
+        data = self.__get_bulletin_history(id=id)
+        return data["result"]
+
+    __get_bulletin_history = Endpoint(
+        method="get",
+        url="/api/v3/search/history/",
+        description="Bulletin history list",
+        params=[("id", String(description="Bulletin ID"))],
+    )
+
 
 _Unset = object()
 

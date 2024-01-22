@@ -50,7 +50,7 @@ class VulnersApi(VulnersApiBase):
     @validate_params(
         query=String(),
         limit=Integer(minimum=1, maximum=100),
-        offset=Integer(minimum=0, maximum=10000),
+        offset=Integer(minimum=0, maximum=9999),
         fields=Tuple(item=String()),
     )
     def find(self, query, limit=20, offset=0, fields=default_fields):
@@ -65,12 +65,9 @@ class VulnersApi(VulnersApiBase):
         Returns list of the documents.
         Use .total to get the total number of found documents.
         """
-        end = min(10000, offset + limit)
-        if offset >= end:
-            return ResultSet.from_dataset([], self.__search(query, 0, 1, ["id"])["total"])
-        else:
-            search = self.__search(query, offset, limit, fields)
-            return ResultSet.from_dataset([e["_source"] for e in search["search"]], search["total"])
+        limit = min(limit, 10000 - offset)
+        search = self.__search(query, offset, limit, fields)
+        return ResultSet.from_dataset([e["_source"] for e in search["search"]], search["total"])
 
     @validate_params(
         query=String(),
@@ -108,7 +105,7 @@ class VulnersApi(VulnersApiBase):
         query=String(),
         lookup_fields=Tuple(item=String()),
         limit=Integer(minimum=1, maximum=100),
-        offset=Integer(minimum=0, maximum=10000),
+        offset=Integer(minimum=0, maximum=9999),
         fields=Tuple(item=String()),
     )
     def find_exploit(self, query, lookup_fields=None, limit=20, offset=0, fields=default_fields):
@@ -135,8 +132,8 @@ class VulnersApi(VulnersApiBase):
     @validate_params(
         query=String(),
         lookup_fields=Tuple(item=String()),
-        limit=Integer(minimum=1, maximum=100),
-        offset=Integer(minimum=0, maximum=10000),
+        limit=Integer(minimum=1, maximum=10000),
+        offset=Integer(minimum=0, maximum=9999),
         fields=Tuple(item=String()),
     )
     def find_exploit_all(
@@ -520,7 +517,7 @@ class VulnersApi(VulnersApiBase):
 
     @validate_params(
         limit=Integer(minimum=1, maximum=10000),
-        offset=Integer(minimum=0, maximum=10000),
+        offset=Integer(minimum=0, maximum=9999),
         filter=Dict(),
         sort=String(),
     )
@@ -538,7 +535,7 @@ class VulnersApi(VulnersApiBase):
 
     @validate_params(
         limit=Integer(minimum=1, maximum=10000),
-        offset=Integer(minimum=0, maximum=10000),
+        offset=Integer(minimum=0, maximum=9999),
         filter=Dict(),
         sort=String(),
     )
@@ -557,7 +554,7 @@ class VulnersApi(VulnersApiBase):
 
     @validate_params(
         limit=Integer(minimum=1, maximum=10000),
-        offset=Integer(minimum=0, maximum=10000),
+        offset=Integer(minimum=0, maximum=9999),
         filter=Dict(),
         sort=String(),
     )
@@ -576,7 +573,7 @@ class VulnersApi(VulnersApiBase):
 
     @validate_params(
         limit=Integer(minimum=1, maximum=10000),
-        offset=Integer(minimum=0, maximum=10000),
+        offset=Integer(minimum=0, maximum=9999),
         filter=Dict(),
         sort=String(),
     )
@@ -634,7 +631,7 @@ class VulnersApi(VulnersApiBase):
 
     @validate_params(
         limit=Integer(minimum=1, maximum=10000),
-        offset=Integer(minimum=0, maximum=10000),
+        offset=Integer(minimum=0, maximum=9999),
         filter=Dict(),
         sort=String(),
     )

@@ -75,7 +75,7 @@ class VulnersApi(VulnersApiBase):
     @validate_params(
         query=String(),
         limit=Integer(minimum=1, maximum=10000),
-        offset=Integer(minimum=0, maximum=10000),
+        offset=Integer(minimum=0, maximum=9999),
         fields=Tuple(item=String()),
     )
     def find_all(self, query, limit=20, offset=0, fields=default_fields):
@@ -90,17 +90,18 @@ class VulnersApi(VulnersApiBase):
         Returns list of the documents.
         Use .total to get the total number of found documents.
         """
-        end = min(10000, offset + limit)
-        if offset >= end:
-            return ResultSet.from_dataset([], self.__search(query, 0, 1, ["id"])["total"])
+        limit = min(limit, 10000 - offset)
+        end = offset + limit
+        batch_size = min(1000, limit)
         result = ResultSet()
-        batch_size = min(100, limit)  # maximum API limit
-        for skip in range(offset, end, batch_size):
-            chunk = self.__search(query, skip, min(batch_size, end - skip), fields)
-            result += [e["_source"] for e in chunk["search"]]
+        while len(result) < limit:
+            chunk = self.__search(query, offset, min(batch_size, end - offset), fields)
+            data = chunk["search"]
+            result += [e["_source"] for e in data]
             result.total = chunk["total"]
-            if len(chunk["search"]) < batch_size:
+            if not data:
                 break
+            offset += len(data)
         return result
 
     @validate_params(

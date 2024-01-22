@@ -20,7 +20,6 @@ from .base import (
 
 
 class VulnersApi(VulnersApiBase):
-    search_size = 1000
     default_fields = (
         "id",
         "title",
@@ -95,7 +94,7 @@ class VulnersApi(VulnersApiBase):
         if offset >= end:
             return ResultSet.from_dataset([], self.__search(query, 0, 1, ["id"])["total"])
         result = ResultSet()
-        batch_size = min(self.search_size, limit)
+        batch_size = min(100, limit)  # maximum API limit
         for skip in range(offset, end, batch_size):
             chunk = self.__search(query, skip, min(batch_size, end - skip), fields)
             result += [e["_source"] for e in chunk["search"]]

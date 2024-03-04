@@ -34,6 +34,8 @@ class VulnersApi(VulnersApiBase):
         "sourceHref",
         "sourceData",
         "cvelist",
+        "vulnStatus",
+        "assigned",
     )
 
     __search = Endpoint(

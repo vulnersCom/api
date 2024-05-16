@@ -212,8 +212,8 @@ class VulnersApiBase(with_metaclass(VulnersApiMeta)):
         bucket.consume()
         response = getattr(self._sess, method)(url, **kwargs)
         self._update_ratelimit(bucket, response)
-        result = self.adapt_response(response, method, result_type)
         response.raise_for_status()
+        result = self.adapt_response(response, method, result_type)
         return result, response.headers
 
 

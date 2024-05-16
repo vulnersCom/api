@@ -592,8 +592,45 @@ class VulnersApi(VulnersApiBase):
 
         return self.__report("scanlist", offset, limit, filter or {}, sort)
 
-    get_webhooks = Endpoint(
+    get_subscriptions = Endpoint(
+        method="get",
+        url="/api/v3/subscriptions/listEmailSubscriptions/",
+        content_handler=lambda hooks, _: hooks["subscriptions"],
+    )
+
+    add_subscription = Endpoint(
         method="post",
+        url="/api/v3/subscriptions/addEmailSubscription/",
+        params=[
+            ("query", String()),
+            ("email", String()),
+            ("format", String(default="html", choices=("html", "json", "pdf"))),
+            ("crontab", String(allow_null=True, default=None)),
+            ("query_type", String(default="lucene")),
+        ]
+    )
+
+    edit_subscription = Endpoint(
+        method="post",
+        url="/api/v3/subscriptions/editEmailSubscription/",
+        params=[
+            ("subscriptionid", String()),
+            ("format", String(allow_null=True, default=None, choices=("html", "json", "pdf"))),
+            ("crontab", String(allow_null=True, default=None)),
+            ("active", String(allow_null=True, default=None, choices=("yes", "no", "true", "false"))),
+        ]
+    )
+
+    delete_subscription = Endpoint(
+        method="post",
+        url="/api/v3/subscriptions/removeEmailSubscription/",
+        params=[
+            ("subscriptionid", String()),
+        ]
+    )
+
+    get_webhooks = Endpoint(
+        method="get",
         url="/api/v3/subscriptions/listWebhookSubscriptions/",
         content_handler=lambda hooks, _: hooks["subscriptions"],
     )

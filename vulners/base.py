@@ -116,7 +116,7 @@ class PersistentCookieJar(cookiejar.MozillaCookieJar, cookies.RequestsCookieJar)
 
 class VulnersApiBase(with_metaclass(VulnersApiMeta)):
     # Retry status codes
-    retry_codes = (500, 502, 503, 504)
+    retry_codes = (502, 503, 504)
     # How many times to retry
     retry_count = 3
 

@@ -181,7 +181,7 @@ class VulnersApi(VulnersApiBase):
             ("respect_major_version", String(choices=["yes", "no", "true", "false"])),
             ("exclude_any_version", String(choices=["yes", "no", "true", "false"])),
             ("only_ids", String(choices=["yes", "no", "true", "false"])),
-            ("type", String()), # deprecated
+            ("type", String(required=False)), # deprecated
         ],
         content_handler=_get_burp_software_content,
     )

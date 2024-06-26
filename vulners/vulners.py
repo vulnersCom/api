@@ -176,12 +176,13 @@ class VulnersApi(VulnersApiBase):
         url="/api/v3/burp/softwareapi/",
         params=[
             ("software", String()),
-            ("version", String()),
+            ("version", String(required=False)),
             ("vendor", String(required=False)),
-            ("respect_major_version", String(choices=["yes", "no", "true", "false"])),
-            ("exclude_any_version", String(choices=["yes", "no", "true", "false"])),
-            ("only_ids", String(choices=["yes", "no", "true", "false"])),
+            ("respect_major_version", String(required=False, choices=["yes", "no", "true", "false"])),
+            ("exclude_any_version", String(required=False, choices=["yes", "no", "true", "false"])),
+            ("only_ids", String(required=False, choices=["yes", "no", "true", "false"])),
             ("type", String(required=False)), # deprecated
+            ("exactmatch", Boolean(default=False)), # deprecated
         ],
         content_handler=_get_burp_software_content,
     )
@@ -189,34 +190,55 @@ class VulnersApi(VulnersApiBase):
     del _get_burp_software_content
 
     @validate_params(name=String(), version=String())
-    def get_software_vulnerabilities(self, name, version):
+    def get_software_vulnerabilities(
+        self,
+        name,
+        version,
+        vendor=None,
+        respect_major_version=None,
+        exclude_any_version=None,
+        only_ids=None
+    ):
         """
         Find software vulnerabilities using name and version.
 
         name: Software name, e.g. 'httpd'
         version: Software version, e.g. '2.1'
         """
-        return self.__get_burp_software(name, version, "software")
+        return self.__get_burp_software(
+            name,
+            version,
+            vendor,
+            respect_major_version,
+            exclude_any_version,
+            only_ids
+        )
 
     @validate_params(cpe=String())
-    def get_cpe_vulnerabilities(self, cpe, exactmatch=False):
+    def get_cpe_vulnerabilities(
+        self,
+        cpe,
+        respect_major_version=None,
+        exclude_any_version=None,
+        only_ids=None,
+        exactmatch=False
+    ):
         """
         Find software vulnerabilities using CPE string. See CPE references at https://cpe.mitre.org/specification/
 
         cpe: CPE software string, see https://cpe.mitre.org/specification/
         exactmatch:  if true searches only for bulletins corresponding to the specified minor version and revision
         """
-        cpe_split = cpe.split(":")
-        if len(cpe_split) <= 4:
-            raise ParamError("Malformed %s", "cpe")
-        if cpe_split[1] == "2.3":
-            version = cpe_split[5]
-        elif cpe_split[1] in "/a/o/h":
-            version = cpe_split[4]
-        else:
-            raise ParamError("Malformed %s", "cpe")
-
-        return self.__get_burp_software(cpe, version, "cpe", exactmatch=exactmatch)
+        if exactmatch:
+            warnings.warn("exactmatch is deprecated")
+        return self.__get_burp_software(
+            cpe,
+            None,
+            vendor,
+            respect_major_version,
+            exclude_any_version,
+            only_ids
+        )
 
     get_multiple_bulletins = Endpoint(
         method="post",

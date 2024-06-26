@@ -234,7 +234,6 @@ class VulnersApi(VulnersApiBase):
         return self.__get_burp_software(
             cpe,
             None,
-            vendor,
             respect_major_version,
             exclude_any_version,
             only_ids

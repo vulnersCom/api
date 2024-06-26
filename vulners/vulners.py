@@ -177,8 +177,11 @@ class VulnersApi(VulnersApiBase):
         params=[
             ("software", String()),
             ("version", String()),
-            ("type", String()),
-            ("exactmatch", Boolean(default=False)),
+            ("vendor", String(required=False)),
+            ("respect_major_version", String(choices=["yes", "no", "true", "false"])),
+            ("exclude_any_version", String(choices=["yes", "no", "true", "false"])),
+            ("only_ids", String(choices=["yes", "no", "true", "false"])),
+            ("type", String()), # deprecated
         ],
         content_handler=_get_burp_software_content,
     )

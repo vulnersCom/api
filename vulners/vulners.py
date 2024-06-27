@@ -180,7 +180,6 @@ class VulnersApi(VulnersApiBase):
             ("vendor", String(required=False)),
             ("respect_major_version", String(required=False, choices=["yes", "no", "true", "false"])),
             ("exclude_any_version", String(required=False, choices=["yes", "no", "true", "false"])),
-            ("only_ids", String(required=False, choices=["yes", "no", "true", "false"])),
             ("type", String(required=False)), # deprecated
             ("exactmatch", Boolean(default=False)), # deprecated
         ],
@@ -220,7 +219,6 @@ class VulnersApi(VulnersApiBase):
         cpe,
         respect_major_version=None,
         exclude_any_version=None,
-        only_ids=None,
         exactmatch=False
     ):
         """
@@ -236,7 +234,6 @@ class VulnersApi(VulnersApiBase):
             None,
             respect_major_version,
             exclude_any_version,
-            only_ids
         )
 
     get_multiple_bulletins = Endpoint(

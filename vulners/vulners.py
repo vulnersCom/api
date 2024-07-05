@@ -219,7 +219,7 @@ class VulnersApi(VulnersApiBase):
         cpe,
         respect_major_version=None,
         exclude_any_version=None,
-        exactmatch=False
+        only_ids=None
     ):
         """
         Find software vulnerabilities using CPE string. See CPE references at https://cpe.mitre.org/specification/
@@ -227,13 +227,13 @@ class VulnersApi(VulnersApiBase):
         cpe: CPE software string, see https://cpe.mitre.org/specification/
         exactmatch:  if true searches only for bulletins corresponding to the specified minor version and revision
         """
-        if exactmatch:
-            warnings.warn("exactmatch is deprecated")
         return self.__get_burp_software(
             cpe,
             None,
+            None,
             respect_major_version,
             exclude_any_version,
+            only_ids,
         )
 
     get_multiple_bulletins = Endpoint(

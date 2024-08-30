@@ -178,6 +178,11 @@ class VulnersApi(VulnersApiBase):
             ("software", String()),
             ("version", String(required=False)),
             ("vendor", String(required=False)),
+            ("update", String(required=False)),
+            ("language", String(required=False)),
+            ("sw_edition", String(required=False)),
+            ("target_sw", String(required=False)),
+            ("target_hw", String(required=False)),
             ("respect_major_version", String(required=False, choices=["yes", "no", "true", "false"])),
             ("exclude_any_version", String(required=False, choices=["yes", "no", "true", "false"])),
             ("type", String(required=False)), # deprecated
@@ -194,6 +199,11 @@ class VulnersApi(VulnersApiBase):
         name,
         version,
         vendor=None,
+        update=None,
+        language=None,
+        sw_edition=None,
+        target_sw=None,
+        target_hw=None,
         respect_major_version=None,
         exclude_any_version=None,
         only_ids=None
@@ -208,6 +218,11 @@ class VulnersApi(VulnersApiBase):
             name,
             version,
             vendor,
+            update,
+            language,
+            sw_edition,
+            target_sw,
+            target_hw,
             respect_major_version,
             exclude_any_version,
             only_ids
@@ -229,6 +244,11 @@ class VulnersApi(VulnersApiBase):
         """
         return self.__get_burp_software(
             cpe,
+            None,
+            None,
+            None,
+            None,
+            None,
             None,
             None,
             respect_major_version,

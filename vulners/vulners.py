@@ -100,6 +100,8 @@ class VulnersApi(VulnersApiBase):
             result.total = chunk["total"]
             if not data:
                 break
+            if result.total <= len(data):
+                break
             offset += len(data)
         return result
 

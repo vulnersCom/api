@@ -433,6 +433,10 @@ class VulnersApi(VulnersApiBase):
                 String(description="Windows OS version, like '10.0.19045'"),
             ),
             (
+                "platform",
+                String(required=False, description="os platform like 'x86'"),
+            ),
+            (
                 "kb_list",
                 List(
                     item=String(), description="List of installed KB's, ['KB2918614', 'KB2918616']"

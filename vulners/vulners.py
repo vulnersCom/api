@@ -434,7 +434,7 @@ class VulnersApi(VulnersApiBase):
             ),
             (
                 "platform",
-                String(required=False, description="os platform like 'x86'"),
+                String(required=False, description="os platform like x86"),
             ),
             (
                 "kb_list",

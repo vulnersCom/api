@@ -4,6 +4,7 @@ import warnings
 import zipfile
 
 from .base import (
+    Any,
     Boolean,
     Const,
     Dict,
@@ -185,10 +186,13 @@ class VulnersApi(VulnersApiBase):
             ("sw_edition", String(required=False)),
             ("target_sw", String(required=False)),
             ("target_hw", String(required=False)),
-            ("respect_major_version", String(required=False, choices=["yes", "no", "true", "false"])),
+            (
+                "respect_major_version",
+                String(required=False, choices=["yes", "no", "true", "false"]),
+            ),
             ("exclude_any_version", String(required=False, choices=["yes", "no", "true", "false"])),
-            ("type", String(required=False)), # deprecated
-            ("exactmatch", Boolean(default=False)), # deprecated
+            ("type", String(required=False)),  # deprecated
+            ("exactmatch", Boolean(default=False)),  # deprecated
         ],
         content_handler=_get_burp_software_content,
     )
@@ -208,8 +212,13 @@ class VulnersApi(VulnersApiBase):
         target_hw=None,
         respect_major_version=None,
         exclude_any_version=None,
-        only_ids=None
+        only_ids=None,
     ):
+        warnings.warn(
+            "get_software_vulnerabilities() is deprecated and will be removed in future release. "
+            "Use VulnersApi.audit_software() or VulnersApi.audit_host() instead.",
+            DeprecationWarning,
+        )
         """
         Find software vulnerabilities using name and version.
 
@@ -227,16 +236,45 @@ class VulnersApi(VulnersApiBase):
             target_hw,
             respect_major_version,
             exclude_any_version,
-            only_ids
+            only_ids,
         )
+
+    audit_software = Endpoint(
+        method="post",
+        url="/api/v4/audit/software-batch/",
+        params=[
+            (
+                "software",
+                List(
+                    item=Dict(),
+                    description="List of dicts. E.g., [{'product': 'curl', 'version': '8.11.1', ...}, ...]",
+                ),
+            ),
+        ],
+        content_handler=lambda c, _: c["result"],
+    )
+
+    audit_host = Endpoint(
+        method="post",
+        url="/api/v4/audit/host/",
+        params=[
+            (
+                "software",
+                List(
+                    item=Dict(),
+                    description="List of dicts. E.g., [{'product': 'curl', 'version': '8.11.1', ...}, ...]",
+                ),
+            ),
+            ("application", Any(String, Dict, required=False)),
+            ("operation_system", Any(String, Dict, required=False)),
+            ("hardware", Any(String, Dict, required=False)),
+        ],
+        content_handler=lambda c, _: c["result"],
+    )
 
     @validate_params(cpe=String())
     def get_cpe_vulnerabilities(
-        self,
-        cpe,
-        respect_major_version=None,
-        exclude_any_version=None,
-        only_ids=None
+        self, cpe, respect_major_version=None, exclude_any_version=None, only_ids=None
     ):
         """
         Find software vulnerabilities using CPE string. See CPE references at https://cpe.mitre.org/specification/
@@ -654,7 +692,7 @@ class VulnersApi(VulnersApiBase):
             ("format", String(default="html", choices=("html", "json", "pdf"))),
             ("crontab", String(allow_null=True, default=None)),
             ("query_type", String(default="lucene")),
-        ]
+        ],
     )
 
     edit_subscription = Endpoint(
@@ -664,8 +702,11 @@ class VulnersApi(VulnersApiBase):
             ("subscriptionid", String()),
             ("format", String(allow_null=True, default=None, choices=("html", "json", "pdf"))),
             ("crontab", String(allow_null=True, default=None)),
-            ("active", String(allow_null=True, default=None, choices=("yes", "no", "true", "false"))),
-        ]
+            (
+                "active",
+                String(allow_null=True, default=None, choices=("yes", "no", "true", "false")),
+            ),
+        ],
     )
 
     delete_subscription = Endpoint(
@@ -673,7 +714,7 @@ class VulnersApi(VulnersApiBase):
         url="/api/v3/subscriptions/removeEmailSubscription/",
         params=[
             ("subscriptionid", String()),
-        ]
+        ],
     )
 
     get_webhooks = Endpoint(

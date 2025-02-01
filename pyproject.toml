@@ -1,9 +1,9 @@
 [tool.poetry]
 name = "vulners"
-version = "2.2.3"
+version = "2.3.0"
 description = "Python library and command-line utility for Vulners (https://vulners.com)"
 readme = "README.md"
-authors = ["Kirill Ermakov <isox@vulners.com>", "Andrei Churin <a.churin@qiwi.com>"]
+authors = ["Vulners Team"]
 keywords = ["security", "network", "vulners", "vulnerability", "CVE"]
 classifiers = [
     "Development Status :: 5 - Production/Stable",

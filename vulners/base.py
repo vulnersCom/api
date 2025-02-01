@@ -248,6 +248,27 @@ class Const(object):
         self.value = value
 
 
+class Any(Param):
+    def __init__(self, *args, **kwargs):
+        assert all([p.__base__ == Param for p in args]), "Invalid argument type"
+        self.__params = [p(**kwargs) for p in args]
+        super(Any, self).__init__(**kwargs)
+
+    def validate(self, param, value):
+        errs = []
+        for _param in self.__params:
+            try:
+                return _param.validate(param, value)
+            except ParamError as e:
+                errs.append(e)
+                pass
+
+        raise ParamError(
+            "Expect %s but got '%s'",
+            (" or ".join([p.__class__.__name__ for p in self.__params]), type(value)),
+        )
+
+
 class String(Param):
     def __init__(self, choices=None, *args, **kwargs):
         super(String, self).__init__(*args, **kwargs)

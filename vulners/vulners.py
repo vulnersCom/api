@@ -241,7 +241,7 @@ class VulnersApi(VulnersApiBase):
 
     audit_software = Endpoint(
         method="post",
-        url="/api/v4/audit/software-batch/",
+        url="/api/v4/audit/software/",
         params=[
             (
                 "software",

@@ -1,5 +1,6 @@
 import io
 import json
+import re
 import warnings
 import zipfile
 
@@ -156,6 +157,8 @@ class VulnersApi(VulnersApiBase):
         Returns list of the documents.
         Use .total to get the total number of found documents.
         """
+        if re.match(r"^CVE-\d{4}-\d+$", (query := query.strip()), re.IGNORECASE):
+            query = f'"{query}"'
         if lookup_fields:
             search_query = "bulletinFamily:exploit AND (%s)" % (
                 " OR ".join('%s:"%s"' % (field, query) for field in lookup_fields)

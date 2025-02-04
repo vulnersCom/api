@@ -24,5 +24,5 @@ Follow "API KEYS" tab.
 Generate API key with scope "api" and use it with the library.
 
 # Documentation
-The full API methods description, usage examples, and integration guide are available in the official documentation: [API Reference](https://vulners.com/docs/api_reference/api_methods/).
+The full API methods description, usage examples, and integration guide are available in the official documentation: [API Reference](https://vulners.com/docs/api_reference/api/).
 

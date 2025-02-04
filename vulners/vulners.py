@@ -249,8 +249,22 @@ class VulnersApi(VulnersApiBase):
             (
                 "software",
                 List(
-                    item=Dict(),
+                    item=Any(Dict, String),
                     description="List of dicts. E.g., [{'product': 'curl', 'version': '8.11.1', ...}, ...]",
+                ),
+            ),
+            (
+                "match",
+                String(
+                    required=False,
+                    description="'partial' (default) or 'full'",
+                ),
+            ),
+            (
+                "fields",
+                List(
+                    required=False,
+                    description="List of fields to retrieve about each vulnerability",
                 ),
             ),
         ],
@@ -264,13 +278,27 @@ class VulnersApi(VulnersApiBase):
             (
                 "software",
                 List(
-                    item=Dict(),
+                    item=Any(Dict, String),
                     description="List of dicts. E.g., [{'product': 'curl', 'version': '8.11.1', ...}, ...]",
                 ),
             ),
             ("application", Any(String, Dict, required=False)),
             ("operation_system", Any(String, Dict, required=False)),
             ("hardware", Any(String, Dict, required=False)),
+            (
+                "match",
+                String(
+                    required=False,
+                    description="'partial' (default) or 'full'",
+                ),
+            ),
+            (
+                "fields",
+                List(
+                    required=False,
+                    description="List of fields to retrieve about each vulnerability",
+                ),
+            ),
         ],
         content_handler=lambda c, _: c["result"],
     )

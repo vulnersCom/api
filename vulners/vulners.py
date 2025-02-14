@@ -327,6 +327,15 @@ class VulnersApi(VulnersApiBase):
             only_ids,
         )
 
+    search_cpe = Endpoint(
+        method="get",
+        url="/api/v4/search/cpe/",
+        params=[
+            ("product", String(required=True, description="Product string to search CPE for")),
+            ("vendor", String(required=False, description="Optional vendor to include in CPE")),
+        ],
+    )
+
     get_multiple_bulletins = Endpoint(
         method="post",
         url="/api/v3/search/id/",

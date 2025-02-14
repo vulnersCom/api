@@ -261,7 +261,6 @@ class Any(Param):
                 return _param.validate(param, value)
             except ParamError as e:
                 errs.append(e)
-                pass
 
         raise ParamError(
             "Expect %s but got '%s'",

@@ -283,7 +283,7 @@ class VulnersApi(VulnersApiBase):
                 ),
             ),
             ("application", Any(String, Dict, required=False)),
-            ("operation_system", Any(String, Dict, required=False)),
+            ("operating_system", Any(String, Dict, required=False)),
             ("hardware", Any(String, Dict, required=False)),
             (
                 "match",

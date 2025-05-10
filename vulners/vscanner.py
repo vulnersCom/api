@@ -1,17 +1,25 @@
+from __future__ import annotations
+
 import base64
+import uuid
+from typing import Annotated, Any, Iterable, Iterator, Literal, Mapping
 
-from .base import UUID, Boolean, Dict, Endpoint, Float, Integer, List, String, VulnersApiBase
+from pydantic import Field
+from typing_extensions import TypedDict
 
-try:
-    from collections.abc import Mapping
-except ImportError:
-    from collections import Mapping
+from .base import Unset, VulnersApiBase, endpoint
 
 
-class MappingObject(Mapping):
-    __slots__ = ("_api",)
+class NotificationObj(TypedDict):
+    period: Literal["disabled", "asap", "hourly", "daily"]
+    email: list[str]
+    slack: list[str]
 
-    def __init__(self, api, data):
+
+class ApiObject(Mapping[str, Any]):
+    __slots__ = ("_api", "__dict__")
+
+    def __init__(self, api: VScannerApi, data: dict[str, Any]):
         self._api = api
         self.__dict__ = data
 
@@ -21,14 +29,25 @@ class MappingObject(Mapping):
     def __getitem__(self, k):
         return self.__dict__[k]
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Any]:
         return iter(self.__dict__)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return repr(self.__dict__)
 
 
-class Project(MappingObject):
+class ProjectList(list):
+    def __init__(self, api: VScannerApi, value: Iterable[dict[str, Any]]) -> None:
+        super().__init__(Project(api, c) for c in value)
+
+
+class Project(ApiObject):
+    _id: uuid.UUID
+    name: str
+    license_id: str
+    notification: NotificationObj
+    result_expire_in: int | None
+
     def update(self, **kwargs):
         kwargs.setdefault("name", self.name)
         kwargs.setdefault("license_id", self.license_id)
@@ -52,7 +71,22 @@ class Project(MappingObject):
         return self._api.get_statistics(self._id, *args, **kwargs)
 
 
-class Task(MappingObject):
+class TaskList(list):
+    def __init__(self, api: VScannerApi, value: Iterable[dict[str, Any]]) -> None:
+        super().__init__(Task(api, c) for c in value)
+
+
+class Task(ApiObject):
+    _id: uuid.UUID
+    name: str
+    project_id: uuid.UUID
+    networks: list[str]
+    ports: list[str]
+    timing: str
+    schedule: str
+    enabled: bool
+    context_id: uuid.UUID
+
     def update(self, **kwargs):
         kwargs.setdefault("name", self.name)
         kwargs.setdefault("networks", self.networks)
@@ -68,11 +102,17 @@ class Task(MappingObject):
     def start_task(self):
         self.__dict__ = self._api.start_task(self.project_id, self._id).__dict__
 
-    def get_log(self):
-        return self._api.get_task_log(self.context_id)
+
+class ResultList(list):
+    def __init__(self, api: VScannerApi, value: Iterable[dict[str, Any]]) -> None:
+        super().__init__(Result(api, c) for c in value)
 
 
-class Result(MappingObject):
+class Result(ApiObject):
+    _id: uuid.UUID
+    project_id: uuid.UUID
+    screens: Mapping[str, Any]
+
     def delete(self):
         self._api.delete_result(self.project_id, self._id)
 
@@ -87,205 +127,252 @@ class Result(MappingObject):
 
 
 class VScannerApi(VulnersApiBase):
-    ratelimit_key = "vscanner"
+    _ratelimit_key = "vscanner"
 
-    get_licenses = Endpoint(
-        method="get",
+    get_licenses = endpoint(
+        "VScannerApi.get_licenses",
+        method="GET",
         url="/api/v3/useraction/licenseids",
         description="Get user's license ids.",
+        wrapper=ApiObject,
     )
-    get_projects = Endpoint(
-        method="get",
+    get_projects = endpoint(
+        "VScannerApi.get_projects",
+        method="GET",
         url="/api/v3/proxy/vscanner/v2/projects/",
         description="Get existing projects.",
-        params=[
-            ("offset", Integer(default=0)),
-            ("limit", Integer(default=50)),
-        ],
-        wrapper=lambda api, c: [Project(api, x) for x in c],
+        params={
+            "offset": Annotated[int, Field(default=0, ge=0)],
+            "limit": Annotated[int, Field(default=50, le=1000)],
+        },
+        wrapper=ProjectList,
     )
-    create_project = Endpoint(
-        method="post",
+    create_project = endpoint(
+        "VScannerApi.create_project",
+        method="POST",
         url="/api/v3/proxy/vscanner/v2/projects/",
         description="Create new project.",
-        params=[
-            ("name", String(description="New project name")),
-            ("license_id", UUID(description="User's license id")),
-            (
-                "notification",
-                Dict(
+        params={
+            "name": Annotated[str, Field(description="New project name")],
+            "license_id": Annotated[uuid.UUID, Field(description="User's license id")],
+            "notification": Annotated[
+                NotificationObj,
+                Field(
                     description=(
                         "Use VScannerApi.Notification or VScannerApi.DisabledNotification helpers "
                         "to create notification object."
                     ),
                 ),
-            ),
-            (
-                "result_expire_in",
-                Integer(
+            ],
+            "result_expire_in": Annotated[
+                int | None,
+                Field(
+                    default=Unset,
+                    gt=0,
                     description="Result expire in N days. Null means it will never expire",
-                    required=False,
-                    minimum=1,
                 ),
-            ),
-        ],
+            ],
+        },
         wrapper=Project,
     )
-    update_project = Endpoint(
-        method="put",
-        url="/api/v3/proxy/vscanner/v2/projects/{uuid:project_id|Project id}",
+    update_project = endpoint(
+        "VScannerApi.update_project",
+        method="PUT",
+        url="/api/v3/proxy/vscanner/v2/projects/{project_id}",
         description="Update existing project.",
-        params=[
-            ("name", String(description="Project name")),
-            ("license_id", UUID(description="User's license id")),
-            (
-                "notification",
-                Dict(
+        params={
+            "project_id": Annotated[uuid.UUID, Field(description="Project ID")],
+            "name": Annotated[str, Field(description="Project name")],
+            "license_id": Annotated[uuid.UUID, Field(description="User's license id")],
+            "notification": Annotated[
+                NotificationObj,
+                Field(
                     description=(
                         "Use VScannerApi.Notification or VScannerApi.DisabledNotification helpers "
                         "to create notification object."
                     ),
                 ),
-            ),
-            (
-                "result_expire_in",
-                Integer(
+            ],
+            "result_expire_in": Annotated[
+                int | None,
+                Field(
+                    gt=0,
                     description="Result expire in N days. Null means it will never expire",
-                    minimum=1,
-                    allow_null=True,
                 ),
-            ),
-        ],
+            ],
+        },
         wrapper=Project,
     )
-    delete_project = Endpoint(
-        method="delete",
-        url="/api/v3/proxy/vscanner/v2/projects/{uuid:project_id|Project id}",
+    delete_project = endpoint(
+        "VScannerApi.delete_project",
+        method="DELETE",
+        url="/api/v3/proxy/vscanner/v2/projects/{project_id}",
         description="Delete existing project.",
+        params={
+            "project_id": Annotated[uuid.UUID, Field(description="Project ID")],
+        },
     )
-    get_tasks = Endpoint(
-        method="get",
-        url="/api/v3/proxy/vscanner/v2/projects/{uuid:project_id|Project id}/tasks",
+    get_tasks = endpoint(
+        "VScannerApi.get_tasks",
+        method="GET",
+        url="/api/v3/proxy/vscanner/v2/projects/{project_id}/tasks",
         description="Get project tasks",
-        params=[("offset", Integer(default=0)), ("limit", Integer(default=50))],
-        wrapper=lambda api, c: [Task(api, x) for x in c],
+        params={
+            "project_id": Annotated[uuid.UUID, Field(description="Project ID")],
+            "offset": Annotated[int, Field(default=0, ge=0)],
+            "limit": Annotated[int, Field(default=50, le=1000)],
+        },
+        wrapper=TaskList,
     )
-    create_task = Endpoint(
-        method="post",
-        url="/api/v3/proxy/vscanner/v2/projects/{uuid:project_id|Project id}/tasks",
+    create_task = endpoint(
+        "VScannerApi.create_task",
+        method="POST",
+        url="/api/v3/proxy/vscanner/v2/projects/{project_id}/tasks",
         description="Create new task.",
-        params=[
-            ("name", String(description="Task name")),
-            ("networks", List(description="List of networks (ip or domains)", item=String())),
-            ("ports", List(description="List of ports or port ranges", item=String())),
-            ("schedule", String(description="Crontab string")),
-            ("timing", String(description="Scan timing")),
-            ("enabled", Boolean(description="Enable/disable task")),
-        ],
+        params={
+            "project_id": Annotated[uuid.UUID, Field(description="Project ID")],
+            "name": Annotated[str, Field(description="Task name")],
+            "networks": Annotated[
+                list[str], Field(description="List of networks (ip or domains)")
+            ],
+            "ports": Annotated[list[str], Field(description="List of ports or port ranges")],
+            "schedule": Annotated[str, Field(description="Crontab string")],
+            "timing": Annotated[str, Field(description="Scan timing")],
+            "enabled": Annotated[bool, Field(description="Enable/disable task")],
+        },
         wrapper=Task,
     )
-    update_task = Endpoint(
-        method="put",
-        url="/api/v3/proxy/vscanner/v2/projects/{uuid:project_id|Project id}/tasks/{uuid:task_id|Task id}",
+    update_task = endpoint(
+        "VScannerApi.update_task",
+        method="PUT",
+        url="/api/v3/proxy/vscanner/v2/projects/{project_id}/tasks/{task_id}",
         description="Update task.",
-        params=[
-            ("name", String(description="Task name")),
-            ("networks", List(description="List of networks (ip or domains)", item=String())),
-            ("ports", List(description="List of ports or port ranges", item=String())),
-            ("schedule", String(description="Crontab string")),
-            ("timing", String(description="Scan timing")),
-            ("enabled", Boolean(description="Enable/disable task")),
-        ],
+        params={
+            "project_id": Annotated[uuid.UUID, Field(description="Project ID")],
+            "task_id": Annotated[uuid.UUID, Field(description="Task ID")],
+            "name": Annotated[str, Field(description="Task name")],
+            "networks": Annotated[
+                list[str], Field(description="List of networks (ip or domains)")
+            ],
+            "ports": Annotated[list[str], Field(description="List of ports or port ranges")],
+            "schedule": Annotated[str, Field(description="Crontab string")],
+            "timing": Annotated[str, Field(description="Scan timing")],
+            "enabled": Annotated[bool, Field(description="Enable/disable task")],
+        },
         wrapper=Task,
     )
-    start_task = Endpoint(
-        method="post",
-        url="/api/v3/proxy/vscanner/v2/projects/{uuid:project_id|Project id}/tasks/{uuid:task_id|Task id}/start",
+    start_task = endpoint(
+        "VScannerApi.start_task",
+        method="POST",
+        url="/api/v3/proxy/vscanner/v2/projects/{project_id}/tasks/{task_id}/start",
         description="Start task asap.",
+        params={
+            "project_id": Annotated[uuid.UUID, Field(description="Project ID")],
+            "task_id": Annotated[uuid.UUID, Field(description="Task ID")],
+        },
         wrapper=Task,
     )
-    delete_task = Endpoint(
-        method="delete",
-        url="/api/v3/proxy/vscanner/v2/projects/{uuid:project_id|Project id}/tasks/{uuid:task_id|Task id}",
+    delete_task = endpoint(
+        "VScannerApi.delete_task",
+        method="DELETE",
+        url="/api/v3/proxy/vscanner/v2/projects/{project_id}/tasks/{task_id}",
         description="Delete task.",
+        params={
+            "project_id": Annotated[uuid.UUID, Field(description="Project ID")],
+            "task_id": Annotated[uuid.UUID, Field(description="Task ID")],
+        },
     )
-    get_results = Endpoint(
-        method="get",
-        url="/api/v3/proxy/vscanner/v2/projects/{uuid:project_id|Project id}/results",
+    get_results = endpoint(
+        "VScannerApi.get_results",
+        method="GET",
+        url="/api/v3/proxy/vscanner/v2/projects/{project_id}/results",
         description="Get results.",
-        params=[
-            (
-                "search",
-                String(required=False, description="Search by ip, network, name or vuln_id."),
-            ),
-            ("in_port", List(required=False, description="Include ports")),
-            ("ex_port", List(required=False, description="Exclude ports")),
-            ("min_cvss", Float(required=False, description="Minimum CVSS value.")),
-            ("max_cvss", Float(required=False, description="Maximum CVSS value.")),
-            ("last_seen", Integer(required=False, description="last_seen >= given value.")),
-            ("first_seen", Integer(required=False, description="first_seen >= given value.")),
-            (
-                "last_seen_port",
-                Integer(required=False, description="last_seen_port >= given value."),
-            ),
-            (
-                "first_seen_port",
-                Integer(required=False, description="first_seen_port >= given value."),
-            ),
-            (
-                "sort",
-                String(
-                    required=False,
-                    description=(
-                        "Sort by field. Allowable values are 'ip', 'name', 'last_seen', 'first_seen', "
-                        "'resolved', 'min_cvss' and 'max_cvss'. Default: last_seen"
-                    ),
-                ),
-            ),
-            (
-                "sort_dir",
-                String(required=False, description="Sort direction: asc or desc. Default: asc"),
-            ),
-            ("offset", Integer(default=0)),
-            ("limit", Integer(default=50)),
-        ],
-        wrapper=lambda api, c: [Result(api, x) for x in c],
+        params={
+            "project_id": Annotated[uuid.UUID, Field(description="Project ID")],
+            "search": Annotated[
+                str, Field(default=Unset, description="Search by ip, network, name or vuln_id.")
+            ],
+            "in_port": Annotated[list[str], Field(default=Unset, description="Include ports")],
+            "ex_port": Annotated[list[str], Field(default=Unset, description="Exclude ports")],
+            "min_cvss": Annotated[float, Field(default=Unset, description="Minimum CVSS value")],
+            "max_cvss": Annotated[float, Field(default=Unset, description="Maximum CVSS value")],
+            "last_seen": Annotated[
+                int, Field(default=Unset, description="last_seen >= given value")
+            ],
+            "first_seen": Annotated[
+                int, Field(default=Unset, description="first_seen >= given value")
+            ],
+            "last_seen_port": Annotated[
+                int, Field(default=Unset, description="last_seen_port >= given value")
+            ],
+            "first_seen_port": Annotated[
+                int, Field(default=Unset, description="first_seen_port >= given value")
+            ],
+            "sort": Annotated[
+                Literal[
+                    "ip",
+                    "name",
+                    "last_seen",
+                    "first_seen",
+                    "resolved",
+                    "min_cvss",
+                    "max_cvss",
+                ],
+                Field(default="last_seen", description="Sort by field"),
+            ],
+            "sort_dir": Annotated[
+                Literal["asc", "desc"], Field(default="asc", description="Sort direction")
+            ],
+            "offset": Annotated[int, Field(default=0, ge=0)],
+            "limit": Annotated[int, Field(default=50, le=1000)],
+        },
+        wrapper=ResultList,
     )
-    delete_result = Endpoint(
-        method="delete",
-        url="/api/v3/proxy/vscanner/v2/projects/{uuid:project_id|Project id}/results/{uuid:result_id|Result id}",
+    delete_result = endpoint(
+        "VScannerApi.delete_result",
+        method="DELETE",
+        url="/api/v3/proxy/vscanner/v2/projects/{project_id}/results/{result_id}",
         description="Delete result by id.",
+        params={
+            "project_id": Annotated[uuid.UUID, Field(description="Project ID")],
+            "result_id": Annotated[uuid.UUID, Field(description="Result ID")],
+        },
     )
-    get_statistics = Endpoint(
-        method="get",
-        url="/api/v3/proxy/vscanner/v2/projects/{uuid:project_id|Project id}/statistic",
+    get_statistics = endpoint(
+        "VScannerApi.get_statistics",
+        method="GET",
+        url="/api/v3/proxy/vscanner/v2/projects/{project_id}/statistic",
         description="Get project statistics.",
-        params=[
-            (
-                "stat",
-                List(
-                    required=True,
-                    description=(
-                        "List of required aggregations:"
-                        "total_hosts, vulnerable_hosts, unique_cve, min_max_cvss, "
-                        "vulnerabilities_rank, vulnerable_hosts_rank"
-                    ),
-                    item=String(),
-                ),
-            )
-        ],
+        params={
+            "project_id": Annotated[uuid.UUID, Field(description="Project ID")],
+            "stat": Annotated[
+                list[
+                    Literal[
+                        "total_hosts",
+                        "vulnerable_hosts",
+                        "unique_cve",
+                        "min_max_cvss",
+                        "vulnerabilities_rank",
+                        "vulnerable_hosts_rank",
+                    ]
+                ],
+                Field(min_length=1, description="List of required aggregations"),
+            ],
+        },
     )
 
-    def get_image_binary(self, image_uri, as_base64=False):
-        result, headers = self._send_request(
-            "get", "/vscanner/screen/" + image_uri, {}, {}, self.ratelimit_key, "binary"
-        )
+    def get_image_binary(self, image_uri: str, as_base64: bool = False):
+        result = self._send_request("GET", "/vscanner/screen/" + image_uri, {}, (), False)
         if as_base64:
-            return base64.b64encode(result)
-        return result
+            return base64.b64encode(result.content)
+        return result.content
 
     @staticmethod
-    def Notification(period, emails=None, slack_webhooks=None):
+    def Notification(
+        period: Literal["disabled", "asap", "hourly", "daily"],
+        emails: list[str] | None = None,
+        slack_webhooks: list[str] | None = None,
+    ) -> NotificationObj:
         """
         Create notification project
 
@@ -294,7 +381,9 @@ class VScannerApi(VulnersApiBase):
         slack_webhooks: list of slack webhooks
         """
         if period not in ("disabled", "asap", "hourly", "daily"):
-            raise ValueError('period expected to be one of "disabled", "asap", "hourly" or "daily"')
+            raise ValueError(
+                'period expected to be one of "disabled", "asap", "hourly" or "daily"'
+            )
         return {
             "period": period,
             "email": emails or [],

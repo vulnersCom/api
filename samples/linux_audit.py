@@ -1,9 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-# ==============
-#      Vulners Linux audit example
-# ==============
-
 import vulners
 
 vulners_api = vulners.VulnersApi(api_key="YOUR_API_KEY_HERE")
@@ -14,7 +8,7 @@ vulners_api = vulners.VulnersApi(api_key="YOUR_API_KEY_HERE")
 # Use it as package variable input
 
 centos_vulnerabilities = vulners_api.os_audit(
-    os="centos", os_version="7", packages=["glibc-common-2.17-157.el7_3.5.x86_64"]
+    os="centos", version="7", packages=["glibc-common-2.17-157.el7_3.5.x86_64"]
 )
 vulnerable_packages = centos_vulnerabilities.get("packages")
 missed_patches_ids = centos_vulnerabilities.get("vulnerabilities")
@@ -27,5 +21,5 @@ how_to_fix = centos_vulnerabilities.get("cumulativeFix")
 # Use it as package variable input
 
 debian_vulnerabilities = vulners_api.os_audit(
-    os="debian", os_version="8", packages=["uno-libs3 4.3.3-2+deb8u7 amd64"]
+    os="debian", version="8", packages=["uno-libs3 4.3.3-2+deb8u7 amd64"]
 )

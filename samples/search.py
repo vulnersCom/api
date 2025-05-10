@@ -8,6 +8,7 @@ import os
 import vulners
 
 vulners_api = vulners.VulnersApi(api_key=os.environ["KEY"])
+
 possible_autocomplete = vulners_api.query_autocomplete("heartbleed")
 heartbleed_related = vulners_api.find("heartbleed", limit=10)
 total_heartbleed = heartbleed_related.total

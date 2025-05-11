@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "vulners"
-version = "3.0.0"
+version = "3.0.1"
 description = "Python library and command-line utility for Vulners (https://vulners.com)"
 readme = "README.md"
 authors = ["Vulners Team"]
@@ -24,7 +24,6 @@ packages = [
 python = ">=3.10"
 httpx = "^0.28.1"
 orjson = "^3.10.18"
-appdirs = "^1.4.4"
 pydantic = "^2.11.4"
 
 [tool.poetry.group.dev.dependencies]

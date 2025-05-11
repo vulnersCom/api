@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import re
 import sys
+import textwrap
+import warnings
 import zlib
 from collections import defaultdict
 from functools import wraps
@@ -67,10 +69,15 @@ class VulnersApiTransport(httpx.BaseTransport):
         return response
 
 
-class VulnersApiBase:
-    _ratelimits: dict[str, RateLimitBucket] = defaultdict(RateLimitBucket)
+class VulnersApiProxy:
+    def __init__(self, base: VulnersApiBase):
+        self._invoke = base._invoke
 
+
+class VulnersApiBase:
     _ratelimit_key: ClassVar[str] = ""
+
+    _ratelimits: dict[str, RateLimitBucket] = defaultdict(RateLimitBucket)
 
     def __init__(
         self,
@@ -107,32 +114,36 @@ class VulnersApiBase:
         )
         self._api_key = api_key
 
-    def _send_request(
+    def _invoke(
         self,
         method: Literal["GET", "POST", "PUT", "DELETE", "PATCH"],
         url: str,
         params: dict[str, Any],
         path_params: tuple[str, ...],
-        add_api_key: bool,
+        add_api_key: bool = False,
+        timeout: float | None = None,
+        parse_content: bool = True,
     ):
         if path_params:
             url = re.sub("{([^}]*)}", lambda m: str(params.pop(m.group(1))), url)
         if add_api_key:
             params["apiKey"] = self._api_key
         kwargs: dict[str, Any] = {"params" if method in ("GET", "DELETE") else "json": params}
+        if timeout is not None:
+            kwargs["timeout"] = timeout
         bucket = self._ratelimits[self._ratelimit_key or url]
         bucket.consume()
         response = self._client.request(method, url, **kwargs)
-        self._update_ratelimit(bucket, response)
-        return response
+        limit = response.headers.get("X-Vulners-Ratelimit-Reqlimit")
+        if limit:
+            try:
+                bucket.update(rate=float(limit) / 60.0)
+            except (TypeError, ValueError):
+                pass
 
-    @staticmethod
-    def _handle_response(response: httpx.Response) -> Any:
+        content = response.content
         if response.headers["content-type"] == "application/json":
-            if response.content:
-                result = orjson.loads(response.content)
-            else:
-                result = None
+            result = orjson.loads(content)
             if isinstance(result, dict) and "data" in result:
                 data = result["data"]
                 if isinstance(data, dict) and data.get("error"):
@@ -141,21 +152,21 @@ class VulnersApiBase:
             if response.status_code >= 400:
                 raise VulnersApiError(response.status_code, result)
             return result
-        elif response.headers["content-type"] == "application/x-gzip-compressed":
-            return orjson.loads(zlib.decompress(response.content))
-        else:
-            return response.content
 
-    @staticmethod
-    def _update_ratelimit(bucket, response):
-        headers = response.headers
-        limit = headers.get("X-Vulners-Ratelimit-Reqlimit")
-        if limit:
-            try:
-                limit = float(limit) / 60.0
-            except (TypeError, ValueError):
-                return
-            bucket.update(rate=limit)
+        if response.headers["content-type"] == "application/x-gzip-compressed":
+            content = zlib.decompress(content)
+        elif response.headers["content-type"] == "application/x-zip-compressed":
+            import io
+            import zipfile
+
+            with zipfile.ZipFile(io.BytesIO(content)) as z:
+                if len(z.namelist()) > 1:
+                    raise RuntimeError("Unexpected file count in Vulners ZIP archive")
+                filename = z.namelist()[0]
+                content = z.open(filename).read()
+        if parse_content:
+            return orjson.loads(content)
+        return content
 
 
 def _ann_repr(t: Any) -> str:
@@ -166,6 +177,26 @@ def _ann_repr(t: Any) -> str:
     return repr(t)
 
 
+def deprecation_warning(text: str) -> None:
+    text = textwrap.indent(text, "[!] ")
+    warnings.warn(
+        f"\n[!] DEPRECATION WARNING\n{text}",
+        DeprecationWarning,
+    )
+
+
+def deprecated(message: str) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+        @wraps(func)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            deprecation_warning(message)
+            return func(*args, **kwargs)
+
+        return wrapper
+
+    return decorator
+
+
 def endpoint(
     name: str,
     /,
@@ -174,8 +205,11 @@ def endpoint(
     description: str | None = None,
     params: Mapping[str, Any] | None = None,
     response_handler: Callable[[Any], Any] | None = None,
+    parse_response: bool = True,
     wrapper: Any = None,
     add_api_key: bool = False,
+    deprecated: str | None = None,
+    timeout: float | None = None,
 ) -> Callable[..., Any]:
     assert method in ("GET", "POST", "PUT", "DELETE", "PATCH")
     assert isinstance(url, str)
@@ -228,9 +262,13 @@ def endpoint(
 
     @wraps(endpoint)
     def func(api: VulnersApiBase, *args: Any, **kwargs: Any) -> Any:
+        if deprecated:
+            deprecation_warning(deprecated)
+
         params = endpoint(*args, **kwargs)
-        response = api._send_request(method, url, params, path_params, add_api_key)
-        content = api._handle_response(response)
+        content = api._invoke(
+            method, url, params, path_params, add_api_key, timeout, parse_response
+        )
         if response_handler:
             content = response_handler(content)
         if wrapper is not None:

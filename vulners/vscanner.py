@@ -362,10 +362,12 @@ class VScannerApi(VulnersApiBase):
     )
 
     def get_image_binary(self, image_uri: str, as_base64: bool = False):
-        result = self._send_request("GET", "/vscanner/screen/" + image_uri, {}, (), False)
+        content = self._invoke(
+            "GET", "/vscanner/screen/" + image_uri, {}, (), parse_content=False
+        )
         if as_base64:
-            return base64.b64encode(result.content)
-        return result.content
+            return base64.b64encode(content)
+        return content
 
     @staticmethod
     def Notification(

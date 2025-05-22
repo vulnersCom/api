@@ -64,6 +64,7 @@ class AuditApi(VulnersApiProxy):
                     description="List of fields to retrieve about each vulnerability",
                 ),
             ],
+            "config": Annotated[Sequence[str], Field(default=Unset)]
         },
         response_handler=lambda c: c["result"],
     )
@@ -91,6 +92,7 @@ class AuditApi(VulnersApiProxy):
                     description="List of fields to retrieve about each vulnerability",
                 ),
             ],
+            "config": Annotated[Sequence[str], Field(default=Unset)]
         },
         response_handler=lambda c: c["result"],
     )

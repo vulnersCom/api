@@ -154,7 +154,7 @@ class VulnersApiBase:
             return result
 
         if response.headers["content-type"] == "application/x-gzip-compressed":
-            content = zlib.decompress(content)
+            content = zlib.decompress(content, wbits=31)
         elif response.headers["content-type"] == "application/x-zip-compressed":
             import io
             import zipfile

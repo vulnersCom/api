@@ -95,7 +95,7 @@ class VulnersApi(VulnersApiBase):
         end = offset + limit
         batch_size = min(1000, limit)
         result = ResultSet()
-        while len(result) < limit:
+        while limit > len(result) != result.total:
             chunk = self.__search(query, offset, min(batch_size, end - offset), fields)
             data = chunk["search"]
             result += [e["_source"] for e in data]

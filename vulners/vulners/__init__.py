@@ -25,10 +25,10 @@ class VulnersApi(VulnersApiBase):
 
     @deprecated(
         "VulnersApi.find_all() is deprecated and will be removed in future releases.\n"
-        "Use VulnersApi.search.search_bulletins() instead."
+        "Use VulnersApi.search.search_bulletins_all() instead."
     )
     def find_all(self, *args: Any, **kwargs: Any) -> Any:
-        return self.search.search_bulletins(*args, **kwargs)
+        return self.search.search_bulletins_all(*args, **kwargs)
 
     @deprecated(
         "VulnersApi.find_exploit() is deprecated and will be removed in future releases.\n"
@@ -39,10 +39,10 @@ class VulnersApi(VulnersApiBase):
 
     @deprecated(
         "VulnersApi.find_exploit_all() is deprecated and will be removed in future releases.\n"
-        "Use VulnersApi.search.search_exploits() instead."
+        "Use VulnersApi.search.search_exploits_all() instead."
     )
     def find_exploit_all(self, *args: Any, **kwargs: Any) -> Any:
-        return self.search.search_exploits(*args, **kwargs)
+        return self.search.search_exploits_all(*args, **kwargs)
 
     @deprecated(
         "VulnersApi.get_multiple_bulletins() is deprecated and will be removed in future releases.\n"

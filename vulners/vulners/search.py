@@ -31,8 +31,8 @@ class SearchApi(VulnersApiProxy):
         url="/api/v3/search/lucene/",
         params={
             "query": str,
-            "size": Annotated[int, Field(gt=0, lt=10000)],
-            "skip": Annotated[int, Field(ge=0, lt=10000)],
+            "size": Annotated[int, Field(gt=0, le=10000)],
+            "skip": Annotated[int, Field(ge=0, le=10000)],
             "fields": Sequence[str],
         },
     )
@@ -55,9 +55,43 @@ class SearchApi(VulnersApiProxy):
         Returns list of the documents.
         Use .total to get the total number of found documents.
         """
-        limit = min(limit, 10000 - offset)
+        limit = min(limit, 10000 - offset)  # real limit is unknown
         search = self.__search(query, limit, offset, fields)
         return ResultSet.from_dataset([e["_source"] for e in search["search"]], search["total"])
+
+    def search_bulletins_all(
+        self,
+        query: str,
+        limit: int = 100,  # default limit is 100
+        fields: Sequence[str] = DEFAULT_FIELDS,
+    ) -> ResultSet:
+        offset = 0
+        limit = min(limit, 10000)
+        chunk = self.__search(query, limit, offset, fields)
+        total = min(limit, chunk["total"])
+        max_chunk_size = chunk["maxSearchSize"]
+        result = ResultSet.from_dataset([e["_source"] for e in chunk["search"]], chunk["total"])
+        offset += len(result)
+        while offset < total:
+            chunk_size = min(max_chunk_size, total - offset)
+            chunk = self.__search(query, chunk_size, offset, fields)
+            data = chunk["search"]
+            result += [e["_source"] for e in data]
+            if len(data) < chunk_size:
+                break
+            offset += len(data)
+        return result
+
+    @staticmethod
+    def __get_exploit_query(query: str, lookup_fields: Sequence[str] | None = None) -> str:
+        if re.match(r"^CVE-\d{4}-\d+$", (query := query.strip()), re.IGNORECASE):
+            query = f'"{query}"'
+        if lookup_fields:
+            return "bulletinFamily:exploit AND (%s)" % (
+                " OR ".join('%s:"%s"' % (field, query) for field in lookup_fields)
+            )
+        else:
+            return "bulletinFamily:exploit AND (%s)" % query
 
     def search_exploits(
         self,
@@ -79,15 +113,23 @@ class SearchApi(VulnersApiProxy):
         Returns list of the documents.
         Use .total to get the total number of found documents.
         """
-        if re.match(r"^CVE-\d{4}-\d+$", (query := query.strip()), re.IGNORECASE):
-            query = f'"{query}"'
-        if lookup_fields:
-            search_query = "bulletinFamily:exploit AND (%s)" % (
-                " OR ".join('%s:"%s"' % (field, query) for field in lookup_fields)
-            )
-        else:
-            search_query = "bulletinFamily:exploit AND (%s)" % query
-        return self.search_bulletins(search_query, limit, offset, fields)
+        return self.search_bulletins(
+            self.__get_exploit_query(query, lookup_fields),
+            limit=limit,
+            offset=offset,
+            fields=fields,
+        )
+
+    def search_exploits_all(
+        self,
+        query: str,
+        lookup_fields: Sequence[str] | None = None,
+        limit: int = 100,  # default limit
+        fields: Sequence[str] = DEFAULT_FIELDS,
+    ) -> ResultSet:
+        return self.search_bulletins_all(
+            self.__get_exploit_query(query, lookup_fields), limit=limit, fields=fields
+        )
 
     __get_bulletins = endpoint(
         "SearchApi.__get_bulletins",

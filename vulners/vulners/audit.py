@@ -40,6 +40,7 @@ AuditFields = Literal[
     "description",
     "enchantments",
     "webApplicability",
+    "cvelistMetrics",
 ]
 
 

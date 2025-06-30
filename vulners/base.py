@@ -86,6 +86,7 @@ class VulnersApiBase:
         *,
         retry_count: int = 3,
         server_url: str = "https://vulners.com",
+        timeout: float = 5.0,
     ):
         """
         Create API.
@@ -111,6 +112,7 @@ class VulnersApiBase:
                 "User-Agent": "Vulners Python API %s" % __version__,
                 "X-Api-Key": api_key,
             },
+            timeout=httpx.Timeout(timeout),
         )
         self._api_key = api_key
 

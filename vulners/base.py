@@ -167,6 +167,7 @@ class VulnersApiBase:
                 filename = z.namelist()[0]
                 content = z.open(filename).read()
         if parse_content:
+            print(content)
             return orjson.loads(content)
         return content
 

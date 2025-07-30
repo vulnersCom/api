@@ -207,3 +207,14 @@ class SearchApi(VulnersApiProxy):
         },
         response_handler=lambda c: c["result"],
     )
+
+    get_web_vulns = endpoint(
+        "SearchApi.get_web_vulns",
+        method="POST",
+        url="/api/v4/search/web-vulns/",
+        description="Search vulnerabilities related to web vulnerabilities",
+        params={
+            "paths": list[str],
+            "application": Annotated[str | dict[str, Any] | None, Field(default=None)],
+        },
+    )

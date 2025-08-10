@@ -56,18 +56,23 @@ class SubscriptionV4Api(VulnersApiProxy):
             "query": dict,
             "delivery": dict,
             "licenseId": Annotated[str | None, Field(default=None)],
-            "bulletin_fields": Annotated[list[BulletinField], Field(default=DEFAULT_BULLETIN_FIELDS)],
+            "bulletin_fields": Annotated[
+                list[BulletinField], Field(default=DEFAULT_BULLETIN_FIELDS)
+            ],
             "is_active": Annotated[bool, Field(default=True)],
-            "timestamp_source": Annotated[Literal[
-                "modified",
-                "published",
-                "timestamps.created",
-                "timestamps.updated",
-                "timestamps.enriched",
-                "timestamps.reviewed",
-                "timestamps.metricsUpdated",
-                "timestamps.webApplicabilityUpdated"
-            ], Field(default="modified")],
+            "timestamp_source": Annotated[
+                Literal[
+                    "modified",
+                    "published",
+                    "timestamps.created",
+                    "timestamps.updated",
+                    "timestamps.enriched",
+                    "timestamps.reviewed",
+                    "timestamps.metricsUpdated",
+                    "timestamps.webApplicabilityUpdated",
+                ],
+                Field(default="modified"),
+            ],
             "send_empty_result": Annotated[bool, Field(default=False)],
         },
     )
@@ -82,18 +87,23 @@ class SubscriptionV4Api(VulnersApiProxy):
             "query": dict,
             "delivery": dict,
             "licenseId": Annotated[str | None, Field(default=None)],
-            "bulletin_fields": Annotated[list[BulletinField], Field(default=DEFAULT_BULLETIN_FIELDS)],
+            "bulletin_fields": Annotated[
+                list[BulletinField], Field(default=DEFAULT_BULLETIN_FIELDS)
+            ],
             "is_active": Annotated[bool, Field(default=True)],
-            "timestamp_source": Annotated[Literal[
-                "modified",
-                "published",
-                "timestamps.created",
-                "timestamps.updated",
-                "timestamps.enriched",
-                "timestamps.reviewed",
-                "timestamps.metricsUpdated",
-                "timestamps.webApplicabilityUpdated"
-            ], Field(default="modified")],
+            "timestamp_source": Annotated[
+                Literal[
+                    "modified",
+                    "published",
+                    "timestamps.created",
+                    "timestamps.updated",
+                    "timestamps.enriched",
+                    "timestamps.reviewed",
+                    "timestamps.metricsUpdated",
+                    "timestamps.webApplicabilityUpdated",
+                ],
+                Field(default="modified"),
+            ],
             "send_empty_result": Annotated[bool, Field(default=False)],
         },
     )

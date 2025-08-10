@@ -108,6 +108,10 @@ class AuditApi(VulnersApiProxy):
             "For collecting RPM use command: rpm -qa --qf '%{NAME}-%{VERSION}-%{RELEASE}.%{ARCH}\\\\n'\n"
             "For collecting DEB use command: dpkg-query -W -f='${Package} ${Version} ${Architecture}\\\\n'\n"
         ),
+        deprecated=(
+            "AuditApi.os_audit() is deprecated and will be removed in future releases. "
+            "Use AuditApi.linux_audit() instead."
+        ),
         params={
             "os": Annotated[
                 str,
@@ -120,6 +124,76 @@ class AuditApi(VulnersApiProxy):
                     min_length=1,
                     alias="package",
                     description="List of the installed packages",
+                ),
+            ],
+        },
+    )
+
+    linux_audit = endpoint(
+        "AuditApi.linux_audit",
+        method="POST",
+        url="/api/v4/audit/linux/",
+        description=(
+            "Linux Audit API for analyzing package vulnerabilities.\n"
+            "Accepts RPM, DEB and APK based package lists.\n"
+            "For collecting RPM use command: rpm -qa --qf '%{NAME}-%{VERSION}-%{RELEASE}.%{ARCH}\\\\n'\n"
+            "For collecting DEB use command: dpkg-query -W -f='${Package} ${Version} ${Architecture}\\\\n'\n"
+        ),
+        params={
+            "os_name": Annotated[
+                str,
+                Field(
+                    alias="osName",
+                    description="Full name of the OS or OS ID. Like ubuntu, debian, rhel, ol, alpine and etc",
+                ),
+            ],
+            "os_version": Annotated[str, Field(alias="osVersion", description="OS version")],
+            "packages": Annotated[
+                list[str],
+                Field(
+                    min_length=1,
+                    max_length=2500,
+                    description="List of the installed packages",
+                ),
+            ],
+            "os_arch": Annotated[
+                str | None,
+                Field(
+                    default=None,
+                    alias="osArch",
+                    description="OS architecture, default arch for packages",
+                ),
+            ],
+            "include_unofficial": Annotated[
+                bool,
+                Field(
+                    default=False,
+                    alias="includeUnofficial",
+                    description="Include unofficial packages",
+                ),
+            ],
+            "include_candidates": Annotated[
+                bool,
+                Field(
+                    default=False,
+                    alias="includeCandidates",
+                    description="Include 'candidate' vulnerabilities",
+                ),
+            ],
+            "include_any_version": Annotated[
+                bool,
+                Field(
+                    default=False,
+                    alias="includeAnyVersion",
+                    description="Include 'any' version vulnerabilities",
+                ),
+            ],
+            "cvelist_metrics": Annotated[
+                bool,
+                Field(
+                    default=False,
+                    alias="cvelistMetrics",
+                    description="Add cvelist metrics to the response, only for non free, trial licenses",
                 ),
             ],
         },

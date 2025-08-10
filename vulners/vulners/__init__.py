@@ -234,28 +234,28 @@ class VulnersApi(VulnersApiBase):
 
     @deprecated(
         "VulnersApi.get_subscriptions() is deprecated and will be removed in future releases.\n"
-        "Use VulnersApi.subscription.list() instead."
+        "Use VulnersApi.subscription_v4.get_list() instead."
     )
     def get_subscriptions(self, *args: Any, **kwargs: Any) -> Any:
         return self.subscription.list(*args, **kwargs)
 
     @deprecated(
         "VulnersApi.add_subscription() is deprecated and will be removed in future releases.\n"
-        "Use VulnersApi.subscription.add() instead."
+        "Use VulnersApi.subscription_v4.create() instead."
     )
     def add_subscription(self, *args: Any, **kwargs: Any) -> Any:
         return self.subscription.add(*args, **kwargs)
 
     @deprecated(
         "VulnersApi.edit_subscription() is deprecated and will be removed in future releases.\n"
-        "Use VulnersApi.subscription.edit() instead."
+        "Use VulnersApi.subscription_v4.update() instead."
     )
     def edit_subscription(self, *args: Any, **kwargs: Any) -> Any:
         return self.subscription.edit(*args, **kwargs)
 
     @deprecated(
         "VulnersApi.delete_subscription() is deprecated and will be removed in future releases.\n"
-        "Use VulnersApi.subscription.delete() instead."
+        "Use VulnersApi.subscription_v4.delete() instead."
     )
     def delete_subscription(self, *args: Any, **kwargs: Any) -> Any:
         return self.subscription.delete(*args, **kwargs)

@@ -12,6 +12,9 @@ class SubscriptionApi(VulnersApiProxy):
         url="/api/v3/subscriptions/listEmailSubscriptions/",
         response_handler=lambda c: c["subscriptions"],
         add_api_key=True,
+        deprecated=(
+            "SubscriptionApi.list() is deprecated and will be removed in future releases.\n"
+        ),
     )
 
     add = endpoint(
@@ -26,6 +29,9 @@ class SubscriptionApi(VulnersApiProxy):
             "query_type": Annotated[str, Field(default="lucene")],
         },
         add_api_key=True,
+        deprecated=(
+            "SubscriptionApi.add() is deprecated and will be removed in future releases.\n"
+        ),
     )
 
     edit = endpoint(
@@ -39,6 +45,9 @@ class SubscriptionApi(VulnersApiProxy):
             "active": Annotated[Literal["yes", "no", "true", "false"], Field(default=Unset)],
         },
         add_api_key=True,
+        deprecated=(
+            "SubscriptionApi.edit() is deprecated and will be removed in future releases.\n"
+        ),
     )
 
     delete = endpoint(
@@ -49,4 +58,7 @@ class SubscriptionApi(VulnersApiProxy):
             "subscriptionid": str,
         },
         add_api_key=True,
+        deprecated=(
+            "SubscriptionApi.delete() is deprecated and will be removed in future releases.\n"
+        ),
     )

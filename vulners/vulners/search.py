@@ -1,9 +1,9 @@
 import re
-from typing import Annotated, Any, Sequence
+from typing import Annotated, Any, Literal, Sequence
 
 from pydantic import Field
 
-from ..base import ResultSet, VulnersApiProxy, endpoint
+from ..base import ResultSet, Unset, VulnersApiProxy, endpoint
 
 DEFAULT_FIELDS = (
     "id",
@@ -216,5 +216,8 @@ class SearchApi(VulnersApiProxy):
         params={
             "paths": list[str],
             "application": Annotated[str | dict[str, Any] | None, Field(default=None)],
+            "match": Annotated[Literal["partial", "full"], Field(default="partial")],
+            "config": Annotated[Sequence[str], Field(default=Unset)],
+            "catalog": Annotated[Literal["official", "extended"], Field(default="official")],
         },
     )

@@ -66,6 +66,7 @@ class AuditApi(VulnersApiProxy):
                 ),
             ],
             "config": Annotated[Sequence[str], Field(default=Unset)],
+            "catalog": Annotated[Literal["official", "extended"], Field(default="official")],
         },
         response_handler=lambda c: c["result"],
     )
@@ -94,6 +95,7 @@ class AuditApi(VulnersApiProxy):
                 ),
             ],
             "config": Annotated[Sequence[str], Field(default=Unset)],
+            "catalog": Annotated[Literal["official", "extended"], Field(default="official")],
         },
         response_handler=lambda c: c["result"],
     )

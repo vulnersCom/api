@@ -134,7 +134,7 @@ class AuditApi(VulnersApiProxy):
     linux_audit = endpoint(
         "AuditApi.linux_audit",
         method="POST",
-        url="/api/v4/audit/linux/",
+        url="/api/v4/audit/linux",
         description=(
             "Linux Audit API for analyzing package vulnerabilities.\n"
             "Accepts RPM, DEB and APK based package lists.\n"

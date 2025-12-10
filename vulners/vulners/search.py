@@ -147,9 +147,9 @@ class SearchApi(VulnersApiProxy):
     )
 
     def get_multiple_bulletins(
-        self, id: Sequence[str], fields: Sequence[str] = DEFAULT_FIELDS
+        self, id: Sequence[str], fields: Sequence[str] = DEFAULT_FIELDS, references: bool = True
     ) -> dict[str, Any]:
-        return self.__get_bulletins(id, fields=fields)["documents"]
+        return self.__get_bulletins(id, fields=fields, references=references)["documents"]
 
     def get_bulletin(self, id: str, fields: Sequence[str] = DEFAULT_FIELDS) -> dict[str, Any]:
         return self.get_multiple_bulletins([id], fields).get(id, {})

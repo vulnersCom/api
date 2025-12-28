@@ -7,6 +7,7 @@ from .audit import AuditApi
 from .misc import MiscApi
 from .report import ReportApi
 from .search import SearchApi
+from .stix import StixApi
 from .subscription import SubscriptionApi
 from .subscription_v4 import SubscriptionV4Api
 from .webhook import WebhookApi
@@ -16,6 +17,10 @@ class VulnersApi(VulnersApiBase):
     @cached_property
     def search(self) -> SearchApi:
         return SearchApi(self)
+
+    @cached_property
+    def stix(self) -> StixApi:
+        return StixApi(self)
 
     @deprecated(
         "VulnersApi.find() is deprecated and will be removed in future releases.\n"

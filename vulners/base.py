@@ -86,7 +86,7 @@ class VulnersApiBase:
         *,
         retry_count: int = 3,
         server_url: str = "https://vulners.com",
-        timeout: float = 5.0,
+        timeout: float = 60.0,
     ):
         """
         Create API.

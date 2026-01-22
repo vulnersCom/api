@@ -18,11 +18,8 @@ pip install -U vulners
 
 ## Obtaining Vulners API key
 
-Please, register at [Vulners website](https://vulners.com).
-Go to the personal menu by clicking at your name at the right top corner.
-Follow "API KEYS" tab.
-Generate API key with scope "api" and use it with the library.
+Please follow instructions on [Vulners API documentation](https://docs.vulners.com/docs/quickstart/authentication/#how-to-obtain-api-key).
 
 # Documentation
-The full API methods description, usage examples, and integration guide are available in the official documentation: [API Reference](https://vulners.com/docs/api_reference/api/).
+The full API methods description, usage examples, and integration guide are available in the official documentation: [API Reference](https://docs.vulners.com/docs/api/).
 

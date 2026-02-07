@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import pathlib
 import re
 import sys
 import textwrap
@@ -122,6 +123,7 @@ class VulnersApiBase:
         url: str,
         params: dict[str, Any],
         path_params: tuple[str, ...],
+        file_params: list[str] | None = None,
         add_api_key: bool = False,
         timeout: float | None = None,
         parse_content: bool = True,
@@ -130,19 +132,30 @@ class VulnersApiBase:
             url = re.sub("{([^}]*)}", lambda m: str(params.pop(m.group(1))), url)
         if add_api_key:
             params["apiKey"] = self._api_key
-        kwargs: dict[str, Any] = {"params" if method in ("GET", "DELETE") else "json": params}
+        files = {}
+        if file_params:
+            for file_param in file_params:
+                file_path = params.pop(file_param, None)
+                if file_path:
+                    files[file_param] = open(file_path, "rb")
+        if files:
+            kwargs: dict[str, Any] = {"data": params, "files": files}
+        else:
+            kwargs = {"params" if method in ("GET", "DELETE") else "json": params}
         if timeout is not None:
             kwargs["timeout"] = timeout
         bucket = self._ratelimits[self._ratelimit_key or url]
         bucket.consume()
         response = self._client.request(method, url, **kwargs)
+        if files:
+            for file in files.values():
+                file.close()
         limit = response.headers.get("X-Vulners-Ratelimit-Reqlimit")
         if limit:
             try:
                 bucket.update(rate=float(limit) / 60.0)
             except (TypeError, ValueError):
                 pass
-
         content = response.content
         if response.headers["content-type"] == "application/json":
             result = orjson.loads(content)
@@ -231,15 +244,18 @@ def endpoint(
         returns = "dict[str, typing.Any]"
 
     func_args = []
+    file_params = []
     for param, param_type in params.items():
         ann = introspection.inspect_annotation(
             param_type, annotation_source=introspection.AnnotationSource.FUNCTION
         )
-        if (
-            ann.metadata
-            and isinstance(ann.metadata[0], FieldInfo)
-            and not ann.metadata[0].is_required()
-        ):
+        if ann.metadata:
+            metadata = [x for x in ann.metadata if isinstance(x, FieldInfo)][0]
+        else:
+            metadata = None
+        if ann.type is pathlib.Path:
+            file_params.append((metadata.alias or param) if metadata else param)
+        if metadata and not metadata.is_required():
             func_args.append(f"{param}: {_ann_repr(ann.type)} = {ann.metadata[0].default!r}")
         else:
             func_args.append(f"{param}: {_ann_repr(ann.type)}")
@@ -269,7 +285,7 @@ def endpoint(
 
         params = endpoint(*args, **kwargs)
         content = api._invoke(
-            method, url, params, path_params, add_api_key, timeout, parse_response
+            method, url, params, path_params, file_params, add_api_key, timeout, parse_response
         )
         if response_handler:
             content = response_handler(content)

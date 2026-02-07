@@ -1,6 +1,6 @@
 from typing import Annotated, Literal, Sequence
 
-from pydantic import Field
+from pydantic import Field, FilePath
 from typing_extensions import Required, TypedDict
 
 from ..base import Unset, VulnersApiProxy, endpoint
@@ -198,6 +198,19 @@ class AuditApi(VulnersApiProxy):
                     description="Add cvelist metrics to the response, only for non free, trial licenses",
                 ),
             ],
+        },
+    )
+
+    sbom_audit = endpoint(
+        "AuditApi.sbom_audit",
+        method="POST",
+        url="/api/v4/audit/sbom",
+        description=("SBOM Audit API for analyzing package vulnerabilities.\n"),
+        params={
+            "file": Annotated[
+                FilePath,
+                Field(description="Path to the SBOM file"),
+            ]
         },
     )
 

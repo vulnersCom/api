@@ -35,6 +35,15 @@ class MiscApi(VulnersApiProxy):
             "vendor": Annotated[
                 str, Field(default=Unset, description="Optional vendor to include in CPE")
             ],
+            "size": Annotated[
+                int,
+                Field(
+                    default=Unset,
+                    ge=0,
+                    le=10000,
+                    description="Optional maximum number of results to return, 0 = all",
+                ),
+            ],
         },
         response_handler=lambda c: c["result"],
     )

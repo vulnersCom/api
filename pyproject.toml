@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "vulners"
-version = "3.1.6"
+version = "3.1.7"
 description = "Python library and command-line utility for Vulners (https://vulners.com)"
 readme = "README.md"
 authors = ["Vulners Team"]

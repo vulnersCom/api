@@ -131,13 +131,6 @@ class VulnersApi(VulnersApiBase):
         return self.misc.get_suggestion(*args, **kwargs)
 
     @deprecated(
-        "VulnersApi.get_ai_score() is deprecated and will be removed in future releases.\n"
-        "Use VulnersApi.misc.get_ai_score() instead."
-    )
-    def get_ai_score(self, *args: Any, **kwargs: Any) -> Any:
-        return self.misc.get_ai_score(*args, **kwargs)
-
-    @deprecated(
         "VulnersApi.query_autocomplete() is deprecated and will be removed in future releases.\n"
         "Use VulnersApi.misc.query_autocomplete() instead."
     )

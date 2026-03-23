@@ -17,14 +17,6 @@ class MiscApi(VulnersApiProxy):
         response_handler=lambda c: c["suggest"],
     )
 
-    get_ai_score = endpoint(
-        "MiscApi.get_ai_score",
-        method="POST",
-        url="/api/v3/ai/scoretext/",
-        params={"text": str},
-        response_handler=lambda c: c.get("score", 0),
-    )
-
     search_cpe = endpoint(
         "MiscApi.search_cpe",
         method="GET",

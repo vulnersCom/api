@@ -195,7 +195,59 @@ class AuditApi(VulnersApiProxy):
                 Field(
                     default=False,
                     alias="cvelistMetrics",
-                    description="Add cvelist metrics to the response, only for non free, trial licenses",
+                    description="Add cvelist metrics to the response, only for non free licenses",
+                ),
+            ],
+        },
+    )
+
+    library_audit = endpoint(
+        "AuditApi.library_audit",
+        method="POST",
+        url="/api/v4/audit/library",
+        description=(
+            "Library Audit API for analyzing package vulnerabilities by purl.\n"
+            "Accepts PURL package list.\n"
+        ),
+        params={
+            "packages": Annotated[
+                list[str],
+                Field(
+                    min_length=1,
+                    max_length=2500,
+                    description="List of the packages (in PURL format)",
+                ),
+            ],
+            "include_unofficial": Annotated[
+                bool,
+                Field(
+                    default=False,
+                    alias="includeUnofficial",
+                    description="Include unofficial packages",
+                ),
+            ],
+            "include_candidates": Annotated[
+                bool,
+                Field(
+                    default=False,
+                    alias="includeCandidates",
+                    description="Include 'candidate' vulnerabilities",
+                ),
+            ],
+            "include_any_version": Annotated[
+                bool,
+                Field(
+                    default=False,
+                    alias="includeAnyVersion",
+                    description="Include 'any' version vulnerabilities",
+                ),
+            ],
+            "cvelist_metrics": Annotated[
+                bool,
+                Field(
+                    default=False,
+                    alias="cvelistMetrics",
+                    description="Add cvelist metrics to the response, only for non free licenses",
                 ),
             ],
         },

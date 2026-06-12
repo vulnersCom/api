@@ -273,31 +273,41 @@ class AuditApi(VulnersApiProxy):
         description=("CVE Audit API.\n"),
         params={
             "cve": Annotated[str, Field(description="CVE")],
-            "registry": Annotated[str | None, Field(description="Registry", default=None)],
-            "include_unofficial": Annotated[
-                bool,
-                Field(
-                    default=False,
-                    alias="includeUnofficial",
-                    description="Include unofficial packages",
-                ),
-            ],
-            "include_candidates": Annotated[
-                bool,
-                Field(
-                    default=False,
-                    alias="includeCandidates",
-                    description="Include 'candidate' vulnerabilities",
-                ),
-            ],
-            "include_any_version": Annotated[
-                bool,
-                Field(
-                    default=False,
-                    alias="includeAnyVersion",
-                    description="Include 'any' version vulnerabilities",
-                ),
-            ],
+            # "registry": Annotated[str | None, Field(description="Registry", default=None)],
+            # "include_unofficial": Annotated[
+            #     bool,
+            #     Field(
+            #         default=False,
+            #         alias="includeUnofficial",
+            #         description="Include unofficial packages",
+            #     ),
+            # ],
+            # "include_candidates": Annotated[
+            #     bool,
+            #     Field(
+            #         default=False,
+            #         alias="includeCandidates",
+            #         description="Include 'candidate' vulnerabilities",
+            #     ),
+            # ],
+            # "include_any_version": Annotated[
+            #     bool,
+            #     Field(
+            #         default=False,
+            #         alias="includeAnyVersion",
+            #         description="Include 'any' version vulnerabilities",
+            #     ),
+            # ],
+        },
+    )
+
+    cve_batch_audit = endpoint(
+        "AuditApi.cve_batch_audit",
+        method="POST",
+        url="/api/v4/audit/cves",
+        description=("CVE Batch Audit API.\n"),
+        params={
+            "cve": Annotated[list[str], Field(description="List of CVE", min_length=1)],
         },
     )
 

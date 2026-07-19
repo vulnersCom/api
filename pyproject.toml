@@ -76,7 +76,39 @@ dev = [
     "pytest-xdist>=3.6",
     "pytest-cov>=5",
     "coverage>=7",
+    "unasyncd>=0.8.1",
 ]
+
+[tool.uv]
+# The [fast] and [mcp] extras carry mutually incompatible msgspec constraints
+# (msgspec>=0.19 for the bulk NDJSON fast-path vs. the pin fastmcp transitively
+# requires). They are never installed together, so declare them conflicting;
+# this lets the universal resolver fork them cleanly instead of failing.
+conflicts = [[{ extra = "fast" }, { extra = "mcp" }]]
+# unasyncd 0.10.x (the plan-pinned build-time sync generator) publishes past the
+# environment's global exclude-newer cutoff; allow it explicitly so `uv run`
+# resolves it stably instead of re-resolving on every invocation.
+exclude-newer-package = { unasyncd = "2026-07-01T00:00:00Z" }
+
+[tool.unasyncd]
+# Build-time generation of the sync mirror from the async source of truth. Both
+# the async source and the generated sync output are committed; `unasyncd --check`
+# gates that they stay in sync (see scripts/unasync.py / `make unasync`).
+add_editors_note = true
+transform_docstrings = true
+ruff_fix = true
+ruff_format = true
+
+[tool.unasyncd.files]
+"src/vulners/_ratelimit_async.py" = "src/vulners/_ratelimit.py"
+"src/vulners/_resources/_async" = "src/vulners/_resources/_sync"
+
+[tool.unasyncd.add_replacements]
+AsyncRateLimitBucket = "RateLimitBucket"
+AsyncBaseResource = "BaseResource"
+AsyncSearch = "Search"
+AsyncAPIClient = "SyncAPIClient"
+AsyncVulners = "Vulners"
 
 [build-system]
 # uv_build backend (src-layout auto-detected: src/vulners). Floor aligned to the

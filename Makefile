@@ -1,4 +1,4 @@
-.PHONY: sync format lint typecheck test test-fast bc cov codegen unasync check build clean
+.PHONY: sync format lint typecheck test test-fast bc cov codegen unasync unasync-check check build clean
 
 # Install the project and the dev dependency group into a uv-managed venv.
 sync:
@@ -32,15 +32,19 @@ cov:
 	uv run coverage erase
 	uv run pytest -n auto --cov=vulners --cov-branch --cov-report=term-missing
 
-# Regenerate sync resources from the async source of truth and check drift.
+# Regenerate the sync mirror (_ratelimit.py + resources/_sync) from the async source.
 unasync:
 	uv run unasyncd
+
+# Fail if the committed sync mirror has drifted from the async source (CI gate).
+unasync-check:
+	uv run unasyncd --check
 
 # Regenerate all codegen artifacts and fail on drift (CI gate G4).
 codegen:
 	uv run python -m codegen.check
 
-check: lint typecheck test
+check: lint typecheck unasync-check test
 
 build:
 	uv build

@@ -109,9 +109,7 @@ class TestLowLimitDoesNotHang:
         # spacing between the two paced tokens is ~ 1/rate seconds
         assert bounded_clock.sleeps[0] == pytest.approx(1.0 / rate)
 
-    def test_second_invoke_after_low_limit_header_terminates(
-        self, monkeypatch, api, server
-    ):
+    def test_second_invoke_after_low_limit_header_terminates(self, monkeypatch, api, server):
         # Integration: a '30' limit header retunes the per-instance bucket to
         # 0.5 req/s; a second call to the same URL must still terminate.
         clock = _BoundedClock()

@@ -224,9 +224,7 @@ class TestAnnotatedMetadata:
                 method="POST",
                 url="/annotated/alias/",
                 params={
-                    "the_file": Annotated[
-                        pathlib.Path, _NeutralMarker(), Field(alias="theFile")
-                    ]
+                    "the_file": Annotated[pathlib.Path, _NeutralMarker(), Field(alias="theFile")]
                 },
             )
 
@@ -237,9 +235,9 @@ class TestAnnotatedMetadata:
 
     def test_all_declared_endpoints_import_without_crash(self):
         # the whole shipped surface builds
-        import vulners.vulners.audit  # noqa: F401
+        import vulners.vscanner
+        import vulners.vulners.audit
         import vulners.vulners.search  # noqa: F401
-        import vulners.vscanner  # noqa: F401
 
 
 class TestTypeHints:
@@ -319,9 +317,7 @@ class TestModuleResolution:
     def test_extra_positional_argument_raises_type_error(self):
         # endpoint() takes 11 parameters; a stray 12th positional is rejected
         with pytest.raises(TypeError):
-            endpoint(
-                "Ex.p", "GET", "/p/", None, None, None, True, None, False, None, None, "x"
-            )
+            endpoint("Ex.p", "GET", "/p/", None, None, None, True, None, False, None, None, "x")
 
     def test_full_package_imports_without_getframe_subprocess(self):
         import subprocess
@@ -335,8 +331,6 @@ class TestModuleResolution:
             "assert AuditApi.software.__module__ == 'vulners.base', AuditApi.software.__module__\n"
             "print('ok')\n"
         )
-        result = subprocess.run(
-            [sys.executable, "-c", code], capture_output=True, text=True
-        )
+        result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
         assert result.returncode == 0, result.stderr
         assert result.stdout.strip() == "ok"

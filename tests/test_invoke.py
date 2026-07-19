@@ -36,9 +36,7 @@ class TestMethodParamMapping:
         assert req.content == b""
 
     def test_post_sends_params_as_json_body(self, api, server):
-        server.enqueue_envelope(
-            {"search": [{"_source": {"id": "CVE-2099-0001"}}], "total": 1}
-        )
+        server.enqueue_envelope({"search": [{"_source": {"id": "CVE-2099-0001"}}], "total": 1})
         result = api.search.search_bulletins("type:synthetic", limit=5)
         req = server.last
         assert req.method == "POST"
@@ -91,7 +89,7 @@ class TestPostBodySerialization:
         # orjson only encodes 64-bit integers; a body carrying a larger int must
         # still be sent (as it was before the orjson fast path) rather than
         # crashing with an uncaught TypeError.
-        payload = {"threshold": 2 ** 70}
+        payload = {"threshold": 2**70}
         api._invoke("POST", "/synthetic/bigint", dict(payload), ())
         req = server.last
         assert req.method == "POST"
@@ -107,7 +105,12 @@ class TestPathParams:
     the path key popped so it never leaks into the body/query."""
 
     def test_path_params_substituted_and_popped(self, api, server):
-        api._invoke("GET", "/synthetic/{item_id}/detail", {"item_id": "SYNTH-0001", "q": "x"}, ("item_id",))
+        api._invoke(
+            "GET",
+            "/synthetic/{item_id}/detail",
+            {"item_id": "SYNTH-0001", "q": "x"},
+            ("item_id",),
+        )
         req = server.last
         assert req.url.path == "/synthetic/SYNTH-0001/detail"
         # pop semantics: the path key must not leak into the query
@@ -159,7 +162,9 @@ class TestPathParams:
     def test_vscanner_path_param_end_to_end(self, make_api, server):
         vapi = make_api(vulners.VScannerApi)
         project_id = "00000000-0000-4000-8000-000000000001"
-        server.enqueue_envelope([{"_id": "00000000-0000-4000-8000-0000000000aa", "name": "synthetic-task"}])
+        server.enqueue_envelope(
+            [{"_id": "00000000-0000-4000-8000-0000000000aa", "name": "synthetic-task"}]
+        )
         tasks = vapi.get_tasks(project_id)
         req = server.last
         assert req.method == "GET"
@@ -171,7 +176,9 @@ class TestPathParams:
 
 
 class TestFileParams:
-    def test_file_sent_as_multipart_and_closed_on_success(self, api, server, tmp_path, monkeypatch):
+    def test_file_sent_as_multipart_and_closed_on_success(
+        self, api, server, tmp_path, monkeypatch
+    ):
         sbom = tmp_path / "synthetic-sbom.json"
         payload = b'{"bomFormat": "SYNTHETIC", "components": []}'
         sbom.write_bytes(payload)
@@ -318,7 +325,7 @@ class TestApiKeyHandling:
         req = server.last
         assert req.headers["x-api-key"] == api._api_key
         # compare against the runtime version, not a pyproject literal
-        assert req.headers["user-agent"] == "Vulners Python API %s" % vulners.base.__version__
+        assert req.headers["user-agent"] == f"Vulners Python API {vulners.base.__version__}"
 
 
 class TestEnvelopeHandling:
@@ -460,9 +467,7 @@ class TestNonJsonErrorWrapping:
     VulnersApiError instead of leaking orjson.JSONDecodeError."""
 
     def test_html_body_with_json_content_type_wrapped(self, api, server):
-        server.enqueue_raw(
-            b"<html>502 Bad Gateway</html>", "application/json", status_code=502
-        )
+        server.enqueue_raw(b"<html>502 Bad Gateway</html>", "application/json", status_code=502)
         with pytest.raises(VulnersApiError) as excinfo:
             api._invoke("GET", "/synthetic/mislabelled", {}, ())
         assert excinfo.value.http_status == 502
@@ -543,14 +548,14 @@ class TestCompressedContent:
             self._zip_bytes({"a.json": b"{}", "b.json": b"{}"}),
             "application/x-zip-compressed",
         )
-        with pytest.raises(RuntimeError, match="^Unexpected file count in Vulners ZIP archive$"):
+        with pytest.raises(RuntimeError, match=r"^Unexpected file count in Vulners ZIP archive$"):
             api._invoke("GET", "/synthetic/zip-multi", {}, ())
 
     def test_empty_zip_raises_runtime_error_not_indexerror(self, api, server):
         # EOCD-only archive (b"PK\x05\x06" + 18 zero bytes): valid but empty
         empty_zip = b"PK\x05\x06" + b"\x00" * 18
         server.enqueue_raw(empty_zip, "application/x-zip-compressed")
-        with pytest.raises(RuntimeError, match="^Unexpected file count in Vulners ZIP archive$"):
+        with pytest.raises(RuntimeError, match=r"^Unexpected file count in Vulners ZIP archive$"):
             api._invoke("GET", "/synthetic/zip-empty", {}, ())
 
     def test_zipextfile_is_closed(self, api, server, monkeypatch):
@@ -606,9 +611,7 @@ class TestEmptyBodyHandlerGuard:
 
 class TestSetCookieStripping:
     def test_set_cookie_header_is_stripped(self, api, server):
-        server.enqueue_envelope(
-            {}, headers={"set-cookie": "session=SYNTHETICCOOKIE; Path=/"}
-        )
+        server.enqueue_envelope({}, headers={"set-cookie": "session=SYNTHETICCOOKIE; Path=/"})
         api._invoke("GET", "/synthetic/cookie", {}, ())
         assert len(api._client.cookies) == 0
 
@@ -676,9 +679,7 @@ class TestRetryAfter:
         assert excinfo.value.retry_after == 12.0
 
     def test_error_without_retry_after_header_is_none(self, api, server):
-        server.enqueue_envelope(
-            {"error": "boom", "errorCode": 104}, result="error"
-        )
+        server.enqueue_envelope({"error": "boom", "errorCode": 104}, result="error")
         with pytest.raises(VulnersApiError) as excinfo:
             api._invoke("GET", "/synthetic/no-retry", {}, ())
         assert excinfo.value.retry_after is None
@@ -738,7 +739,16 @@ class TestErrorMessageParsing:
     def test_v4_errors_list_uses_msg_and_loc_not_input(self):
         exc = VulnersApiError(
             400,
-            {"errors": [{"type": "missing", "loc": ["body", "id"], "msg": "Field required", "input": {"secret": "x"}}]},
+            {
+                "errors": [
+                    {
+                        "type": "missing",
+                        "loc": ["body", "id"],
+                        "msg": "Field required",
+                        "input": {"secret": "x"},
+                    }
+                ]
+            },
         )
         assert exc.error_code is None
         assert exc.message == "Field required at body.id"
@@ -747,10 +757,12 @@ class TestErrorMessageParsing:
     def test_v4_detail_list_is_joined(self):
         exc = VulnersApiError(
             422,
-            {"detail": [
-                {"loc": ["body", "osVersion"], "msg": "Field required"},
-                {"loc": ["body", "packages"], "msg": "Field required"},
-            ]},
+            {
+                "detail": [
+                    {"loc": ["body", "osVersion"], "msg": "Field required"},
+                    {"loc": ["body", "packages"], "msg": "Field required"},
+                ]
+            },
         )
         assert exc.message == "Field required at body.osVersion; Field required at body.packages"
 

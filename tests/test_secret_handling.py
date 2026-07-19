@@ -68,9 +68,7 @@ class TestApiErrorScrub:
 
 class TestHeaderReprMasking:
     def test_x_api_key_masked_in_headers_repr(self):
-        req = httpx.Request(
-            "GET", "https://vulners.com/x", headers={"X-Api-Key": SECRET}
-        )
+        req = httpx.Request("GET", "https://vulners.com/x", headers={"X-Api-Key": SECRET})
         assert SECRET not in repr(req.headers)
         assert "[secure]" in repr(req.headers)
         # the value is still readable through the normal accessors and on wire

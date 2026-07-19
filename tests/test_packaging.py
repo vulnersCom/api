@@ -34,9 +34,7 @@ class TestRuffTarget:
     idioms that break on 3.10; the fix pins target-version to py310.
     """
 
-    @pytest.mark.skipif(
-        sys.version_info < (3, 11), reason="tomllib is only available on 3.11+"
-    )
+    @pytest.mark.skipif(sys.version_info < (3, 11), reason="tomllib is only available on 3.11+")
     def test_ruff_target_version_matches_floor(self):
         import tomllib
 

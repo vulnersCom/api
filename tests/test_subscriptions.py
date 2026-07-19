@@ -128,4 +128,3 @@ class TestUpdateFullReplaceDocstring:
     def test_create_has_no_full_replace_warning(self):
         # the warning is scoped to update(); create() legitimately uses defaults
         assert not (SubscriptionV4Api.create.__doc__ or "")
-

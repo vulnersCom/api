@@ -16,7 +16,7 @@ import httpx
 import pytest
 
 import vulners
-from vulners.base import VulnersApiTransport, VulnersApiError
+from vulners.base import VulnersApiError, VulnersApiTransport
 
 KEY = "SYNTHETIC-TEST-KEY-0000000000"
 

@@ -1,68 +1,139 @@
-[tool.poetry]
+[project]
 name = "vulners"
-version = "3.2.0"
-description = "Python library for the Vulners vulnerability database (https://vulners.com)"
-license = "GPL-3.0-only"
+version = "4.0.0.dev0"
+description = "Python SDK for the Vulners vulnerability intelligence API (https://vulners.com)"
 readme = "README.md"
-authors = ["Vulners Team"]
-homepage = "https://vulners.com"
-repository = "https://github.com/vulnersCom/api"
-documentation = "https://docs.vulners.com/docs/api/"
-keywords = ["security", "network", "vulners", "vulnerability", "CVE"]
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Vulners", email = "info@vulners.com" }]
+maintainers = [{ name = "Vulners", email = "info@vulners.com" }]
+keywords = [
+    "security",
+    "vulnerability",
+    "vulners",
+    "CVE",
+    "CVSS",
+    "EPSS",
+    "exploit",
+    "threat-intelligence",
+    "vulnerability-management",
+    "sbom",
+    "audit",
+]
 classifiers = [
-    "Development Status :: 5 - Production/Stable",
-    "Operating System :: OS Independent",
-    "Programming Language :: Python",
-    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "Intended Audience :: Information Technology",
-    "Topic :: Utilities",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Security",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Typing :: Typed",
 ]
-packages = [
-    { include = "vulners" },
-]
-# PEP 561 marker so type checkers read the inline annotations. A single marker
-# in the package root covers the subpackages recursively; the explicit include
-# is a safety net alongside the package inclusion above.
-include = [
-    { path = "vulners/py.typed", format = ["sdist", "wheel"] },
-    { path = "CHANGELOG.md", format = ["sdist"] },
+dependencies = [
+    "httpx>=0.28,<1",
+    "pydantic>=2.11,<3",
+    "orjson>=3.11,<4",
+    "typing-extensions>=4.12",
+    # base.py (legacy shim layer) imports typing_inspection directly; keep it
+    # explicit so a pydantic that drops the transitive dep can't break imports.
+    "typing-inspection>=0.4",
 ]
 
-[tool.poetry.urls]
+[project.optional-dependencies]
+# Bulk NDJSON fast-path decoder; narrow use (streaming), decided by WP7 benchmark.
+fast = ["msgspec>=0.19,<1"]
+# HTTP/2 transport.
+http2 = ["h2>=4,<5"]
+# Agentic layer: ships a Model Context Protocol server (vulners-mcp).
+mcp = ["fastmcp>=2.0"]
+# Opt-in OpenTelemetry tracing.
+otel = ["opentelemetry-api>=1.20"]
+
+[project.urls]
+Homepage = "https://vulners.com"
+Documentation = "https://docs.vulners.com/docs/api/"
+Repository = "https://github.com/vulnersCom/api"
 Changelog = "https://github.com/vulnersCom/api/blob/master/CHANGELOG.md"
+Issues = "https://github.com/vulnersCom/api/issues"
 
-[tool.poetry.dependencies]
-python = ">=3.10"
-httpx = "^0.28.1"
-orjson = "^3.10.18"
-pydantic = "^2.11.4"
-# Imported directly (vulners/base.py, vscanner.py, audit.py) but previously only
-# reached transitively through pydantic; declare them so a future pydantic that
-# stops depending on them (or a --no-deps install) can't break `import vulners`.
-# Floor-only (not caret) to stay compatible with future pydantic; >=4.12 aligns
-# with pydantic ^2.11.4, which forces typing-extensions >=4.12.2.
-typing-extensions = ">=4.12"
-typing-inspection = ">=0.4"
+# Dev toolchain (PEP 735 dependency groups; installed by `uv sync`).
+# Conservative floors that resolve today; tightened to plan pins (§7.1) at lock (WP8/WP9).
+[dependency-groups]
+dev = [
+    "ruff>=0.11.8",
+    "mypy>=1.15",
+    "basedpyright>=1.21",
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "respx>=0.21",
+    "pytest-xdist>=3.6",
+    "pytest-cov>=5",
+    "coverage>=7",
+]
 
-[tool.poetry.group.dev.dependencies]
-mypy = { version = "^1.15.0", extras = ["faster-cache"] }
-ruff = "^0.11.8"
-pytest = "^8"
+[build-system]
+# uv_build backend (src-layout auto-detected: src/vulners). Floor aligned to the
+# locally installed uv (0.11.26); plan target is >=0.11.29 — bumped at lock.
+requires = ["uv_build>=0.11.26,<0.12"]
+build-backend = "uv_build"
 
 [tool.ruff]
 line-length = 98
-# Match the package floor (python = ">=3.10"). Ruff does not derive the target
-# from requires-python under the legacy Poetry layout, so a py313 target let
-# pyupgrade-style rules rewrite code into 3.11-3.13-only idioms that would break
-# on 3.10 (e.g. UP040 rewriting TypeAlias to `type X = ...`).
 target-version = "py310"
+src = ["src", "tests"]
+extend-exclude = ["src/vulners/vulners", "src/vulners/base.py", "src/vulners/vscanner.py"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "C4", "SIM", "RUF", "PYI", "PT"]
+# UP040 rewrites TypeAlias into `type X = ...` (3.12+ only) — off for the 3.10 floor.
+ignore = ["UP040"]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests: allow bare asserts and relax opinionated pytest-style rules (PT*) and
+# long data lines — these flag style, not bugs, in the existing v3 test suite.
+"tests/**" = ["ANN", "S101", "PT", "E501", "SIM117"]
+
+[tool.mypy]
+python_version = "3.10"
+files = ["src"]
+# Legacy shim layer (v3 modules) is excluded from strict until WP6/WP8 tightening.
+exclude = "^src/vulners/(vulners/|base\\.py|vscanner\\.py)"
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_unused_configs = true
+no_implicit_reexport = false
+
+[tool.pyright]
+include = ["src"]
+exclude = ["src/vulners/vulners", "src/vulners/base.py", "src/vulners/vscanner.py"]
+pythonVersion = "3.10"
+typeCheckingMode = "standard"
 
 [tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
 markers = [
     "live: hits the real Vulners API; needs VULNERS_API_KEY env or tests/live.local.toml",
 ]
 
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+[tool.coverage.run]
+branch = true
+source = ["vulners"]
+parallel = true
+concurrency = ["thread", "multiprocessing"]
+
+[tool.coverage.report]
+show_missing = true
+exclude_also = [
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "@overload",
+    "\\.\\.\\.",
+]

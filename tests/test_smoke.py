@@ -1,4 +1,8 @@
-"""Import smoke, constructor validation and ResultSet pins for the v3 SDK."""
+"""Import smoke, constructor validation, ResultSet pins and packaging metadata.
+
+Covers the legacy v3 surface (kept as backward-compatible shims in v4) and the
+v4 packaging contract (PEP 621 metadata, MIT license, uv_build backend).
+"""
 
 from __future__ import annotations
 
@@ -14,13 +18,25 @@ import pytest
 import vulners
 from vulners.base import ResultSet
 
-REPO_ROOT = Path(vulners.__file__).resolve().parent.parent
+# vulners.__file__ is src/vulners/__init__.py → parents[2] is the repo root.
+REPO_ROOT = Path(vulners.__file__).resolve().parents[2]
 PYPROJECT = REPO_ROOT / "pyproject.toml"
 
 
 def _load_pyproject():
     tomllib = pytest.importorskip("tomllib")  # stdlib on 3.11+
     return tomllib.loads(PYPROJECT.read_text(encoding="utf-8"))
+
+
+def _project() -> dict:
+    return _load_pyproject()["project"]
+
+
+def _dep_names() -> set[str]:
+    from packaging.requirements import Requirement
+    from packaging.utils import canonicalize_name
+
+    return {canonicalize_name(Requirement(dep).name) for dep in _project()["dependencies"]}
 
 
 class TestImportSmoke:
@@ -99,6 +115,12 @@ class TestVersion:
             expected = "unknown"
         assert vulners.base.__version__ == expected
 
+    def test_static_version_matches_pyproject(self):
+        # _version.py is the single source of truth; it must match pyproject.
+        from vulners import _version
+
+        assert _version.__version__ == _project()["version"]
+
     def test_import_survives_missing_distribution(self):
         # Subprocess so import state stays isolated: with the "vulners"
         # distribution metadata absent (a checkout / PYTHONPATH / vendored /
@@ -128,11 +150,7 @@ class TestVersion:
             print("unknown")
             """
         )
-        repo_root = str(Path(vulners.__file__).resolve().parent.parent)
         env = dict(os.environ)
-        env["PYTHONPATH"] = os.pathsep.join(
-            [repo_root, env.get("PYTHONPATH", "")]
-        ).rstrip(os.pathsep)
         result = subprocess.run(
             [sys.executable, "-c", code],
             capture_output=True,
@@ -181,16 +199,13 @@ class TestDependencies:
     transitively through pydantic."""
 
     def test_typing_helpers_declared(self):
-        # Read pyproject.toml directly: an editable install's Requires-Dist lags
-        # behind the source until reinstall, so importlib.metadata.requires would
-        # give a stale answer. The point of the fix is the *declaration*.
-        from packaging.utils import canonicalize_name
-
-        pyproject = _load_pyproject()
-        deps = pyproject["tool"]["poetry"]["dependencies"]
-        declared = {canonicalize_name(name) for name in deps}
+        declared = _dep_names()
         assert "typing-extensions" in declared
         assert "typing-inspection" in declared
+
+    def test_core_runtime_deps_declared(self):
+        declared = _dep_names()
+        assert {"httpx", "pydantic", "orjson"} <= declared
 
     def test_typing_helpers_importable(self):
         # These are imported at `import vulners`; make the runtime need explicit.
@@ -200,61 +215,52 @@ class TestDependencies:
 
 class TestPyTyped:
     """PEP 561 py.typed marker so consumers' type checkers read the inline
-    annotations. Wheel/sdist inclusion is exercised by the CI package job;
-    here we pin the marker file and its packaging declaration deterministically."""
+    annotations. It lives inside the package, so uv_build ships it automatically
+    in both wheel and sdist (asserted end-to-end by the CI package job)."""
 
     def test_marker_exists_and_is_empty(self):
-        marker = REPO_ROOT / "vulners" / "py.typed"
+        marker = REPO_ROOT / "src" / "vulners" / "py.typed"
         assert marker.is_file()
         # Must be truly empty (guards against a stray "partial\n").
         assert marker.read_bytes() == b""
 
-    def test_marker_declared_in_pyproject_include(self):
-        pyproject = _load_pyproject()
-        includes = pyproject["tool"]["poetry"].get("include", [])
-        paths = {
-            entry["path"] if isinstance(entry, dict) else entry for entry in includes
-        }
-        assert "vulners/py.typed" in paths
-        # And it must ship in both artifacts.
-        entry = next(
-            e for e in includes if isinstance(e, dict) and e["path"] == "vulners/py.typed"
-        )
-        assert set(entry["format"]) == {"sdist", "wheel"}
-
 
 class TestPackageMetadata:
-    """Package metadata must be accurate. The exact built-wheel METADATA
-    (License: GPL-3.0-only, Project-URLs) is asserted by the CI package job;
-    here we pin the pyproject source that drives it."""
+    """PEP 621 metadata must be accurate. The exact built-wheel METADATA
+    (License, Project-URLs) is asserted by the CI package job; here we pin the
+    pyproject source that drives it."""
 
-    def test_license_is_spdx_gpl3_only(self):
-        pyproject = _load_pyproject()
-        assert pyproject["tool"]["poetry"]["license"] == "GPL-3.0-only"
+    def test_license_is_spdx_mit(self):
+        # PEP 639 SPDX license expression.
+        assert _project()["license"] == "MIT"
+
+    def test_build_backend_is_uv_build(self):
+        assert _load_pyproject()["build-system"]["build-backend"] == "uv_build"
 
     def test_description_drops_nonexistent_cli_claim(self):
-        pyproject = _load_pyproject()
-        description = pyproject["tool"]["poetry"]["description"].lower()
+        description = _project()["description"].lower()
         # There is no console_scripts / entry point; the old "command-line
         # utility" claim was false.
         assert "command-line" not in description
         assert "command line" not in description
 
     def test_project_urls_present(self):
-        poetry = _load_pyproject()["tool"]["poetry"]
-        assert poetry["homepage"] == "https://vulners.com"
-        assert poetry["repository"] == "https://github.com/vulnersCom/api"
-        assert poetry["documentation"]
+        urls = _project()["urls"]
+        assert urls["Homepage"] == "https://vulners.com"
+        assert urls["Repository"] == "https://github.com/vulnersCom/api"
+        assert urls["Documentation"]
+
+    def test_typed_classifier_present(self):
+        assert "Typing :: Typed" in _project()["classifiers"]
 
     def test_stray_classifier_removed(self):
-        classifiers = _load_pyproject()["tool"]["poetry"]["classifiers"]
+        classifiers = _project()["classifiers"]
         # copy-paste classifier that never applied to this library
         assert "Topic :: Software Development :: Version Control" not in classifiers
 
 
 class TestChangelog:
-    """A Keep a Changelog / SemVer CHANGELOG, linked from package metadata and
-    shipped in the sdist."""
+    """A Keep a Changelog / SemVer CHANGELOG, linked from package metadata."""
 
     CHANGELOG = REPO_ROOT / "CHANGELOG.md"
 
@@ -271,33 +277,29 @@ class TestChangelog:
         # every versioned section is "## [x.y.z] - yyyy-mm-dd"
         versions = re.findall(r"^## \[(\d+\.\d+\.\d+)\] - (\d{4}-\d{2}-\d{2})$", text, re.M)
         assert versions, "no versioned sections found"
-        # retrospective anchors: the v3 baseline and 3.1.0 are present
+        # retrospective anchors: the v3 baseline releases are present
         found = {v for v, _ in versions}
         assert "3.0.0" in found
         assert "3.1.0" in found
         assert "3.1.11" in found
+        assert "3.2.0" in found
 
-    def test_top_versioned_section_matches_package_version(self):
+    def test_top_versioned_section_tracks_a_release(self):
         import re
 
         text = self.CHANGELOG.read_text(encoding="utf-8")
         first = re.search(r"^## \[(\d+\.\d+\.\d+)\]", text, re.M)
         assert first is not None
-        pkg_version = _load_pyproject()["tool"]["poetry"]["version"]
-        # the topmost versioned entry tracks the released package version;
-        # [Unreleased] sits above it and is bumped at release time
-        assert first.group(1) == pkg_version
+        pkg_version = _project()["version"]
+        is_prerelease = any(tag in pkg_version for tag in (".dev", "a", "b", "rc"))
+        if is_prerelease:
+            # During v4 pre-release, [Unreleased] holds the new work and the top
+            # versioned entry is still the last shipped release (3.2.0).
+            assert first.group(1) == "3.2.0"
+        else:
+            assert first.group(1) == pkg_version
 
     def test_changelog_linked_in_pyproject_urls(self):
-        urls = _load_pyproject()["tool"]["poetry"].get("urls", {})
+        urls = _project()["urls"]
         assert "Changelog" in urls
         assert urls["Changelog"].startswith("https://")
-
-    def test_changelog_shipped_in_sdist(self):
-        includes = _load_pyproject()["tool"]["poetry"].get("include", [])
-        entry = next(
-            (e for e in includes if isinstance(e, dict) and e["path"] == "CHANGELOG.md"),
-            None,
-        )
-        assert entry is not None
-        assert "sdist" in entry["format"]

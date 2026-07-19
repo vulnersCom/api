@@ -33,9 +33,7 @@ class TestOffsetGuard:
         assert body["skip"] == 9999
 
     def test_normal_path_regression(self, api, server):
-        server.enqueue_envelope(
-            {"search": [{"_source": {"id": "CVE-2099-0001"}}], "total": 1}
-        )
+        server.enqueue_envelope({"search": [{"_source": {"id": "CVE-2099-0001"}}], "total": 1})
         result = api.search.search_bulletins("type:synthetic", limit=5, offset=0)
         body = orjson.loads(server.last.content)
         assert body["size"] == 5

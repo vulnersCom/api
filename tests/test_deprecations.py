@@ -8,14 +8,14 @@ mechanism without depending on package declarations.
 
 from __future__ import annotations
 
-import pytest
-
 import os
 import subprocess
 import sys
 import textwrap
 import threading
 from pathlib import Path
+
+import pytest
 
 import vulners
 from vulners.base import (
@@ -41,9 +41,9 @@ def _run_python(code: str, warn_args: tuple[str, ...] = ()) -> subprocess.Comple
         args += ["-W", w]
     args += ["-c", textwrap.dedent(code)]
     env = dict(os.environ)
-    env["PYTHONPATH"] = os.pathsep.join(
-        [str(_REPO_ROOT), env.get("PYTHONPATH", "")]
-    ).rstrip(os.pathsep)
+    env["PYTHONPATH"] = os.pathsep.join([str(_REPO_ROOT), env.get("PYTHONPATH", "")]).rstrip(
+        os.pathsep
+    )
     return subprocess.run(args, capture_output=True, text=True, env=env, timeout=60)
 
 

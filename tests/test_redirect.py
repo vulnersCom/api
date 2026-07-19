@@ -138,8 +138,9 @@ class TestRedirectKeyStrip:
     def test_set_cookie_still_stripped(self):
         api, rs = _api()
         rs.responses = [
-            httpx.Response(200, json={"result": "OK", "data": {}},
-                          headers={"set-cookie": "sid=abc"}),
+            httpx.Response(
+                200, json={"result": "OK", "data": {}}, headers={"set-cookie": "sid=abc"}
+            ),
         ]
         api._invoke("GET", "/api/v3/test", {}, ())
         # the wrapper still strips set-cookie from the response
@@ -189,7 +190,7 @@ class TestRedirectBodyCredentialStrip:
             httpx.MockTransport(lambda r: _ok()), origin=httpx.URL(ORIGIN)
         )
         # query
-        req = httpx.Request("GET", "https://evil.example/x?apiKey=%s&a=1" % KEY)
+        req = httpx.Request("GET", f"https://evil.example/x?apiKey={KEY}&a=1")
         transport._scrub_credential(req)
         assert "apiKey" not in dict(req.url.params)
         assert dict(req.url.params) == {"a": "1"}
@@ -197,7 +198,7 @@ class TestRedirectBodyCredentialStrip:
         req = httpx.Request(
             "POST",
             "https://evil.example/x",
-            content=("apiKey=%s&a=1" % KEY).encode(),
+            content=(f"apiKey={KEY}&a=1").encode(),
             headers={"content-type": "application/x-www-form-urlencoded"},
         )
         transport._scrub_credential(req)

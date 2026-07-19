@@ -94,7 +94,10 @@ class TestIterCollectionSync:
             )
         )
         with Vulners(KEY) as client:
-            assert list(client.archive.iter_collection("cve")) == [{"id": "rec-1"}, {"id": "rec-2"}]
+            assert list(client.archive.iter_collection("cve")) == [
+                {"id": "rec-1"},
+                {"id": "rec-2"},
+            ]
 
     @respx.mock
     def test_max_response_bytes_aborts_decompression_bomb(self):

@@ -81,7 +81,9 @@ def _parse_retry_after(value: str | None) -> float | None:
         when = parsedate_to_datetime(value)
     except (TypeError, ValueError):
         return None
-    if when is None:
+    if (
+        when is None
+    ):  # pragma: no cover - parsedate_to_datetime raises (never returns None) on py>=3.10
         return None
     if when.tzinfo is None:
         when = when.replace(tzinfo=timezone.utc)

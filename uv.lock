@@ -2,9 +2,16 @@ version = 1
 revision = 3
 requires-python = ">=3.10"
 resolution-markers = [
-    "python_full_version >= '3.14'",
-    "python_full_version == '3.13.*'",
-    "python_full_version < '3.13'",
+    "python_full_version >= '3.14' and extra != 'extra-7-vulners-fast' and extra == 'extra-7-vulners-mcp'",
+    "python_full_version >= '3.14' and extra == 'extra-7-vulners-fast' and extra != 'extra-7-vulners-mcp'",
+    "python_full_version >= '3.14' and extra != 'extra-7-vulners-fast' and extra != 'extra-7-vulners-mcp'",
+    "python_full_version == '3.13.*' and extra != 'extra-7-vulners-fast' and extra == 'extra-7-vulners-mcp'",
+    "python_full_version == '3.13.*' and extra == 'extra-7-vulners-fast' and extra != 'extra-7-vulners-mcp'",
+    "python_full_version == '3.13.*' and extra != 'extra-7-vulners-fast' and extra != 'extra-7-vulners-mcp'",
+    "python_full_version < '3.13' and extra != 'extra-7-vulners-fast' and extra == 'extra-7-vulners-mcp'",
+    "python_full_version == '3.12.*' and extra == 'extra-7-vulners-fast' and extra != 'extra-7-vulners-mcp'",
+    "python_full_version < '3.12' and extra == 'extra-7-vulners-fast' and extra != 'extra-7-vulners-mcp'",
+    "python_full_version < '3.13' and extra != 'extra-7-vulners-fast' and extra != 'extra-7-vulners-mcp'",
 ]
 conflicts = [[
     { package = "vulners", extra = "fast" },
@@ -165,7 +172,7 @@ name = "cffi"
 version = "2.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "pycparser", marker = "implementation_name != 'PyPy'" },
+    { name = "pycparser", marker = "implementation_name != 'PyPy' or (extra == 'extra-7-vulners-fast' and extra == 'extra-7-vulners-mcp')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/eb/56/b1ba7935a17738ae8453301356628e8147c79dbb825bcbc73dc7401f9846/cffi-2.0.0.tar.gz", hash = "sha256:44d1b5909021139fe36001ae048dbdde8214afa20200eda0f64c068cac5d5529", size = 523588, upload-time = "2025-09-08T23:24:04.541Z" }
 wheels = [
@@ -503,7 +510,7 @@ name = "exceptiongroup"
 version = "1.3.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "typing-extensions", marker = "python_full_version < '3.13' or (extra == 'extra-7-vulners-fast' and extra == 'extra-7-vulners-mcp')" },
+    { name = "typing-extensions", marker = "python_full_version < '3.12' or (python_full_version == '3.12.*' and extra == 'extra-7-vulners-mcp') or (python_full_version == '3.12.*' and extra != 'extra-7-vulners-fast') or (python_full_version >= '3.13' and extra == 'extra-7-vulners-fast' and extra == 'extra-7-vulners-mcp')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/50/79/66800aadf48771f6b62f7eb014e352e5d06856655206165d775e675a02c9/exceptiongroup-1.3.1.tar.gz", hash = "sha256:8b412432c6055b0b7d14c310000ae93352ed6754f70fa8f7c34141f91c4e3219", size = 30371, upload-time = "2025-11-21T23:01:54.787Z" }
 wheels = [
@@ -550,6 +557,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/9c/13/29544fbc6dfe45ea38046af0067311e0bad7acc7d1f2ad38bb08f2409fe2/fastmcp-3.2.4.tar.gz", hash = "sha256:083ecb75b44a4169e7fc0f632f94b781bdb0ff877c6b35b9877cbb566fd4d4d1", size = 28746127, upload-time = "2026-04-14T01:42:24.174Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/cf/76/b310d52fa0e30d39bd937eb58ec2c1f1ea1b5f519f0575e9dd9612f01deb/fastmcp-3.2.4-py3-none-any.whl", hash = "sha256:e6c9c429171041455e47ab94bb3f83c4657622a0ec28922f6940053959bd58a9", size = 728599, upload-time = "2026-04-14T01:42:26.85Z" },
+]
+
+[[package]]
+name = "filelock"
+version = "3.29.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/b5/fe/997687a931ab51049acce6fa1f23e8f01216374ea81374ddee763c493db5/filelock-3.29.0.tar.gz", hash = "sha256:69974355e960702e789734cb4871f884ea6fe50bd8404051a3530bc07809cf90", size = 57571, upload-time = "2026-04-19T15:39:10.068Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/81/47/dd9a212ef6e343a6857485ffe25bba537304f1913bdbed446a23f7f592e1/filelock-3.29.0-py3-none-any.whl", hash = "sha256:96f5f6344709aa1572bbf631c640e4ebeeb519e08da902c39a001882f30ac258", size = 39812, upload-time = "2026-04-19T15:39:08.752Z" },
 ]
 
 [[package]]
@@ -1042,7 +1058,8 @@ source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.14'",
     "python_full_version == '3.13.*'",
-    "python_full_version < '3.13'",
+    "python_full_version == '3.12.*'",
+    "python_full_version < '3.12'",
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/e3/60/f79b9b013a16fa3a58350c9295ddc6789f2e335f36ea61ed10a21b215364/msgspec-0.21.1.tar.gz", hash = "sha256:2313508e394b0d208f8f56892ca9b2799e2561329de9763b19619595a6c0f72c", size = 319193, upload-time = "2026-04-12T21:44:50.394Z" }
 wheels = [
@@ -1617,6 +1634,58 @@ wheels = [
 ]
 
 [[package]]
+name = "pytest-codspeed"
+version = "2.2.1"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "python_full_version >= '3.14'",
+    "python_full_version == '3.13.*'",
+    "python_full_version == '3.12.*'",
+    "python_full_version < '3.12'",
+]
+dependencies = [
+    { name = "cffi", marker = "extra == 'extra-7-vulners-fast'" },
+    { name = "filelock", marker = "extra == 'extra-7-vulners-fast'" },
+    { name = "pytest", marker = "extra == 'extra-7-vulners-fast'" },
+    { name = "setuptools", marker = "(python_full_version >= '3.12' and extra == 'extra-7-vulners-fast') or (extra == 'extra-7-vulners-fast' and extra == 'extra-7-vulners-mcp')" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/40/6a/ba0b067dba286443a04c9d32ff75ef3bc169617ee347d1a97972ada62665/pytest_codspeed-2.2.1.tar.gz", hash = "sha256:0adc24baf01c64a6ca0a0b83b3cd704351708997e09ec086b7776c32227d4e0a", size = 9163, upload-time = "2024-03-19T21:59:57.142Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/03/0b/e3541064afcf24ed54bcabfa6eb5f8083eb335d5c58c7b5b95bc31127f86/pytest_codspeed-2.2.1-py3-none-any.whl", hash = "sha256:aad08033015f3e6c8c14c8bf0eca475921a9b088e92c98b626bf8af8f516471e", size = 10126, upload-time = "2024-03-19T21:59:55.388Z" },
+]
+
+[[package]]
+name = "pytest-codspeed"
+version = "4.4.0"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "python_full_version >= '3.14'",
+    "python_full_version == '3.13.*'",
+    "python_full_version < '3.13'",
+]
+dependencies = [
+    { name = "cffi", marker = "extra == 'extra-7-vulners-mcp' or extra != 'extra-7-vulners-fast'" },
+    { name = "pytest", marker = "extra == 'extra-7-vulners-mcp' or extra != 'extra-7-vulners-fast'" },
+    { name = "rich", version = "13.9.4", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-7-vulners-mcp' or extra != 'extra-7-vulners-fast'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/52/bc/9070fdbfb479a0e92a12652a68875de157dc9be7dc4865a06a519e3a1877/pytest_codspeed-4.4.0.tar.gz", hash = "sha256:edb7c101d9c50439a42cf02cfa9c0ac92da618841636bbebf87c3fa54669442a", size = 201093, upload-time = "2026-04-14T15:13:20.014Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b5/8d/773162f910630c87ba5ea992ff1f267099ee55b3872f65bcbab5da9bc239/pytest_codspeed-4.4.0-cp310-cp310-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:f3ae6f4053042c3a9ae3b05416fb42253c5e514e89391eb25e9c9e3ac8de8677", size = 820073, upload-time = "2026-04-14T15:12:57.575Z" },
+    { url = "https://files.pythonhosted.org/packages/1c/90/9f0cc2fc3245a3d3ee349fd521d6737ac26f79dfb94ed826086bb6ddd321/pytest_codspeed-4.4.0-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:83479a6719598d2910969a60cc410c7283c262c876422a9157dca2f2ab42fa1d", size = 828915, upload-time = "2026-04-14T15:12:59.346Z" },
+    { url = "https://files.pythonhosted.org/packages/97/26/b9a6620f52642ae6b7ba3f8c2dd3d85c636869a600553deabea98a7ae00e/pytest_codspeed-4.4.0-cp311-cp311-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:29b1bf8a36e18d11641a5e610e23a94036b04185e3099978d81a873a5bd3635c", size = 820072, upload-time = "2026-04-14T15:13:00.636Z" },
+    { url = "https://files.pythonhosted.org/packages/de/4a/08a974ec4467258aa8e00d7ef3993c454ca265d6fe09bd6335135d818cb3/pytest_codspeed-4.4.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:06943110e7a8a4b54f4b13aaa3ff8db39caa02b2f61705916887649e36b9713a", size = 828928, upload-time = "2026-04-14T15:13:02.084Z" },
+    { url = "https://files.pythonhosted.org/packages/3e/70/4a401b37f80aaebbcbfb2803b0fab75331af554cd75755bc2059f7809bb4/pytest_codspeed-4.4.0-cp312-cp312-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:6a5c1d51e7ca72ffe247c99b9a97a54191185e8f7a27528e2200d7416da2a68b", size = 820334, upload-time = "2026-04-14T15:13:03.605Z" },
+    { url = "https://files.pythonhosted.org/packages/16/52/beb46293d414d65163f8f3218aaa2f05e53bdc5cf64f24cc3843c31d3ca4/pytest_codspeed-4.4.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:215170441e57bfcbefd179dfd86ccd54ed0ee235e0602a068ce4448b35f13cb2", size = 829269, upload-time = "2026-04-14T15:13:05.197Z" },
+    { url = "https://files.pythonhosted.org/packages/78/53/031793dab3a0edbbcbbd8755648ace0853f4cfb92a0e09e620f301f9ef5d/pytest_codspeed-4.4.0-cp313-cp313-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:ee3e1964446011ca192eebf0350227df231a5b88af57e518f2a4328fc8ca5131", size = 820300, upload-time = "2026-04-14T15:13:06.791Z" },
+    { url = "https://files.pythonhosted.org/packages/e7/66/0c3530c0dd9959b7f0930551b3de296db391040e5e8ad3e0cab917736980/pytest_codspeed-4.4.0-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:340dbb1cc5a21434e0e29bd68ab03c7dc7ad9bfde09d1980b7161352c4c2f048", size = 829201, upload-time = "2026-04-14T15:13:08Z" },
+    { url = "https://files.pythonhosted.org/packages/f2/8a/24c7997d95f8bda081b8d4346750a5db0d9d8405183ee5cb9062f7381476/pytest_codspeed-4.4.0-cp314-cp314-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:413666266762f9cef1321ba971a9e127b97a1f1dad40ddfd2184c2bc5ac157f9", size = 820242, upload-time = "2026-04-14T15:13:09.191Z" },
+    { url = "https://files.pythonhosted.org/packages/8b/7f/3912bf6c2bcddb69189d23213f28e5bc058fd4c78fca15dd0010938154b0/pytest_codspeed-4.4.0-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:e258e6c3d5a8a02ae02a64831be3acd44c19210ffbf13321bdbb8c111c5c6fe4", size = 829190, upload-time = "2026-04-14T15:13:10.762Z" },
+    { url = "https://files.pythonhosted.org/packages/d8/f4/2cc5e10847aee4233690aa511df6b6f1c2c09f9d8ae506628a138f4ba201/pytest_codspeed-4.4.0-cp314-cp314t-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:56d5dd94dcb69460f916acb9c69865d0171b98acec3ce256645d0c0275b553d7", size = 827557, upload-time = "2026-04-14T15:13:12.553Z" },
+    { url = "https://files.pythonhosted.org/packages/7f/57/982ce8aa81089b285730dca8404c76af648af41e46d95012be54452913e6/pytest_codspeed-4.4.0-cp314-cp314t-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:33c38e0e797c74506004f231fc53eab0e412987de281755f714018334381aa3a", size = 835388, upload-time = "2026-04-14T15:13:14.232Z" },
+    { url = "https://files.pythonhosted.org/packages/99/36/9e84323c6be426728e897133f8e9f3e65a90c26c137e190ca9b27bf304c3/pytest_codspeed-4.4.0-py3-none-any.whl", hash = "sha256:a6aab2fa73523f538e7729c20ccf4a1e8e921324c9877a816b05334135950fd9", size = 203809, upload-time = "2026-04-14T15:13:18.72Z" },
+]
+
+[[package]]
 name = "pytest-cov"
 version = "7.1.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1813,11 +1882,12 @@ source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.14'",
     "python_full_version == '3.13.*'",
-    "python_full_version < '3.13'",
+    "python_full_version == '3.12.*'",
+    "python_full_version < '3.12'",
 ]
 dependencies = [
-    { name = "markdown-it-py", marker = "extra == 'extra-7-vulners-fast' or extra != 'extra-7-vulners-mcp'" },
-    { name = "pygments", marker = "extra == 'extra-7-vulners-fast' or extra != 'extra-7-vulners-mcp'" },
+    { name = "markdown-it-py", marker = "extra == 'extra-7-vulners-fast'" },
+    { name = "pygments", marker = "extra == 'extra-7-vulners-fast'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/b1/0e/e5aa3ab6857a16dadac7a970b2e1af21ddf23f03c99248db2c01082090a3/rich-13.6.0.tar.gz", hash = "sha256:5c14d22737e6d5084ef4771b62d5d4363165b403455a30a1c8ca39dc7b644bef", size = 220315, upload-time = "2023-09-30T14:10:38.639Z" }
 wheels = [
@@ -1834,9 +1904,9 @@ resolution-markers = [
     "python_full_version < '3.13'",
 ]
 dependencies = [
-    { name = "markdown-it-py", marker = "extra == 'extra-7-vulners-mcp'" },
-    { name = "pygments", marker = "extra == 'extra-7-vulners-mcp'" },
-    { name = "typing-extensions", marker = "(python_full_version < '3.11' and extra == 'extra-7-vulners-mcp') or (extra == 'extra-7-vulners-fast' and extra == 'extra-7-vulners-mcp')" },
+    { name = "markdown-it-py", marker = "extra == 'extra-7-vulners-mcp' or extra != 'extra-7-vulners-fast'" },
+    { name = "pygments", marker = "extra == 'extra-7-vulners-mcp' or extra != 'extra-7-vulners-fast'" },
+    { name = "typing-extensions", marker = "(python_full_version < '3.11' and extra != 'extra-7-vulners-fast') or (extra == 'extra-7-vulners-fast' and extra == 'extra-7-vulners-mcp')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/ab/3a/0316b28d0761c6734d6bc14e770d85506c986c85ffb239e688eeaab2c2bc/rich-13.9.4.tar.gz", hash = "sha256:439594978a49a09530cff7ebc4b5c7103ef57baf48d5ea3184f21d9a2befa098", size = 223149, upload-time = "2024-11-01T16:43:57.873Z" }
 wheels = [
@@ -1850,8 +1920,8 @@ source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
     { name = "colorama", marker = "sys_platform == 'win32' or (extra == 'extra-7-vulners-fast' and extra == 'extra-7-vulners-mcp')" },
-    { name = "rich", version = "13.6.0", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-7-vulners-fast' or extra != 'extra-7-vulners-mcp'" },
-    { name = "rich", version = "13.9.4", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-7-vulners-mcp'" },
+    { name = "rich", version = "13.6.0", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-7-vulners-fast'" },
+    { name = "rich", version = "13.9.4", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-7-vulners-mcp' or extra != 'extra-7-vulners-fast'" },
     { name = "typing-extensions", marker = "python_full_version < '3.11' or (extra == 'extra-7-vulners-fast' and extra == 'extra-7-vulners-mcp')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/04/27/091e140ea834272188e63f8dd6faac1f5c687582b687197b3e0ec3c78ebf/rich_click-1.9.7.tar.gz", hash = "sha256:022997c1e30731995bdbc8ec2f82819340d42543237f033a003c7b1f843fc5dc", size = 74838, upload-time = "2026-01-31T04:29:27.707Z" }
@@ -2030,6 +2100,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/1c/03/e834bcd866f2f8a49a85eaff47340affa3bfa391ee9912a952a1faa68c7b/secretstorage-3.5.0.tar.gz", hash = "sha256:f04b8e4689cbce351744d5537bf6b1329c6fc68f91fa666f60a380edddcd11be", size = 19884, upload-time = "2025-11-23T19:02:53.191Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b7/46/f5af3402b579fd5e11573ce652019a67074317e18c1935cc0b4ba9b35552/secretstorage-3.5.0-py3-none-any.whl", hash = "sha256:0ce65888c0725fcb2c5bc0fdb8e5438eece02c523557ea40ce0703c266248137", size = 15554, upload-time = "2025-11-23T19:02:51.545Z" },
+]
+
+[[package]]
+name = "setuptools"
+version = "82.0.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/4f/db/cfac1baf10650ab4d1c111714410d2fbb77ac5a616db26775db562c8fab2/setuptools-82.0.1.tar.gz", hash = "sha256:7d872682c5d01cfde07da7bccc7b65469d3dca203318515ada1de5eda35efbf9", size = 1152316, upload-time = "2026-03-09T12:47:17.221Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/9d/76/f789f7a86709c6b087c5a2f52f911838cad707cc613162401badc665acfe/setuptools-82.0.1-py3-none-any.whl", hash = "sha256:a59e362652f08dcd477c78bb6e7bd9d80a7995bc73ce773050228a348ce2e5bb", size = 1006223, upload-time = "2026-03-09T12:47:15.026Z" },
 ]
 
 [[package]]
@@ -2261,14 +2340,14 @@ resolution-markers = [
     "python_full_version < '3.13'",
 ]
 dependencies = [
-    { name = "anyio", marker = "extra == 'extra-7-vulners-mcp'" },
-    { name = "click", marker = "extra == 'extra-7-vulners-mcp'" },
-    { name = "libcst", marker = "extra == 'extra-7-vulners-mcp'" },
-    { name = "msgspec", version = "0.18.6", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-7-vulners-mcp'" },
-    { name = "rich", version = "13.9.4", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-7-vulners-mcp'" },
-    { name = "rich-click", marker = "extra == 'extra-7-vulners-mcp'" },
-    { name = "tomli", marker = "(python_full_version < '3.11' and extra == 'extra-7-vulners-mcp') or (extra == 'extra-7-vulners-fast' and extra == 'extra-7-vulners-mcp')" },
-    { name = "tomli-w", marker = "extra == 'extra-7-vulners-mcp'" },
+    { name = "anyio", marker = "extra == 'extra-7-vulners-mcp' or extra != 'extra-7-vulners-fast'" },
+    { name = "click", marker = "extra == 'extra-7-vulners-mcp' or extra != 'extra-7-vulners-fast'" },
+    { name = "libcst", marker = "extra == 'extra-7-vulners-mcp' or extra != 'extra-7-vulners-fast'" },
+    { name = "msgspec", version = "0.18.6", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-7-vulners-mcp' or extra != 'extra-7-vulners-fast'" },
+    { name = "rich", version = "13.9.4", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-7-vulners-mcp' or extra != 'extra-7-vulners-fast'" },
+    { name = "rich-click", marker = "extra == 'extra-7-vulners-mcp' or extra != 'extra-7-vulners-fast'" },
+    { name = "tomli", marker = "(python_full_version < '3.11' and extra != 'extra-7-vulners-fast') or (extra == 'extra-7-vulners-fast' and extra == 'extra-7-vulners-mcp')" },
+    { name = "tomli-w", marker = "extra == 'extra-7-vulners-mcp' or extra != 'extra-7-vulners-fast'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/e8/ab/2a84777c5082c8cce4abf97bc1010bd0a7bbeb8cab257ccafec6ae94fdd3/unasyncd-0.8.1.tar.gz", hash = "sha256:8bcbd814ac3859e8730ba4c3905693fa02a79d19b9adfe6174e49885be40bbc9", size = 25761, upload-time = "2024-08-19T09:38:40.273Z" }
 wheels = [
@@ -2282,17 +2361,18 @@ source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.14'",
     "python_full_version == '3.13.*'",
-    "python_full_version < '3.13'",
+    "python_full_version == '3.12.*'",
+    "python_full_version < '3.12'",
 ]
 dependencies = [
-    { name = "anyio", marker = "extra == 'extra-7-vulners-fast' or extra != 'extra-7-vulners-mcp'" },
-    { name = "click", marker = "extra == 'extra-7-vulners-fast' or extra != 'extra-7-vulners-mcp'" },
-    { name = "libcst", marker = "extra == 'extra-7-vulners-fast' or extra != 'extra-7-vulners-mcp'" },
-    { name = "msgspec", version = "0.21.1", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-7-vulners-fast' or extra != 'extra-7-vulners-mcp'" },
-    { name = "rich", version = "13.6.0", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-7-vulners-fast' or extra != 'extra-7-vulners-mcp'" },
-    { name = "rich-click", marker = "extra == 'extra-7-vulners-fast' or extra != 'extra-7-vulners-mcp'" },
-    { name = "tomli", marker = "(python_full_version < '3.11' and extra == 'extra-7-vulners-fast') or (python_full_version < '3.11' and extra != 'extra-7-vulners-mcp') or (extra == 'extra-7-vulners-fast' and extra == 'extra-7-vulners-mcp')" },
-    { name = "tomli-w", marker = "extra == 'extra-7-vulners-fast' or extra != 'extra-7-vulners-mcp'" },
+    { name = "anyio", marker = "extra == 'extra-7-vulners-fast'" },
+    { name = "click", marker = "extra == 'extra-7-vulners-fast'" },
+    { name = "libcst", marker = "extra == 'extra-7-vulners-fast'" },
+    { name = "msgspec", version = "0.21.1", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-7-vulners-fast'" },
+    { name = "rich", version = "13.6.0", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-7-vulners-fast'" },
+    { name = "rich-click", marker = "extra == 'extra-7-vulners-fast'" },
+    { name = "tomli", marker = "(python_full_version < '3.11' and extra == 'extra-7-vulners-fast') or (extra == 'extra-7-vulners-fast' and extra == 'extra-7-vulners-mcp')" },
+    { name = "tomli-w", marker = "extra == 'extra-7-vulners-fast'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/9a/7e/56cb4b5684e93fed03282decb38f358f9c6ec70543c2f704aba1b34a9d54/unasyncd-0.10.0.tar.gz", hash = "sha256:7cc430e94d9f804b79a6dbf606a904fdc094ca539d5af38d50e96af00a7d8c6f", size = 62475, upload-time = "2026-01-24T15:29:08.203Z" }
 wheels = [
@@ -2358,13 +2438,15 @@ dev = [
     { name = "mypy" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
+    { name = "pytest-codspeed", version = "2.2.1", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-7-vulners-fast'" },
+    { name = "pytest-codspeed", version = "4.4.0", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-7-vulners-mcp' or extra != 'extra-7-vulners-fast'" },
     { name = "pytest-cov" },
     { name = "pytest-xdist" },
     { name = "respx" },
     { name = "ruff" },
     { name = "stream-unzip" },
-    { name = "unasyncd", version = "0.8.1", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-7-vulners-mcp'" },
-    { name = "unasyncd", version = "0.10.0", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-7-vulners-fast' or extra != 'extra-7-vulners-mcp'" },
+    { name = "unasyncd", version = "0.8.1", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-7-vulners-mcp' or extra != 'extra-7-vulners-fast'" },
+    { name = "unasyncd", version = "0.10.0", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-7-vulners-fast'" },
 ]
 
 [package.metadata]
@@ -2389,6 +2471,7 @@ dev = [
     { name = "mypy", specifier = ">=1.15" },
     { name = "pytest", specifier = ">=8.3" },
     { name = "pytest-asyncio", specifier = ">=0.24" },
+    { name = "pytest-codspeed", specifier = ">=2.2.1" },
     { name = "pytest-cov", specifier = ">=5" },
     { name = "pytest-xdist", specifier = ">=3.6" },
     { name = "respx", specifier = ">=0.21" },

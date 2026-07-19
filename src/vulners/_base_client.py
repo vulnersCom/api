@@ -292,7 +292,9 @@ class BaseClient:
                     "decompressed response exceeds max_response_bytes", status_code=status
                 )
         out += decompressor.flush()
-        if len(out) > cap:
+        # Defensive double-check: the per-chunk guard above already caps output and
+        # unconsumed_tail is fully drained, so flush() adds no bytes that could cross.
+        if len(out) > cap:  # pragma: no cover
             raise APIResponseValidationError(
                 "decompressed response exceeds max_response_bytes", status_code=status
             )

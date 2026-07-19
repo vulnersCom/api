@@ -81,6 +81,7 @@ dev = [
     "unasyncd>=0.8.1",
     # Runtime optional extra, installed for tests exercising the zip stream path.
     "stream-unzip>=0.0.100,<0.1",
+    "pytest-codspeed>=2.2.1",
 ]
 
 [tool.uv]
@@ -175,8 +176,14 @@ typeCheckingMode = "standard"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+# Exclude the pytest-codspeed micro-benchmarks from the default run: they live
+# under tests/benchmarks and are only meant to run under `pytest --codspeed`.
+# The default suite (incl. `pytest -n auto`) deselects them via this marker;
+# run them with `uv run pytest tests/benchmarks --codspeed -m benchmark`.
+addopts = "-m 'not benchmark'"
 markers = [
     "live: hits the real Vulners API; needs VULNERS_API_KEY env or tests/live.local.toml",
+    "benchmark: a pytest-codspeed micro-benchmark (excluded from the default run)",
 ]
 
 [tool.coverage.run]
@@ -187,6 +194,12 @@ concurrency = ["thread", "multiprocessing"]
 
 [tool.coverage.report]
 show_missing = true
+# Gate scope: the NEW v4 core is held at 100% branch coverage (see `make cov`,
+# which measures exactly the v4 modules). The legacy v3 layer (base.py /
+# vscanner.py / vulners/**) is exercised by the v3 test suite separately and is
+# intentionally outside this gate. `make cov` restricts measurement to the v4
+# modules via --cov=, so this floor applies to that scoped run.
+fail_under = 100
 exclude_also = [
     "if TYPE_CHECKING:",
     "raise NotImplementedError",

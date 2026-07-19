@@ -11,6 +11,29 @@ the commit log. Only the v3 series is covered in detail.
 
 ## [Unreleased]
 
+Work in progress toward **4.0.0** — a ground-up modernization that keeps 100%
+backward compatibility with the v3 API.
+
+### Added
+
+- New sync and async clients, `Vulners` and `AsyncVulners`, with resource
+  namespaces (`search`, `audit`, `archive`, `misc`, `report`, `stix`,
+  `subscriptions`, `subscriptions_v4`, `webhooks`, `vscanner`), importable as
+  `from vulners import Vulners, AsyncVulners`.
+- Typed response models (bulletin family hierarchy), `SearchPage` pagination
+  with auto-iteration bounded by the 10 000-document search window, and lazy
+  NDJSON/gzip streaming for archive downloads.
+- A structured exception hierarchy (`VulnersError` → `APIError` → …) and
+  `with_raw_response` / `with_streaming_response` accessors.
+- `audit.smart()` — the Smart Audit endpoint (`POST /api/v4/audit/smart`).
+- License change to **MIT** for 4.0.0.
+
+### Compatibility
+
+- The entire v3 API (`VulnersApi`, `VScannerApi`, `vulners.base.*`,
+  `vulners.vulners.*`, all import paths) is preserved unchanged. Existing code
+  keeps working; new code should prefer the v4 clients.
+
 ## [3.2.0] - 2026-07-19
 
 This is a bug-fix release that keeps the observable behavior of successful calls

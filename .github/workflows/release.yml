@@ -1,0 +1,51 @@
+name: release
+
+# Publishes to PyPI via Trusted Publishing (OIDC — no API token) with PEP 740
+# attestations. Fires only on a version tag, which is pushed by hand at release
+# time (never on a normal branch push). Requires the PyPI project to have this
+# repo configured as a Trusted Publisher and a GitHub environment named `pypi`.
+on:
+  push:
+    tags: ["v[0-9]+.[0-9]+.[0-9]+*"]
+
+# TODO(security-review): pin astral-sh/setup-uv + pypa action to commit SHAs.
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: verify tag matches package version
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          PKG="$(uv run python -c 'import vulners; print(vulners.__version__)')"
+          test "$TAG" = "$PKG" || { echo "tag $TAG != package $PKG"; exit 1; }
+      - name: build sdist + wheel
+        run: uv build
+      - name: twine check
+        run: uvx twine check dist/*
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write # OIDC token for Trusted Publishing + attestations
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: dist
+          path: dist/
+      - name: publish to PyPI (Trusted Publishing + PEP 740 attestations)
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          attestations: true

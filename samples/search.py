@@ -1,15 +1,20 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
+"""Vulnerability intelligence: search the graph and enrich a CVE.
 
-# Vulners search API usage example
+Docs: https://docs.vulners.com/docs/
+"""
 
 import os
 
 import vulners
 
-vulners_api = vulners.VulnersApi(api_key=os.environ["KEY"])
+# Direct: VulnersApi(api_key="YOUR_API_KEY_HERE"), or from the environment:
+api = vulners.VulnersApi(api_key=os.environ["VULNERS_API_KEY"])
 
-possible_autocomplete = vulners_api.misc.query_autocomplete("heartbleed")
-heartbleed_related = vulners_api.search.search_bulletins("heartbleed", limit=10)
-total_heartbleed = heartbleed_related.total
-CVE_2017_14174 = vulners_api.search.get_bulletin("CVE-2017-14174")
+# Newest Fortinet RCEs (Lucene syntax), then full details for one CVE.
+for doc in api.search.search_bulletins(
+    "Fortinet AND RCE order:published", limit=5, fields=["id", "title", "published"]
+):
+    print(doc["id"], "-", doc["title"][:60])
+
+cve = api.search.get_bulletin("CVE-2021-44228")
+print(cve["id"], cve["cvss"]["score"], cve["cvss"]["severity"])

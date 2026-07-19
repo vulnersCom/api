@@ -15,7 +15,7 @@ import io
 import math
 import zipfile
 import zlib
-from collections.abc import Callable, Mapping
+from collections.abc import AsyncIterator, Callable, Iterator, Mapping
 from typing import Any, Literal
 
 import httpx
@@ -35,8 +35,9 @@ from ._exceptions import (
 from ._logging import logger
 from ._ratelimit import RateLimitBucket
 from ._ratelimit_async import AsyncRateLimitBucket
-from ._response import APIResponse
+from ._response import APIResponse, AsyncStreamedAPIResponse, StreamedAPIResponse
 from ._retry import _retry_timeout, _should_retry
+from ._streaming import is_zip_media, iter_zip_ndjson, make_ndjson_decoder
 from ._transport import AsyncVulnersTransport, VulnersTransport
 from ._types import NotGiven, Omit, not_given
 
@@ -350,6 +351,31 @@ class BaseClient:
         if math.isfinite(rate) and rate >= 1.0 / 60.0:
             bucket.update(rate=rate)
 
+    def _raise_stream_error(self, response: httpx.Response, content: bytes) -> None:
+        """Turn an error status on a streaming response into a typed error."""
+        secret = self._config.api_key.get_secret_value()
+        media = self._media_type(response)
+        parsed: Any
+        if media == "application/json" and content:
+            try:
+                parsed = orjson.loads(content)
+            except orjson.JSONDecodeError:
+                parsed = content[:1024].decode(errors="replace")
+        else:
+            parsed = content[:1024].decode(errors="replace")
+        info = _extract_error(response.status_code, response.headers, parsed, secret=secret)
+        assert info is not None
+        raise _make_error(info)
+
+    def _stream_parser(
+        self, spec: RequestSpec, cast: Callable[[Any], Any] | None
+    ) -> Callable[[httpx.Response, bytes], Any]:
+        def _parse(response: httpx.Response, content: bytes) -> Any:
+            parsed = self._process_response(spec, response, content)
+            return cast(parsed) if cast is not None else parsed
+
+        return _parse
+
 
 class SyncAPIClient(BaseClient):
     """Synchronous request loop over an ``httpx.Client``."""
@@ -472,6 +498,60 @@ class SyncAPIClient(BaseClient):
         )
         response, content, parsed = self._send_with_retries(spec, request, retries)
         return APIResponse(response, content, parsed, cast)
+
+    def stream_records(
+        self,
+        spec: RequestSpec,
+        *,
+        params: Mapping[str, Any] | None = None,
+        body: Any = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> Iterator[Any]:
+        """Lazily yield NDJSON records from a streamed (bulk archive) response."""
+        request = self._build_request(spec, params=params, body=body, timeout=timeout)
+        bucket = self._bucket_for(self._ratelimit_key(spec))
+        bucket.consume(self._config.max_rate_limit_wait)
+        response = self._client.send(request, stream=True)
+        try:
+            self._update_bucket_from_headers(bucket, response)
+            if response.status_code >= 400:
+                self._raise_stream_error(response, response.read())
+            media = self._media_type(response)
+            cap = self._config.max_response_bytes
+            if is_zip_media(media):
+                buf = bytearray()
+                for chunk in response.iter_bytes():
+                    buf += chunk
+                    if cap is not None:
+                        self._guard_cap(len(buf), response.status_code)
+                yield from iter_zip_ndjson(bytes(buf), cap)
+            else:
+                decoder = make_ndjson_decoder(media, cap)
+                raw = 0
+                for chunk in response.iter_bytes():
+                    if cap is not None:
+                        raw += len(chunk)
+                        self._guard_cap(raw, response.status_code)
+                    yield from decoder.feed(chunk)
+                yield from decoder.flush()
+        finally:
+            response.close()
+
+    def stream_response(
+        self,
+        spec: RequestSpec,
+        *,
+        cast: Callable[[Any], Any] | None = None,
+        params: Mapping[str, Any] | None = None,
+        body: Any = None,
+        files: Any = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> SyncStreamContext:
+        """A context manager yielding a live :class:`StreamedAPIResponse`."""
+        request = self._build_request(
+            spec, params=params, body=body, files=files, timeout=timeout
+        )
+        return SyncStreamContext(self, spec, request, cast)
 
     @staticmethod
     def _sleep(seconds: float) -> None:
@@ -634,6 +714,63 @@ class AsyncAPIClient(BaseClient):
         response, content, parsed = await self._send_with_retries(spec, request, retries)
         return APIResponse(response, content, parsed, cast)
 
+    async def stream_records(
+        self,
+        spec: RequestSpec,
+        *,
+        params: Mapping[str, Any] | None = None,
+        body: Any = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> AsyncIterator[Any]:
+        """Lazily yield NDJSON records from a streamed (bulk archive) response."""
+        request = self._build_request(spec, params=params, body=body, timeout=timeout)
+        bucket = self._bucket_for(self._ratelimit_key(spec))
+        await bucket.consume(self._config.max_rate_limit_wait)
+        response = await self._client.send(request, stream=True)
+        try:
+            self._update_bucket_from_headers(bucket, response)
+            if response.status_code >= 400:
+                self._raise_stream_error(response, await response.aread())
+            media = self._media_type(response)
+            cap = self._config.max_response_bytes
+            if is_zip_media(media):
+                buf = bytearray()
+                async for chunk in response.aiter_bytes():
+                    buf += chunk
+                    if cap is not None:
+                        self._guard_cap(len(buf), response.status_code)
+                for record in iter_zip_ndjson(bytes(buf), cap):
+                    yield record
+            else:
+                decoder = make_ndjson_decoder(media, cap)
+                raw = 0
+                async for chunk in response.aiter_bytes():
+                    if cap is not None:
+                        raw += len(chunk)
+                        self._guard_cap(raw, response.status_code)
+                    for record in decoder.feed(chunk):
+                        yield record
+                for record in decoder.flush():
+                    yield record
+        finally:
+            await response.aclose()
+
+    def stream_response(
+        self,
+        spec: RequestSpec,
+        *,
+        cast: Callable[[Any], Any] | None = None,
+        params: Mapping[str, Any] | None = None,
+        body: Any = None,
+        files: Any = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> AsyncStreamContext:
+        """A context manager yielding a live :class:`AsyncStreamedAPIResponse`."""
+        request = self._build_request(
+            spec, params=params, body=body, files=files, timeout=timeout
+        )
+        return AsyncStreamContext(self, spec, request, cast)
+
     @staticmethod
     async def _sleep(seconds: float) -> None:
         import asyncio
@@ -675,4 +812,83 @@ class AsyncAPIClient(BaseClient):
         await self.aclose()
 
 
-__all__ = ["AsyncAPIClient", "BaseClient", "RequestSpec", "SyncAPIClient"]
+class SyncStreamContext:
+    """Sync context manager that opens a stream and yields a live response."""
+
+    def __init__(
+        self,
+        client: SyncAPIClient,
+        spec: RequestSpec,
+        request: httpx.Request,
+        cast: Callable[[Any], Any] | None,
+    ) -> None:
+        self._client = client
+        self._spec = spec
+        self._request = request
+        self._cast = cast
+        self._response: httpx.Response | None = None
+
+    def __enter__(self) -> StreamedAPIResponse[Any]:
+        client = self._client
+        bucket = client._bucket_for(client._ratelimit_key(self._spec))
+        bucket.consume(client._config.max_rate_limit_wait)
+        response = client._client.send(self._request, stream=True)
+        self._response = response
+        client._update_bucket_from_headers(bucket, response)
+        if response.status_code >= 400:
+            content = response.read()
+            try:
+                client._raise_stream_error(response, content)
+            finally:
+                response.close()
+        return StreamedAPIResponse(response, client._stream_parser(self._spec, self._cast))
+
+    def __exit__(self, *exc: object) -> None:
+        if self._response is not None:
+            self._response.close()
+
+
+class AsyncStreamContext:
+    """Async context manager that opens a stream and yields a live response."""
+
+    def __init__(
+        self,
+        client: AsyncAPIClient,
+        spec: RequestSpec,
+        request: httpx.Request,
+        cast: Callable[[Any], Any] | None,
+    ) -> None:
+        self._client = client
+        self._spec = spec
+        self._request = request
+        self._cast = cast
+        self._response: httpx.Response | None = None
+
+    async def __aenter__(self) -> AsyncStreamedAPIResponse[Any]:
+        client = self._client
+        bucket = client._bucket_for(client._ratelimit_key(self._spec))
+        await bucket.consume(client._config.max_rate_limit_wait)
+        response = await client._client.send(self._request, stream=True)
+        self._response = response
+        client._update_bucket_from_headers(bucket, response)
+        if response.status_code >= 400:
+            content = await response.aread()
+            try:
+                client._raise_stream_error(response, content)
+            finally:
+                await response.aclose()
+        return AsyncStreamedAPIResponse(response, client._stream_parser(self._spec, self._cast))
+
+    async def __aexit__(self, *exc: object) -> None:
+        if self._response is not None:
+            await self._response.aclose()
+
+
+__all__ = [
+    "AsyncAPIClient",
+    "AsyncStreamContext",
+    "BaseClient",
+    "RequestSpec",
+    "SyncAPIClient",
+    "SyncStreamContext",
+]

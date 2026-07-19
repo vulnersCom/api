@@ -1,26 +1,25 @@
 """Async ``search`` resource (unasyncd source for the sync ``search`` resource).
 
 Representative slice of the search domain: Lucene search returning a typed
-:class:`SearchPage`, and single / multi document lookup.
+:class:`AsyncSearchPage` (cursor-aware, auto-paginating to the 10k window), an
+auto-paginating :meth:`iter_query`, and single / multi document lookup. Rows are
+built through :func:`construct_bulletin`, so each row is the family-specific
+:class:`Bulletin` subclass for its ``bulletinFamily``.
 """
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import AsyncIterator, Sequence
 from typing import Any
 
 import httpx
 
 from ..._base_client import RequestSpec
 from ..._exceptions import SearchWindowExceeded
-from ..._models._base import construct_type
-from ..._models.bulletin import Bulletin
-from ..._models.page import SearchPage
+from ..._models.bulletin import Bulletin, construct_bulletin
+from ..._pagination import SEARCH_WINDOW, AsyncSearchPage
 from ..._types import NotGiven, not_given
 from . import _base
-
-# The API caps the result window (offset + limit) at 10000 documents.
-_SEARCH_WINDOW = 10000
 
 _SEARCH_SPEC = RequestSpec(
     "POST", "/api/v3/search/lucene/", body_mode="json", unwrap=("data",), idempotent=True
@@ -28,15 +27,6 @@ _SEARCH_SPEC = RequestSpec(
 _LOOKUP_SPEC = RequestSpec(
     "POST", "/api/v3/search/id/", body_mode="json", unwrap=("data",), idempotent=True
 )
-
-
-def _page_from(data: Any) -> SearchPage[Bulletin]:
-    hits = data.get("search", []) if isinstance(data, dict) else []
-    rows = [
-        construct_type(hit.get("_source", {}), Bulletin) for hit in hits if isinstance(hit, dict)
-    ]
-    total = data.get("total") if isinstance(data, dict) else None
-    return SearchPage(data=rows, total=total)
 
 
 class AsyncSearch(_base.AsyncBaseResource):
@@ -50,34 +40,74 @@ class AsyncSearch(_base.AsyncBaseResource):
         offset: int = 0,
         fields: Sequence[str] | NotGiven = not_given,
         timeout: float | httpx.Timeout | NotGiven = not_given,
-    ) -> SearchPage[Bulletin]:
+    ) -> AsyncSearchPage[Bulletin]:
         """Search using Lucene query syntax.
 
         Args:
             query: A Vulners Lucene query (see https://vulners.com/help).
-            limit: Maximum number of documents to return.
+            limit: Maximum number of documents to return in this page.
             offset: Number of documents to skip.
             fields: Restrict the returned fields; the server default is used when
                 omitted.
 
         Returns:
-            A :class:`SearchPage` of :class:`Bulletin`; ``.total`` is the total
-            match count.
+            A cursor-aware :class:`AsyncSearchPage` of :class:`Bulletin`;
+            ``.total`` is the total match count and iterating the page walks
+            further pages up to the 10000-document window.
 
         Raises:
             SearchWindowExceeded: ``offset`` is at or beyond the 10000-document
                 window; use the archive API to page further.
         """
-        if offset >= _SEARCH_WINDOW:
+        if offset >= SEARCH_WINDOW:
             raise SearchWindowExceeded(
-                f"offset must be less than {_SEARCH_WINDOW} (got {offset}); the search "
+                f"offset must be less than {SEARCH_WINDOW} (got {offset}); the search "
                 "window is capped at 10000 documents. Use the archive API to retrieve more."
             )
-        size = min(limit, _SEARCH_WINDOW - offset)
+        size = min(limit, SEARCH_WINDOW - offset)
         body: dict[str, Any] = {"query": query, "size": size, "skip": offset}
         if not isinstance(fields, NotGiven):
             body["fields"] = list(fields)
-        return await self._request(_SEARCH_SPEC, cast=_page_from, body=body, timeout=timeout)
+
+        async def _fetch(next_offset: int, next_size: int) -> AsyncSearchPage[Bulletin]:
+            return await self.query(
+                query, limit=next_size, offset=next_offset, fields=fields, timeout=timeout
+            )
+
+        def _build(data: Any) -> AsyncSearchPage[Bulletin]:
+            hits = data.get("search", []) if isinstance(data, dict) else []
+            rows = [
+                construct_bulletin(hit.get("_source", {}))
+                for hit in hits
+                if isinstance(hit, dict)
+            ]
+            total = data.get("total") if isinstance(data, dict) else None
+            return AsyncSearchPage(
+                data=rows, total=total, offset=offset, limit=size, fetch=_fetch
+            )
+
+        return await self._request(_SEARCH_SPEC, cast=_build, body=body, timeout=timeout)
+
+    async def iter_query(
+        self,
+        query: str,
+        *,
+        page_size: int = 100,
+        fields: Sequence[str] | NotGiven = not_given,
+        timeout: float | httpx.Timeout | NotGiven = not_given,
+    ) -> AsyncIterator[Bulletin]:
+        """Iterate every matching :class:`Bulletin`, auto-paginating.
+
+        Fetches pages of ``page_size`` documents and yields their rows lazily,
+        stopping at the 10000-document search window.
+        """
+        page = await self.query(query, limit=page_size, offset=0, fields=fields, timeout=timeout)
+        while True:
+            for row in page.data:
+                yield row
+            if not page.has_next_page():
+                return
+            page = await page.next_page()
 
     async def get_multiple_bulletins(
         self,
@@ -94,7 +124,7 @@ class AsyncSearch(_base.AsyncBaseResource):
         def _cast(data: Any) -> dict[str, Bulletin]:
             docs = data.get("documents", {}) if isinstance(data, dict) else {}
             return {
-                key: construct_type(value, Bulletin)
+                key: construct_bulletin(value)
                 for key, value in docs.items()
                 if isinstance(value, dict)
             }
@@ -115,7 +145,7 @@ class AsyncSearch(_base.AsyncBaseResource):
         def _cast(data: Any) -> Bulletin | None:
             docs = data.get("documents", {}) if isinstance(data, dict) else {}
             raw = docs.get(id)
-            return construct_type(raw, Bulletin) if isinstance(raw, dict) else None
+            return construct_bulletin(raw) if isinstance(raw, dict) else None
 
         return await self._request(_LOOKUP_SPEC, cast=_cast, body=body)
 

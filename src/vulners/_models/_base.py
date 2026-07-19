@@ -5,6 +5,12 @@
 deliberately not :meth:`pydantic.BaseModel.model_construct`, which only builds
 the root object and leaves nested data as plain dicts (pydantic does not recurse
 there on purpose, issue #8084). The pattern follows openai-python's ``_models``.
+
+A small discriminator registry lets a model class stand in for a family of
+subclasses: when a registered base is met during construction, the concrete
+subclass is chosen from a field in the payload (e.g. ``version`` picks the CVSS
+model), falling back to the base when the tag is unknown. This keeps the
+validation-free construct path while still returning the specific type.
 """
 
 from __future__ import annotations
@@ -29,6 +35,44 @@ class VulnersModel(BaseModel):
     """
 
     model_config = ConfigDict(extra="allow")
+
+
+class Discriminator:
+    """Picks a concrete subclass for a payload from one tag field.
+
+    ``mapping`` maps the tag value (read from ``field`` in the payload) to the
+    subclass to build; an unknown or missing tag falls back to ``fallback``.
+    """
+
+    __slots__ = ("fallback", "field", "mapping")
+
+    def __init__(
+        self,
+        field: str,
+        mapping: collections.abc.Mapping[Any, type[BaseModel]],
+        fallback: type[BaseModel],
+    ) -> None:
+        self.field = field
+        self.mapping = dict(mapping)
+        self.fallback = fallback
+
+    def resolve(self, value: collections.abc.Mapping[Any, Any]) -> type[BaseModel]:
+        return self.mapping.get(value.get(self.field), self.fallback)
+
+
+# base model class -> its discriminator. Populated by model modules (e.g. the
+# bulletin module registers the CVSS-by-version discriminator on ``Cvss``).
+_DISCRIMINATORS: dict[type[BaseModel], Discriminator] = {}
+
+
+def register_discriminator(
+    base: type[BaseModel],
+    field: str,
+    mapping: collections.abc.Mapping[Any, type[BaseModel]],
+    fallback: type[BaseModel] | None = None,
+) -> None:
+    """Register *base* so ``construct_type`` discriminates it by *field*."""
+    _DISCRIMINATORS[base] = Discriminator(field, mapping, fallback or base)
 
 
 def _strip_annotated(type_: Any) -> Any:
@@ -80,7 +124,11 @@ def construct_type(value: Any, type_: Any) -> Any:
         if isinstance(value, type_):
             return value
         if isinstance(value, collections.abc.Mapping):
-            return _construct_model(type_, value)
+            target = type_
+            disc = _DISCRIMINATORS.get(type_)
+            if disc is not None:
+                target = disc.resolve(value)
+            return _construct_model(target, value)
         return value
 
     return value
@@ -115,4 +163,4 @@ def _construct_model(model_cls: type[BaseModel], data: collections.abc.Mapping[A
     return model_cls.model_construct(_fields_set=fields_set, **values)
 
 
-__all__ = ["VulnersModel", "construct_type"]
+__all__ = ["Discriminator", "VulnersModel", "construct_type", "register_discriminator"]

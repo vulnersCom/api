@@ -49,6 +49,8 @@ dependencies = [
 [project.optional-dependencies]
 # Bulk NDJSON fast-path decoder; narrow use (streaming), decided by WP7 benchmark.
 fast = ["msgspec>=0.19,<1"]
+# Streaming multi-member zip archive decode (lazily imported by _streaming).
+stream-zip = ["stream-unzip>=0.0.100,<0.1"]
 # HTTP/2 transport.
 http2 = ["h2>=4,<5"]
 # Agentic layer: ships a Model Context Protocol server (vulners-mcp).
@@ -77,6 +79,8 @@ dev = [
     "pytest-cov>=5",
     "coverage>=7",
     "unasyncd>=0.8.1",
+    # Runtime optional extra, installed for tests exercising the zip stream path.
+    "stream-unzip>=0.0.100,<0.1",
 ]
 
 [tool.uv]
@@ -106,6 +110,9 @@ ruff_format = true
 [tool.unasyncd.add_replacements]
 AsyncRateLimitBucket = "RateLimitBucket"
 AsyncBaseResource = "BaseResource"
+AsyncIterator = "Iterator"
+AsyncSearchPage = "vulners._pagination.SearchPage"
+aiter_collection = "iter_collection"
 AsyncSearch = "Search"
 AsyncAudit = "Audit"
 AsyncArchive = "Archive"
@@ -144,6 +151,10 @@ ignore = ["UP040"]
 # Tests: allow bare asserts and relax opinionated pytest-style rules (PT*) and
 # long data lines — these flag style, not bugs, in the existing v3 test suite.
 "tests/**" = ["ANN", "S101", "PT", "E501", "SIM117"]
+# Generated sync resources: an async generator relays items with `async for ...:
+# yield`, which unasyncd turns into `for ...: yield`; `yield from` is illegal in
+# the async source, so UP028 cannot be honoured there. Ignore it in the mirror.
+"src/vulners/_resources/_sync/**" = ["UP028"]
 
 [tool.mypy]
 python_version = "3.10"

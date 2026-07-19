@@ -56,8 +56,14 @@ class BaseResource:
         files: Any = None,
         timeout: float | httpx.Timeout | None | NotGiven = not_given,
     ) -> Any:
-        if self._wrap is not None:
+        if self._wrap == "raw":
             return self._client.request_with_response(
+                spec, cast=cast, params=params, body=body, files=files, timeout=timeout
+            )
+        if self._wrap == "stream":
+            # Returns a (async) context manager; the caller drives it with
+            # ``(async) with ... as response`` for live iteration / parse.
+            return self._client.stream_response(
                 spec, cast=cast, params=params, body=body, files=files, timeout=timeout
             )
         return self._client.request(

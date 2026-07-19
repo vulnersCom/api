@@ -10,6 +10,7 @@ collections can be gigabytes, so they use the archive timeout profile.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from datetime import datetime
 from typing import Any
 
@@ -25,6 +26,13 @@ _FETCH_COLLECTION = RequestSpec(
     "/api/v4/archive/collection",
     body_mode="query",
     response_mode="bytes",
+    timeout_profile="archive",
+)
+_STREAM_COLLECTION = RequestSpec(
+    "GET",
+    "/api/v4/archive/collection",
+    body_mode="query",
+    response_mode="stream",
     timeout_profile="archive",
 )
 _FETCH_COLLECTION_UPDATE = RequestSpec(
@@ -91,6 +99,24 @@ class Archive(_base.BaseResource):
         return self._request(
             _FETCH_COLLECTION, cast=_decode_archive, body={"type": type}, timeout=timeout
         )
+
+    def iter_collection(
+        self,
+        type: str,
+        *,
+        timeout: float | httpx.Timeout | NotGiven = not_given,
+    ) -> Iterator[dict[str, Any]]:
+        """Stream a collection archive as NDJSON records, one at a time.
+
+        Unlike :meth:`fetch_collection` (which buffers and decodes the whole
+        archive), this follows the archive redirect to storage and yields each
+        parsed record lazily, so a multi-gigabyte collection never has to be held
+        in memory. Records that are not JSON objects are yielded as-is.
+        """
+        for record in self._client.stream_records(
+            _STREAM_COLLECTION, params={"type": type}, timeout=timeout
+        ):
+            yield record
 
     def fetch_collection_update(
         self,

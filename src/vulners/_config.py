@@ -19,8 +19,8 @@ from ._exceptions import VulnersError
 
 DEFAULT_BASE_URL = "https://vulners.com"
 
-# Timeout profiles (R#12): a generous read budget by default and a much larger
-# one for archive/bulk downloads that stream for a long time.
+# Timeout profiles: a generous read budget by default and a much larger one for
+# archive/bulk downloads that stream for a long time.
 DEFAULT_TIMEOUT = httpx.Timeout(connect=5.0, read=60.0, write=30.0, pool=10.0)
 ARCHIVE_TIMEOUT = httpx.Timeout(connect=5.0, read=300.0, write=30.0, pool=10.0)
 

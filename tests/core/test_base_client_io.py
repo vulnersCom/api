@@ -19,7 +19,8 @@ import pytest
 import respx
 
 import vulners._base_client as bc
-from vulners._base_client import AsyncAPIClient, SyncAPIClient
+import vulners._transport_client_async as _tca
+import vulners._transport_client_sync as _tcs
 from vulners._client import AsyncVulners, Vulners
 from vulners._config import resolve_config
 from vulners._exceptions import (
@@ -29,6 +30,8 @@ from vulners._exceptions import (
     APITimeoutError,
     InternalServerError,
 )
+from vulners._transport_client_async import AsyncAPIClient
+from vulners._transport_client_sync import SyncAPIClient
 
 KEY = "SYNTHETIC-TEST-KEY"
 BASE = "https://vulners.com"
@@ -38,7 +41,9 @@ LUCENE = f"{BASE}/api/v3/search/lucene/"
 
 @pytest.fixture(autouse=True)
 def _no_backoff_sleep(monkeypatch):
-    monkeypatch.setattr(bc, "_retry_timeout", lambda *a, **k: 0.0)
+    # _retry_timeout now lives in the split transport-client modules.
+    monkeypatch.setattr(_tcs, "_retry_timeout", lambda *a, **k: 0.0)
+    monkeypatch.setattr(_tca, "_retry_timeout", lambda *a, **k: 0.0)
 
 
 def _gzip(payload: object) -> httpx.Response:

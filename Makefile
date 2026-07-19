@@ -34,10 +34,11 @@ bc:
 # this gate's scope, so it is not listed among the measured modules below.
 COV_MODULES = \
 	--cov=vulners._base_client --cov=vulners._client --cov=vulners._config \
-	--cov=vulners._deprecation --cov=vulners._exceptions --cov=vulners._logging \
+	--cov=vulners._exceptions --cov=vulners._logging \
 	--cov=vulners._models --cov=vulners._pagination --cov=vulners._ratelimit \
 	--cov=vulners._ratelimit_async --cov=vulners._resources --cov=vulners._response \
 	--cov=vulners._retry --cov=vulners._streaming --cov=vulners._transport \
+	--cov=vulners._transport_client_async --cov=vulners._transport_client_sync \
 	--cov=vulners._types
 
 cov:
@@ -49,15 +50,17 @@ cov-all:
 	uv run coverage erase
 	uv run pytest -n auto --cov=vulners --cov-branch --cov-report=term-missing --cov-fail-under=0
 
-# Regenerate the sync mirror (_ratelimit.py + resources/_sync) from the async source.
+# Regenerate the sync mirror (_ratelimit.py + resources/_sync + transport client)
+# from the async source. `--extra fast` pulls the unasyncd build that carries the
+# asyncio->threading Lock transform.
 unasync:
-	uv run unasyncd
+	uv run --extra fast unasyncd
 
-# Fail if the committed sync mirror has drifted from the async source (CI gate).
+# Fail if the committed sync mirror has drifted from the async source.
 unasync-check:
-	uv run unasyncd --check
+	uv run --extra fast unasyncd --check
 
-# Regenerate all codegen artifacts and fail on drift (CI gate G4).
+# Regenerate all codegen artifacts and fail on drift (CI drift gate).
 codegen:
 	uv run python -m codegen.check
 

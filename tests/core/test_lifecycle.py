@@ -5,8 +5,21 @@ from __future__ import annotations
 import httpx
 
 from vulners._client import AsyncVulners, Vulners
+from vulners._transport import AsyncVulnersTransport, VulnersTransport
 
 KEY = "SYNTHETIC-TEST-KEY"
+
+
+def _redirect_recorder(records: list[httpx.Request]):
+    """A handler that 302s the origin hop to a cross-origin host, then 200s."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        records.append(request)
+        if request.url.host == "vulners.com":
+            return httpx.Response(302, headers={"location": "https://evil.example/steal"})
+        return httpx.Response(200, json={"result": "OK", "data": {}})
+
+    return handler
 
 
 class TestSyncLifecycle:
@@ -40,6 +53,38 @@ class TestSyncLifecycle:
         assert not client.is_closed
         client.close()
 
+    def test_with_options_shares_pacing_buckets(self):
+        # The clone must share the parent's rate-limit buckets, or per-variant
+        # pacing resets and combined throughput can exceed the account limit.
+        client = Vulners(KEY)
+        clone = client.with_options(timeout=5.0)
+        assert clone._api._buckets is client._api._buckets
+        client.close()
+
+    def test_injected_client_transport_is_guarded(self):
+        http_client = httpx.Client()
+        client = Vulners(KEY, http_client=http_client)
+        # The BYO transport is wrapped so the credential guard still runs.
+        assert isinstance(http_client._transport, VulnersTransport)
+        client.close()
+        http_client.close()
+
+    def test_injected_client_strips_key_cross_origin(self):
+        records: list[httpx.Request] = []
+        http_client = httpx.Client(
+            transport=httpx.MockTransport(_redirect_recorder(records)),
+            follow_redirects=True,
+        )
+        client = Vulners(KEY, base_url="https://vulners.com", http_client=http_client)
+        client.misc.get_web_application_rules()
+        client.close()
+        http_client.close()
+        # origin hop carries the key; the cross-origin redirect hop must not.
+        assert records[0].url.host == "vulners.com"
+        assert records[0].headers.get("x-api-key") == KEY
+        assert records[1].url.host == "evil.example"
+        assert "x-api-key" not in records[1].headers
+
     def test_key_never_leaks_in_repr(self):
         client = Vulners(KEY)
         assert KEY not in repr(client.config)
@@ -64,3 +109,30 @@ class TestAsyncLifecycle:
         await client.aclose()
         assert not http_client.is_closed
         await http_client.aclose()
+
+    async def test_with_options_shares_pacing_buckets(self):
+        client = AsyncVulners(KEY)
+        clone = client.with_options(timeout=5.0)
+        assert clone._api._buckets is client._api._buckets
+        await client.aclose()
+
+    async def test_injected_client_transport_is_guarded(self):
+        http_client = httpx.AsyncClient()
+        client = AsyncVulners(KEY, http_client=http_client)
+        assert isinstance(http_client._transport, AsyncVulnersTransport)
+        await client.aclose()
+        await http_client.aclose()
+
+    async def test_injected_client_strips_key_cross_origin(self):
+        records: list[httpx.Request] = []
+        http_client = httpx.AsyncClient(
+            transport=httpx.MockTransport(_redirect_recorder(records)),
+            follow_redirects=True,
+        )
+        client = AsyncVulners(KEY, base_url="https://vulners.com", http_client=http_client)
+        await client.misc.get_web_application_rules()
+        await client.aclose()
+        await http_client.aclose()
+        assert records[0].headers.get("x-api-key") == KEY
+        assert records[1].url.host == "evil.example"
+        assert "x-api-key" not in records[1].headers

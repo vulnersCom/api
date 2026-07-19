@@ -11,9 +11,11 @@ the parsed model.
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeVar, overload
 
 from typing_extensions import Self
+
+from vulners._transport_client_sync import SyncAPIClient
 
 from ..._base_client import RequestSpec
 from ..._types import NotGiven, not_given
@@ -21,13 +23,14 @@ from ..._types import NotGiven, not_given
 if TYPE_CHECKING:
     import httpx
 
-    from ... import _base_client
+
+_T = TypeVar("_T")
 
 
 class BaseResource:
     """Common wiring shared by every async resource."""
 
-    def __init__(self, client: _base_client.SyncAPIClient, _wrap: str | None = None) -> None:
+    def __init__(self, client: SyncAPIClient, _wrap: str | None = None) -> None:
         self._client = client
         self._wrap = _wrap
 
@@ -35,6 +38,32 @@ class BaseResource:
     def _api_key(self) -> str:
         """The configured API key value, for endpoints that echo it in query/body."""
         return self._client.config.api_key.get_secret_value()
+
+    @overload
+    def _set(self, body: dict[str, Any], key: str, value: object) -> None: ...
+    @overload
+    def _set(
+        self,
+        body: dict[str, Any],
+        key: str,
+        value: _T | NotGiven,
+        transform: Callable[[_T], object],
+    ) -> None: ...
+    def _set(
+        self,
+        body: dict[str, Any],
+        key: str,
+        value: Any,
+        transform: Callable[[Any], Any] | None = None,
+    ) -> None:
+        """Add ``key`` to ``body`` unless ``value`` was not given.
+
+        Consolidates the ``if not isinstance(value, NotGiven): body[key] = ...``
+        idiom repeated across the resources; ``transform`` (e.g. ``list``) is
+        applied to the value when present.
+        """
+        if not isinstance(value, NotGiven):
+            body[key] = transform(value) if transform is not None else value
 
     @property
     def with_raw_response(self) -> Self:

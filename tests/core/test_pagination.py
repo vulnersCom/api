@@ -10,10 +10,8 @@ import respx
 from vulners._client import AsyncVulners, Vulners
 from vulners._exceptions import SearchWindowExceeded
 from vulners._pagination import (
-    AsyncPage,
     AsyncSearchPage,
     SearchPage,
-    SyncPage,
 )
 
 KEY = "SYNTHETIC-TEST-KEY"
@@ -127,19 +125,6 @@ class TestAsyncSearchPageCursor:
         assert [row async for row in page] == [0, 1, 2, 3, 4, 5]
 
 
-class TestPlainPages:
-    def test_sync_page(self):
-        page = SyncPage(data=[1, 2, 3])
-        assert list(page) == [1, 2, 3]
-        assert len(page) == 3
-        assert page[0] == 1
-
-    async def test_async_page(self):
-        page = AsyncPage(data=[1, 2, 3])
-        assert [x async for x in page] == [1, 2, 3]
-        assert len(page) == 3
-
-
 def _search_handler(request: httpx.Request) -> httpx.Response:
     body = orjson.loads(request.content)
     skip, size = body["skip"], body["size"]
@@ -178,10 +163,10 @@ class TestQueryIntegration:
 
 class TestQueryIntegrationAsync:
     @respx.mock
-    async def test_iter_query_auto_paginates(self):
+    async def test_aiter_query_auto_paginates(self):
         respx.post(LUCENE).mock(side_effect=_search_handler)
         async with AsyncVulners(KEY) as client:
-            ids = [b.id async for b in client.search.iter_query("ssh", page_size=100)]
+            ids = [b.id async for b in client.search.aiter_query("ssh", page_size=100)]
         assert len(ids) == 250
         assert ids[-1] == "CVE-249"
 

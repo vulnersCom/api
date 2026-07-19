@@ -47,7 +47,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# Bulk NDJSON fast-path decoder; narrow use (streaming), decided by WP7 benchmark.
+# Bulk NDJSON fast-path decoder; narrow use (streaming), gated by a benchmark.
 fast = ["msgspec>=0.19,<1"]
 # Streaming multi-member zip archive decode (lazily imported by _streaming).
 stream-zip = ["stream-unzip>=0.0.100,<0.1"]
@@ -71,7 +71,7 @@ Issues = "https://github.com/vulnersCom/api/issues"
 vulners-mcp = "vulners._mcp.server:main"
 
 # Dev toolchain (PEP 735 dependency groups; installed by `uv sync`).
-# Conservative floors that resolve today; tightened to plan pins (§7.1) at lock (WP8/WP9).
+# Conservative floors that resolve today; tightened to exact pins at lock time.
 [dependency-groups]
 dev = [
     "ruff>=0.11.8",
@@ -87,7 +87,7 @@ dev = [
     # Runtime optional extra, installed for tests exercising the zip stream path.
     "stream-unzip>=0.0.100,<0.1",
     "pytest-codspeed>=2.2.1",
-    # Documentation site (WP10): Material theme + mkdocstrings API reference +
+    # Documentation site: Material theme + mkdocstrings API reference +
     # llms.txt emitter. `mike` versioning is deferred (single-version site for now).
     "mkdocs-material>=9.7.6",
     "mkdocstrings[python]>=1.0.4",
@@ -100,7 +100,7 @@ dev = [
 # requires). They are never installed together, so declare them conflicting;
 # this lets the universal resolver fork them cleanly instead of failing.
 conflicts = [[{ extra = "fast" }, { extra = "mcp" }]]
-# unasyncd 0.10.x (the plan-pinned build-time sync generator) publishes past the
+# unasyncd 0.10.x (the pinned build-time sync generator) publishes past the
 # environment's global exclude-newer cutoff; allow it explicitly so `uv run`
 # resolves it stably instead of re-resolving on every invocation.
 exclude-newer-package = { unasyncd = "2026-07-01T00:00:00Z" }
@@ -116,6 +116,7 @@ ruff_format = true
 
 [tool.unasyncd.files]
 "src/vulners/_ratelimit_async.py" = "src/vulners/_ratelimit.py"
+"src/vulners/_transport_client_async.py" = "src/vulners/_transport_client_sync.py"
 "src/vulners/_resources/_async" = "src/vulners/_resources/_sync"
 
 [tool.unasyncd.add_replacements]
@@ -124,6 +125,8 @@ AsyncBaseResource = "BaseResource"
 AsyncIterator = "Iterator"
 AsyncSearchPage = "vulners._pagination.SearchPage"
 aiter_collection = "iter_collection"
+aiter_query = "iter_query"
+"asyncio.to_thread" = "vulners._base_client._call_blocking"
 AsyncSearch = "Search"
 AsyncAudit = "Audit"
 AsyncArchive = "Archive"
@@ -141,9 +144,28 @@ AsyncVscannerTasks = "VscannerTasks"
 AsyncAPIClient = "SyncAPIClient"
 AsyncVulners = "Vulners"
 
+# I/O-client-only replacements, scoped to the transport client so the httpx
+# response-method and transport renames can't leak into resource generation.
+[tool.unasyncd.per_file_add_replacements."src/vulners/_transport_client_async.py"]
+AsyncStreamContext = "SyncStreamContext"
+AsyncStreamedAPIResponse = "vulners._response.StreamedAPIResponse"
+AsyncVulnersTransport = "vulners._transport.VulnersTransport"
+AsyncRateLimitBucket = "vulners._ratelimit.RateLimitBucket"
+"httpx.AsyncClient" = "httpx.Client"
+"httpx.AsyncHTTPTransport" = "httpx.HTTPTransport"
+aiter_bytes = "iter_bytes"
+aread = "read"
+aclose = "close"
+
+# The async base resource type-hints its client as AsyncAPIClient; the sync
+# mirror must point at SyncAPIClient in the sync client module (qualified so the
+# TYPE_CHECKING import is rewritten, not just the name).
+[tool.unasyncd.per_file_add_replacements."src/vulners/_resources/_async/_base.py"]
+AsyncAPIClient = "vulners._transport_client_sync.SyncAPIClient"
+
 [build-system]
 # uv_build backend (src-layout auto-detected: src/vulners). Floor aligned to the
-# locally installed uv (0.11.26); plan target is >=0.11.29 — bumped at lock.
+# locally installed uv (0.11.26); target floor is >=0.11.29 — bumped at lock.
 requires = ["uv_build>=0.11.26,<0.12"]
 build-backend = "uv_build"
 
@@ -170,7 +192,7 @@ ignore = ["UP040"]
 [tool.mypy]
 python_version = "3.10"
 files = ["src"]
-# Legacy shim layer (v3 modules) is excluded from strict until WP6/WP8 tightening.
+# Legacy shim layer (v3 modules) is excluded from strict until a later tightening pass.
 exclude = "^src/vulners/(vulners/|base\\.py|vscanner\\.py)"
 warn_redundant_casts = true
 warn_unused_ignores = true

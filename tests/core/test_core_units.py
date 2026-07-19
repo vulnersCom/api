@@ -12,7 +12,6 @@ from __future__ import annotations
 import gzip
 import io
 import logging
-import warnings
 import zipfile
 from typing import Annotated, Any
 
@@ -52,10 +51,8 @@ from vulners._models._base import (
     register_discriminator,
 )
 from vulners._pagination import (
-    AsyncPage,
     AsyncSearchPage,
     SearchPage,
-    SyncPage,
 )
 from vulners._ratelimit import RateLimitBucket
 from vulners._ratelimit_async import AsyncRateLimitBucket
@@ -773,14 +770,6 @@ class TestPaginationContainers:
         with pytest.raises(RuntimeError):
             await page.next_page()
 
-    def test_sync_page_repr(self):
-        assert repr(SyncPage(data=[1, 2])) == "SyncPage(count=2)"
-
-    async def test_async_page_getitem_and_repr(self):
-        page = AsyncPage(data=[7, 8, 9])
-        assert page[1] == 8
-        assert repr(page) == "AsyncPage(count=3)"
-
 
 # ---------------------------------------------------------------------------
 # rate-limit buckets: update + zero-rate consume
@@ -814,20 +803,3 @@ class TestSentinels:
         assert repr(omit) == "omit"
         assert bool(NotGiven()) is False
         assert bool(Omit()) is False
-
-
-# ---------------------------------------------------------------------------
-# _deprecation
-# ---------------------------------------------------------------------------
-
-
-class TestDeprecation:
-    def test_warn_deprecated_emits(self):
-        from vulners._deprecation import RemovedInVulners5Warning, warn_deprecated
-
-        with warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter("always")
-            warn_deprecated("old thing")
-        assert len(caught) == 1
-        assert issubclass(caught[0].category, RemovedInVulners5Warning)
-        assert "MIGRATION.md" in str(caught[0].message)

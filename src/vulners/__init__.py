@@ -49,12 +49,30 @@ if TYPE_CHECKING:
     from ._exceptions import SearchWindowExceeded as SearchWindowExceeded
     from ._exceptions import UnprocessableEntityError as UnprocessableEntityError
     from ._exceptions import VulnersError as VulnersError
+    from ._models.bulletin import Bulletin as Bulletin
+    from ._models.bulletin import CveBulletin as CveBulletin
+    from ._models.bulletin import Cvss as Cvss
+    from ._models.bulletin import Cvss2 as Cvss2
+    from ._models.bulletin import Cvss3 as Cvss3
+    from ._models.bulletin import Cvss4 as Cvss4
+    from ._models.bulletin import ExploitBulletin as ExploitBulletin
+    from ._models.bulletin import GenericBulletin as GenericBulletin
+    from ._models.bulletin import InfoBulletin as InfoBulletin
+    from ._models.bulletin import ScannerBulletin as ScannerBulletin
+    from ._models.bulletin import SoftwareBulletin as SoftwareBulletin
+    from ._pagination import AsyncSearchPage as AsyncSearchPage
+    from ._pagination import SearchPage as SearchPage
+    from ._response import APIResponse as APIResponse
+    from ._response import AsyncStreamedAPIResponse as AsyncStreamedAPIResponse
+    from ._response import StreamedAPIResponse as StreamedAPIResponse
     from ._types import NotGiven as NotGiven
-    from ._types import Omit as Omit
     from ._types import not_given as not_given
-    from ._types import omit as omit
+    from ._types.audit import AuditItem as AuditItem
+    from ._types.audit import WinAuditItem as WinAuditItem
 
-# name -> submodule it lives in (relative to this package).
+# name -> submodule it lives in (relative to this package). Resolved lazily by
+# __getattr__ so a bare `import vulners` never eagerly builds the v4 pydantic
+# models (which introspect the call stack at class-definition time).
 _LAZY_ATTRS = {
     "Vulners": "._client",
     "AsyncVulners": "._client",
@@ -73,10 +91,28 @@ _LAZY_ATTRS = {
     "RateLimitError": "._exceptions",
     "InternalServerError": "._exceptions",
     "SearchWindowExceeded": "._exceptions",
-    "omit": "._types",
     "not_given": "._types",
-    "Omit": "._types",
     "NotGiven": "._types",
+    # v4 return/input types users annotate with (lazy: the pydantic core loads
+    # only on first access, keeping `import vulners` lightweight).
+    "Bulletin": "._models.bulletin",
+    "CveBulletin": "._models.bulletin",
+    "ExploitBulletin": "._models.bulletin",
+    "ScannerBulletin": "._models.bulletin",
+    "SoftwareBulletin": "._models.bulletin",
+    "InfoBulletin": "._models.bulletin",
+    "GenericBulletin": "._models.bulletin",
+    "Cvss": "._models.bulletin",
+    "Cvss2": "._models.bulletin",
+    "Cvss3": "._models.bulletin",
+    "Cvss4": "._models.bulletin",
+    "SearchPage": "._pagination",
+    "AsyncSearchPage": "._pagination",
+    "APIResponse": "._response",
+    "StreamedAPIResponse": "._response",
+    "AsyncStreamedAPIResponse": "._response",
+    "AuditItem": "._types.audit",
+    "WinAuditItem": "._types.audit",
 }
 
 # Public surface: v4 names first (recommended), v3 legacy names last. Grouped
@@ -102,10 +138,27 @@ __all__ = [  # noqa: RUF022
     "InternalServerError",
     "SearchWindowExceeded",
     # v4 sentinels
-    "omit",
     "not_given",
-    "Omit",
     "NotGiven",
+    # v4 return / input types (for annotations)
+    "Bulletin",
+    "CveBulletin",
+    "ExploitBulletin",
+    "ScannerBulletin",
+    "SoftwareBulletin",
+    "InfoBulletin",
+    "GenericBulletin",
+    "Cvss",
+    "Cvss2",
+    "Cvss3",
+    "Cvss4",
+    "SearchPage",
+    "AsyncSearchPage",
+    "APIResponse",
+    "StreamedAPIResponse",
+    "AsyncStreamedAPIResponse",
+    "AuditItem",
+    "WinAuditItem",
     # v3 legacy
     "VScannerApi",
     "VulnersApi",

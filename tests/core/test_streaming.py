@@ -84,6 +84,19 @@ class TestIterCollectionSync:
             assert list(client.archive.iter_collection("cve")) == records
 
     @respx.mock
+    def test_ndjson_without_trailing_newline_flushes_last_record(self):
+        # No trailing newline: the decoder buffers the last record and emits it
+        # from flush() (exercises the sync stream_records flush branch).
+        body = b'{"id": "rec-1"}\n{"id": "rec-2"}'
+        respx.get(COLLECTION).mock(
+            return_value=httpx.Response(
+                200, content=body, headers={"content-type": "application/x-ndjson"}
+            )
+        )
+        with Vulners(KEY) as client:
+            assert list(client.archive.iter_collection("cve")) == [{"id": "rec-1"}, {"id": "rec-2"}]
+
+    @respx.mock
     def test_max_response_bytes_aborts_decompression_bomb(self):
         # Highly compressible: small on the wire, large once inflated.
         records = [{"id": "CVE-1"}] * 2000

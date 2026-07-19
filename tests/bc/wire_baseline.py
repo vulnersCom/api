@@ -2,7 +2,7 @@
 
 For a representative call to every public sub-API method, this records the exact
 HTTP request the v3 SDK puts on the wire (method, path, query, headers, body).
-The v4 deprecated shims (WP6) must reproduce each request byte-for-byte.
+The v4 backward-compatibility layer must reproduce each request byte-for-byte.
 
 The baseline was recorded against the real ``vulners==3.2.0`` build; regenerate
 with::

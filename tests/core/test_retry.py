@@ -7,7 +7,8 @@ import orjson
 import pytest
 import respx
 
-import vulners._base_client as bc
+import vulners._transport_client_async as _tca
+import vulners._transport_client_sync as _tcs
 from vulners._base_client import RequestSpec
 from vulners._client import Vulners
 from vulners._exceptions import APIConnectionError, APITimeoutError, InternalServerError
@@ -18,8 +19,10 @@ SEARCH_URL = "https://vulners.com/api/v3/search/lucene/"
 
 @pytest.fixture(autouse=True)
 def _no_backoff_sleep(monkeypatch):
-    # Collapse backoff waits so retries do not actually sleep.
-    monkeypatch.setattr(bc, "_retry_timeout", lambda *a, **k: 0.0)
+    # Collapse backoff waits so retries do not actually sleep. _retry_timeout now
+    # lives in the split transport-client modules (sync + async mirrors).
+    monkeypatch.setattr(_tcs, "_retry_timeout", lambda *a, **k: 0.0)
+    monkeypatch.setattr(_tca, "_retry_timeout", lambda *a, **k: 0.0)
 
 
 def _ok() -> httpx.Response:

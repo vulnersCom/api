@@ -1,11 +1,14 @@
-"""Sans-IO request/response core plus the thin sync and async request loops.
+"""Sans-IO request/response core shared by the sync and async request loops.
 
 :class:`BaseClient` holds only pure helpers — build a request, decode/validate a
-response, decide retryability — with no I/O. :class:`SyncAPIClient` and
-:class:`AsyncAPIClient` add the small amount of real I/O: rate-limit pacing, the
-send, capped reads and the retry loop. The response pipeline mirrors
-``vulners.base._invoke`` (media dispatch, gzip/zip, v3/v4 envelope unwrap, the
-opt-in ``max_response_bytes`` capped read).
+response, decide retryability — with no I/O. The two I/O clients that add real
+network work (rate-limit pacing, the send, capped reads, the retry loop and
+streaming) live in the async source ``_transport_client_async.py``
+(:class:`AsyncAPIClient`) and its ``unasyncd``-generated sync mirror
+``_transport_client_sync.py`` (:class:`SyncAPIClient`); both import ``BaseClient``
+from here (imports flow one way to keep this module cycle-free). The response
+pipeline mirrors ``vulners.base._invoke`` (media dispatch, gzip/zip, v3/v4
+envelope unwrap, the opt-in ``max_response_bytes`` capped read).
 """
 
 from __future__ import annotations
@@ -15,30 +18,20 @@ import io
 import math
 import zipfile
 import zlib
-from collections.abc import AsyncIterator, Callable, Iterator, Mapping
+from collections.abc import Callable, Mapping
 from typing import Any, Literal
 
 import httpx
 import orjson
-from typing_extensions import Self
 
 from ._config import ClientConfig
 from ._exceptions import (
-    APIConnectionError,
     APIResponseValidationError,
-    APIStatusError,
-    APITimeoutError,
-    ErrorInfo,
     _extract_error,
     _make_error,
 )
-from ._logging import logger
 from ._ratelimit import RateLimitBucket
 from ._ratelimit_async import AsyncRateLimitBucket
-from ._response import APIResponse, AsyncStreamedAPIResponse, StreamedAPIResponse
-from ._retry import _retry_timeout, _should_retry
-from ._streaming import is_zip_media, iter_zip_ndjson, make_ndjson_decoder
-from ._transport import AsyncVulnersTransport, VulnersTransport
 from ._types import NotGiven, Omit, not_given
 
 BodyMode = Literal["json", "multipart", "text", "query", "none"]
@@ -67,6 +60,34 @@ class RequestSpec:
         # Explicit repr (not dataclass-generated, which reprlib wraps) so this
         # frozen spec is never mistaken for a codegen endpoint by the test suite.
         return f"RequestSpec({self.method} {self.path})"
+
+
+def _mount_guard(client: Any, transport_cls: Any, origin: httpx.URL) -> None:
+    """Wrap a bring-your-own client's transport(s) with the credential guard.
+
+    Mounts ``transport_cls`` (``VulnersTransport`` / ``AsyncVulnersTransport``)
+    over the client's base transport and any per-pattern mounts, keyed to the SDK
+    origin, so the cross-origin ``X-Api-Key`` strip, ``Set-Cookie`` drop and SSRF
+    redirect guard run even when the caller supplies their own client.
+
+    Idempotent: a client already guarded (e.g. reused by ``with_options`` or
+    shared across clients) is left as-is rather than double-wrapped.
+    """
+    if isinstance(client._transport, transport_cls):
+        return
+    client._transport = transport_cls(client._transport, origin=origin)
+    client._mounts = {
+        pattern: (transport_cls(mount, origin=origin) if mount is not None else mount)
+        for pattern, mount in client._mounts.items()
+    }
+
+
+def _call_blocking(func: Callable[..., Any], *args: Any) -> Any:
+    # Sync-mirror shim: unasyncd rewrites ``await asyncio.to_thread(fn, *args)``
+    # in the async resources to ``_call_blocking(fn, *args)``, so the generated
+    # sync code runs the blocking call inline (no thread hop) while the async
+    # source offloads it off the event loop.
+    return func(*args)
 
 
 def _clean_params(params: Mapping[str, Any]) -> dict[str, Any]:
@@ -251,6 +272,12 @@ class BaseClient:
             ) from exc
 
     def _decode_binary(self, media: str, content: bytes, status: int) -> bytes:
+        # Decompression cap: with the default max_response_bytes=None the gzip/zip
+        # body inflates fully into memory with no bound. This is deliberate —
+        # Vulners archives are legitimately multi-gigabyte and a default cap would
+        # break normal downloads. A caller pointing base_url at an untrusted host
+        # opts into the bound by passing max_response_bytes= (upgrade path), which
+        # switches to the streamed, per-chunk-capped inflate/read below.
         cap = self._config.max_response_bytes
         if media in ("application/x-gzip-compressed", "application/gzip", "application/x-gzip"):
             if cap is None:
@@ -379,518 +406,4 @@ class BaseClient:
         return _parse
 
 
-class SyncAPIClient(BaseClient):
-    """Synchronous request loop over an ``httpx.Client``."""
-
-    def __init__(self, config: ClientConfig, http_client: httpx.Client | None = None) -> None:
-        super().__init__(config)
-        self._buckets: dict[str, RateLimitBucket] = {}
-        if http_client is not None:
-            self._client = http_client
-            self._owns_client = False
-        else:
-            transport = VulnersTransport(
-                httpx.HTTPTransport(retries=config.connect_retries),
-                origin=config.base_url,
-            )
-            self._client = httpx.Client(
-                base_url=config.base_url,
-                transport=transport,
-                timeout=config.timeout,
-                limits=config.limits,
-                follow_redirects=config.follow_redirects,
-            )
-            self._owns_client = True
-
-    def _bucket_for(self, key: str) -> RateLimitBucket:
-        bucket = self._buckets.get(key)
-        if bucket is None:
-            bucket = self._buckets.setdefault(key, RateLimitBucket())
-        return bucket
-
-    def _send(self, spec: RequestSpec, request: httpx.Request) -> tuple[httpx.Response, bytes]:
-        if self._config.max_response_bytes is None:
-            response = self._client.send(request)
-            return response, response.content
-        response = self._client.send(request, stream=True)
-        try:
-            self._reject_declared_length(
-                response.headers.get("content-length"), response.status_code
-            )
-            buf = bytearray()
-            for chunk in response.iter_bytes():
-                buf += chunk
-                self._guard_cap(len(buf), response.status_code)
-        finally:
-            response.close()
-        return response, bytes(buf)
-
-    def _send_with_retries(
-        self, spec: RequestSpec, request: httpx.Request, retries: int
-    ) -> tuple[httpx.Response, bytes, Any]:
-        bucket = self._bucket_for(self._ratelimit_key(spec))
-        attempt = 0
-        while True:
-            bucket.consume(self._config.max_rate_limit_wait)
-            try:
-                response, content = self._send(spec, request)
-            except httpx.TimeoutException as exc:
-                error: APIConnectionError = APITimeoutError(f"Request timed out: {exc}")
-                if attempt < retries and self._retryable_exc(exc, spec):
-                    attempt += 1
-                    self._sleep(_retry_timeout(attempt))
-                    continue
-                raise error from exc
-            except httpx.TransportError as exc:
-                error = APIConnectionError(f"Connection error: {exc}")
-                if attempt < retries and self._retryable_exc(exc, spec):
-                    attempt += 1
-                    self._sleep(_retry_timeout(attempt))
-                    continue
-                raise error from exc
-            self._update_bucket_from_headers(bucket, response)
-            try:
-                parsed = self._process_response(spec, response, content)
-            except APIStatusError as err:
-                info = ErrorInfo(status_code=err.status_code, error_code=err.error_code)
-                if attempt < retries and _should_retry(info, response.headers):
-                    attempt += 1
-                    logger.debug(
-                        "retrying %s %s after status %s", spec.method, spec.path, err.status_code
-                    )
-                    self._sleep(_retry_timeout(attempt, response.headers))
-                    continue
-                raise
-            return response, content, parsed
-
-    def request(
-        self,
-        spec: RequestSpec,
-        *,
-        cast: Callable[[Any], Any] | None = None,
-        params: Mapping[str, Any] | None = None,
-        body: Any = None,
-        files: Any = None,
-        headers: Mapping[str, str | Omit] | None = None,
-        timeout: float | httpx.Timeout | None | NotGiven = not_given,
-        max_retries: int | None = None,
-    ) -> Any:
-        retries = self._config.max_retries if max_retries is None else max_retries
-        request = self._build_request(
-            spec, params=params, body=body, files=files, headers=headers, timeout=timeout
-        )
-        _, _, parsed = self._send_with_retries(spec, request, retries)
-        return cast(parsed) if cast is not None else parsed
-
-    def request_with_response(
-        self,
-        spec: RequestSpec,
-        *,
-        cast: Callable[[Any], Any] | None = None,
-        params: Mapping[str, Any] | None = None,
-        body: Any = None,
-        files: Any = None,
-        headers: Mapping[str, str | Omit] | None = None,
-        timeout: float | httpx.Timeout | None | NotGiven = not_given,
-        max_retries: int | None = None,
-    ) -> APIResponse[Any]:
-        retries = self._config.max_retries if max_retries is None else max_retries
-        request = self._build_request(
-            spec, params=params, body=body, files=files, headers=headers, timeout=timeout
-        )
-        response, content, parsed = self._send_with_retries(spec, request, retries)
-        return APIResponse(response, content, parsed, cast)
-
-    def stream_records(
-        self,
-        spec: RequestSpec,
-        *,
-        params: Mapping[str, Any] | None = None,
-        body: Any = None,
-        timeout: float | httpx.Timeout | None | NotGiven = not_given,
-    ) -> Iterator[Any]:
-        """Lazily yield NDJSON records from a streamed (bulk archive) response."""
-        request = self._build_request(spec, params=params, body=body, timeout=timeout)
-        bucket = self._bucket_for(self._ratelimit_key(spec))
-        bucket.consume(self._config.max_rate_limit_wait)
-        response = self._client.send(request, stream=True)
-        try:
-            self._update_bucket_from_headers(bucket, response)
-            if response.status_code >= 400:
-                self._raise_stream_error(response, response.read())
-            media = self._media_type(response)
-            cap = self._config.max_response_bytes
-            if is_zip_media(media):
-                buf = bytearray()
-                for chunk in response.iter_bytes():
-                    buf += chunk
-                    if cap is not None:
-                        self._guard_cap(len(buf), response.status_code)
-                yield from iter_zip_ndjson(bytes(buf), cap)
-            else:
-                decoder = make_ndjson_decoder(media, cap)
-                raw = 0
-                for chunk in response.iter_bytes():
-                    if cap is not None:
-                        raw += len(chunk)
-                        self._guard_cap(raw, response.status_code)
-                    yield from decoder.feed(chunk)
-                yield from decoder.flush()
-        finally:
-            response.close()
-
-    def stream_response(
-        self,
-        spec: RequestSpec,
-        *,
-        cast: Callable[[Any], Any] | None = None,
-        params: Mapping[str, Any] | None = None,
-        body: Any = None,
-        files: Any = None,
-        timeout: float | httpx.Timeout | None | NotGiven = not_given,
-    ) -> SyncStreamContext:
-        """A context manager yielding a live :class:`StreamedAPIResponse`."""
-        request = self._build_request(
-            spec, params=params, body=body, files=files, timeout=timeout
-        )
-        return SyncStreamContext(self, spec, request, cast)
-
-    @staticmethod
-    def _sleep(seconds: float) -> None:
-        import time
-
-        time.sleep(seconds)
-
-    def get(self, path: str, *, params: Mapping[str, Any] | None = None, **kw: Any) -> Any:
-        return self.request(RequestSpec("GET", path, body_mode="query"), params=params, **kw)
-
-    def post(self, path: str, *, body: Any = None, **kw: Any) -> Any:
-        return self.request(RequestSpec("POST", path, body_mode="json"), body=body, **kw)
-
-    def put(self, path: str, *, body: Any = None, **kw: Any) -> Any:
-        return self.request(RequestSpec("PUT", path, body_mode="json"), body=body, **kw)
-
-    def delete(self, path: str, *, params: Mapping[str, Any] | None = None, **kw: Any) -> Any:
-        return self.request(RequestSpec("DELETE", path, body_mode="query"), params=params, **kw)
-
-    # -- lifecycle ---------------------------------------------------------
-
-    @property
-    def is_closed(self) -> bool:
-        return self._client.is_closed
-
-    def close(self) -> None:
-        if self._owns_client and not self._client.is_closed:
-            self._client.close()
-
-    def __enter__(self) -> Self:
-        return self
-
-    def __exit__(self, *exc: object) -> None:
-        self.close()
-
-
-class AsyncAPIClient(BaseClient):
-    """Asynchronous request loop over an ``httpx.AsyncClient``."""
-
-    def __init__(
-        self, config: ClientConfig, http_client: httpx.AsyncClient | None = None
-    ) -> None:
-        super().__init__(config)
-        self._buckets: dict[str, AsyncRateLimitBucket] = {}
-        if http_client is not None:
-            self._client = http_client
-            self._owns_client = False
-        else:
-            transport = AsyncVulnersTransport(
-                httpx.AsyncHTTPTransport(retries=config.connect_retries),
-                origin=config.base_url,
-            )
-            self._client = httpx.AsyncClient(
-                base_url=config.base_url,
-                transport=transport,
-                timeout=config.timeout,
-                limits=config.limits,
-                follow_redirects=config.follow_redirects,
-            )
-            self._owns_client = True
-
-    def _bucket_for(self, key: str) -> AsyncRateLimitBucket:
-        bucket = self._buckets.get(key)
-        if bucket is None:
-            bucket = self._buckets.setdefault(key, AsyncRateLimitBucket())
-        return bucket
-
-    async def _send(
-        self, spec: RequestSpec, request: httpx.Request
-    ) -> tuple[httpx.Response, bytes]:
-        if self._config.max_response_bytes is None:
-            response = await self._client.send(request)
-            return response, response.content
-        response = await self._client.send(request, stream=True)
-        try:
-            self._reject_declared_length(
-                response.headers.get("content-length"), response.status_code
-            )
-            buf = bytearray()
-            async for chunk in response.aiter_bytes():
-                buf += chunk
-                self._guard_cap(len(buf), response.status_code)
-        finally:
-            await response.aclose()
-        return response, bytes(buf)
-
-    async def _send_with_retries(
-        self, spec: RequestSpec, request: httpx.Request, retries: int
-    ) -> tuple[httpx.Response, bytes, Any]:
-        bucket = self._bucket_for(self._ratelimit_key(spec))
-        attempt = 0
-        while True:
-            await bucket.consume(self._config.max_rate_limit_wait)
-            try:
-                response, content = await self._send(spec, request)
-            except httpx.TimeoutException as exc:
-                error: APIConnectionError = APITimeoutError(f"Request timed out: {exc}")
-                if attempt < retries and self._retryable_exc(exc, spec):
-                    attempt += 1
-                    await self._sleep(_retry_timeout(attempt))
-                    continue
-                raise error from exc
-            except httpx.TransportError as exc:
-                error = APIConnectionError(f"Connection error: {exc}")
-                if attempt < retries and self._retryable_exc(exc, spec):
-                    attempt += 1
-                    await self._sleep(_retry_timeout(attempt))
-                    continue
-                raise error from exc
-            self._update_bucket_from_headers(bucket, response)
-            try:
-                parsed = self._process_response(spec, response, content)
-            except APIStatusError as err:
-                info = ErrorInfo(status_code=err.status_code, error_code=err.error_code)
-                if attempt < retries and _should_retry(info, response.headers):
-                    attempt += 1
-                    logger.debug(
-                        "retrying %s %s after status %s", spec.method, spec.path, err.status_code
-                    )
-                    await self._sleep(_retry_timeout(attempt, response.headers))
-                    continue
-                raise
-            return response, content, parsed
-
-    async def request(
-        self,
-        spec: RequestSpec,
-        *,
-        cast: Callable[[Any], Any] | None = None,
-        params: Mapping[str, Any] | None = None,
-        body: Any = None,
-        files: Any = None,
-        headers: Mapping[str, str | Omit] | None = None,
-        timeout: float | httpx.Timeout | None | NotGiven = not_given,
-        max_retries: int | None = None,
-    ) -> Any:
-        retries = self._config.max_retries if max_retries is None else max_retries
-        request = self._build_request(
-            spec, params=params, body=body, files=files, headers=headers, timeout=timeout
-        )
-        _, _, parsed = await self._send_with_retries(spec, request, retries)
-        return cast(parsed) if cast is not None else parsed
-
-    async def request_with_response(
-        self,
-        spec: RequestSpec,
-        *,
-        cast: Callable[[Any], Any] | None = None,
-        params: Mapping[str, Any] | None = None,
-        body: Any = None,
-        files: Any = None,
-        headers: Mapping[str, str | Omit] | None = None,
-        timeout: float | httpx.Timeout | None | NotGiven = not_given,
-        max_retries: int | None = None,
-    ) -> APIResponse[Any]:
-        retries = self._config.max_retries if max_retries is None else max_retries
-        request = self._build_request(
-            spec, params=params, body=body, files=files, headers=headers, timeout=timeout
-        )
-        response, content, parsed = await self._send_with_retries(spec, request, retries)
-        return APIResponse(response, content, parsed, cast)
-
-    async def stream_records(
-        self,
-        spec: RequestSpec,
-        *,
-        params: Mapping[str, Any] | None = None,
-        body: Any = None,
-        timeout: float | httpx.Timeout | None | NotGiven = not_given,
-    ) -> AsyncIterator[Any]:
-        """Lazily yield NDJSON records from a streamed (bulk archive) response."""
-        request = self._build_request(spec, params=params, body=body, timeout=timeout)
-        bucket = self._bucket_for(self._ratelimit_key(spec))
-        await bucket.consume(self._config.max_rate_limit_wait)
-        response = await self._client.send(request, stream=True)
-        try:
-            self._update_bucket_from_headers(bucket, response)
-            if response.status_code >= 400:
-                self._raise_stream_error(response, await response.aread())
-            media = self._media_type(response)
-            cap = self._config.max_response_bytes
-            if is_zip_media(media):
-                buf = bytearray()
-                async for chunk in response.aiter_bytes():
-                    buf += chunk
-                    if cap is not None:
-                        self._guard_cap(len(buf), response.status_code)
-                for record in iter_zip_ndjson(bytes(buf), cap):
-                    yield record
-            else:
-                decoder = make_ndjson_decoder(media, cap)
-                raw = 0
-                async for chunk in response.aiter_bytes():
-                    if cap is not None:
-                        raw += len(chunk)
-                        self._guard_cap(raw, response.status_code)
-                    for record in decoder.feed(chunk):
-                        yield record
-                for record in decoder.flush():
-                    yield record
-        finally:
-            await response.aclose()
-
-    def stream_response(
-        self,
-        spec: RequestSpec,
-        *,
-        cast: Callable[[Any], Any] | None = None,
-        params: Mapping[str, Any] | None = None,
-        body: Any = None,
-        files: Any = None,
-        timeout: float | httpx.Timeout | None | NotGiven = not_given,
-    ) -> AsyncStreamContext:
-        """A context manager yielding a live :class:`AsyncStreamedAPIResponse`."""
-        request = self._build_request(
-            spec, params=params, body=body, files=files, timeout=timeout
-        )
-        return AsyncStreamContext(self, spec, request, cast)
-
-    @staticmethod
-    async def _sleep(seconds: float) -> None:
-        import asyncio
-
-        await asyncio.sleep(seconds)
-
-    async def get(self, path: str, *, params: Mapping[str, Any] | None = None, **kw: Any) -> Any:
-        return await self.request(
-            RequestSpec("GET", path, body_mode="query"), params=params, **kw
-        )
-
-    async def post(self, path: str, *, body: Any = None, **kw: Any) -> Any:
-        return await self.request(RequestSpec("POST", path, body_mode="json"), body=body, **kw)
-
-    async def put(self, path: str, *, body: Any = None, **kw: Any) -> Any:
-        return await self.request(RequestSpec("PUT", path, body_mode="json"), body=body, **kw)
-
-    async def delete(
-        self, path: str, *, params: Mapping[str, Any] | None = None, **kw: Any
-    ) -> Any:
-        return await self.request(
-            RequestSpec("DELETE", path, body_mode="query"), params=params, **kw
-        )
-
-    # -- lifecycle ---------------------------------------------------------
-
-    @property
-    def is_closed(self) -> bool:
-        return self._client.is_closed
-
-    async def aclose(self) -> None:
-        if self._owns_client and not self._client.is_closed:
-            await self._client.aclose()
-
-    async def __aenter__(self) -> Self:
-        return self
-
-    async def __aexit__(self, *exc: object) -> None:
-        await self.aclose()
-
-
-class SyncStreamContext:
-    """Sync context manager that opens a stream and yields a live response."""
-
-    def __init__(
-        self,
-        client: SyncAPIClient,
-        spec: RequestSpec,
-        request: httpx.Request,
-        cast: Callable[[Any], Any] | None,
-    ) -> None:
-        self._client = client
-        self._spec = spec
-        self._request = request
-        self._cast = cast
-        self._response: httpx.Response | None = None
-
-    def __enter__(self) -> StreamedAPIResponse[Any]:
-        client = self._client
-        bucket = client._bucket_for(client._ratelimit_key(self._spec))
-        bucket.consume(client._config.max_rate_limit_wait)
-        response = client._client.send(self._request, stream=True)
-        self._response = response
-        client._update_bucket_from_headers(bucket, response)
-        if response.status_code >= 400:
-            content = response.read()
-            try:
-                client._raise_stream_error(response, content)
-            finally:
-                response.close()
-        return StreamedAPIResponse(response, client._stream_parser(self._spec, self._cast))
-
-    def __exit__(self, *exc: object) -> None:
-        if self._response is not None:
-            self._response.close()
-
-
-class AsyncStreamContext:
-    """Async context manager that opens a stream and yields a live response."""
-
-    def __init__(
-        self,
-        client: AsyncAPIClient,
-        spec: RequestSpec,
-        request: httpx.Request,
-        cast: Callable[[Any], Any] | None,
-    ) -> None:
-        self._client = client
-        self._spec = spec
-        self._request = request
-        self._cast = cast
-        self._response: httpx.Response | None = None
-
-    async def __aenter__(self) -> AsyncStreamedAPIResponse[Any]:
-        client = self._client
-        bucket = client._bucket_for(client._ratelimit_key(self._spec))
-        await bucket.consume(client._config.max_rate_limit_wait)
-        response = await client._client.send(self._request, stream=True)
-        self._response = response
-        client._update_bucket_from_headers(bucket, response)
-        if response.status_code >= 400:
-            content = await response.aread()
-            try:
-                client._raise_stream_error(response, content)
-            finally:
-                await response.aclose()
-        return AsyncStreamedAPIResponse(response, client._stream_parser(self._spec, self._cast))
-
-    async def __aexit__(self, *exc: object) -> None:
-        if self._response is not None:
-            await self._response.aclose()
-
-
-__all__ = [
-    "AsyncAPIClient",
-    "AsyncStreamContext",
-    "BaseClient",
-    "RequestSpec",
-    "SyncAPIClient",
-    "SyncStreamContext",
-]
+__all__ = ["BaseClient", "RequestSpec"]

@@ -1,14 +1,10 @@
 """Pagination containers for the v4 resources.
 
-Two page families:
-
-* :class:`SearchPage` / :class:`AsyncSearchPage` — a Lucene search page that
-  knows its ``offset``/``limit``/``total`` and can walk to the next page. Direct
-  iteration transparently fetches subsequent pages and stops at the
-  Elasticsearch result window (10 000 documents); asking for a page *past* the
-  window raises :class:`SearchWindowExceeded`.
-* :class:`SyncPage` / :class:`AsyncPage` — a thin, single-shot container for a
-  plain list response (no cursor).
+:class:`SearchPage` / :class:`AsyncSearchPage` — a Lucene search page that knows
+its ``offset``/``limit``/``total`` and can walk to the next page. Direct
+iteration transparently fetches subsequent pages and stops at the Elasticsearch
+result window (10 000 documents); asking for a page *past* the window raises
+:class:`SearchWindowExceeded`.
 
 Sync and async variants are hand-written here (rather than unasyncd-generated):
 the two differ only in whether ``next_page``/iteration is awaited, and each holds
@@ -156,54 +152,8 @@ class AsyncSearchPage(Generic[T]):
         )
 
 
-# ---------------------------------------------------------------------------
-# Plain-list pages (single-shot)
-# ---------------------------------------------------------------------------
-
-
-@dataclass
-class SyncPage(Generic[T]):
-    """A single page wrapping a plain list response."""
-
-    data: list[T] = field(default_factory=list)
-
-    def __iter__(self) -> Iterator[T]:
-        return iter(self.data)
-
-    def __len__(self) -> int:
-        return len(self.data)
-
-    def __getitem__(self, index: int) -> T:
-        return self.data[index]
-
-    def __repr__(self) -> str:
-        return f"SyncPage(count={len(self.data)})"
-
-
-@dataclass
-class AsyncPage(Generic[T]):
-    """Async counterpart of :class:`SyncPage`."""
-
-    data: list[T] = field(default_factory=list)
-
-    async def __aiter__(self) -> AsyncIterator[T]:
-        for row in self.data:
-            yield row
-
-    def __len__(self) -> int:
-        return len(self.data)
-
-    def __getitem__(self, index: int) -> T:
-        return self.data[index]
-
-    def __repr__(self) -> str:
-        return f"AsyncPage(count={len(self.data)})"
-
-
 __all__ = [
     "SEARCH_WINDOW",
-    "AsyncPage",
     "AsyncSearchPage",
     "SearchPage",
-    "SyncPage",
 ]

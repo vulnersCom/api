@@ -52,3 +52,9 @@ Because pacing is built in, the simplest correct usage — a loop over `search.q
 `max_response_bytes` (off by default) bounds how many decompressed bytes the client will read
 from a response. Set it when pulling untrusted archives to defend against decompression
 bombs.
+
+It is `None` by default on purpose: Vulners archives are legitimately multi-gigabyte, so a
+default cap would break normal downloads. That means **response decompression is unbounded
+until you set `max_response_bytes`** — a tiny gzip/zip can inflate to many gigabytes. If you
+point `base_url` at an untrusted or plain-HTTP on-prem host, set a cap so a malicious or
+MITM'd response cannot exhaust memory.

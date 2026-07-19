@@ -15,10 +15,18 @@ from typing import Any, Literal
 
 import httpx
 
+import vulners._base_client
+
 from ..._base_client import RequestSpec
 from ..._types import NotGiven, not_given
 from ..._types.audit import AuditItem, WinAuditItem
 from . import _base
+
+
+def _read_file_bytes(path: str) -> bytes:
+    with open(path, "rb") as handle:
+        return handle.read()
+
 
 # v4 audit endpoints answer with ``{"result": <payload>}``; v3 ones with the
 # ``{"result": "OK", "data": <payload>}`` envelope.
@@ -66,10 +74,8 @@ class Audit(_base.BaseResource):
             "match": match,
             "catalog": catalog,
         }
-        if not isinstance(fields, NotGiven):
-            body["fields"] = list(fields)
-        if not isinstance(config, NotGiven):
-            body["config"] = list(config)
+        self._set(body, "fields", fields, list)
+        self._set(body, "config", config, list)
         return self._request(_SOFTWARE, body=body, timeout=timeout)
 
     def host(
@@ -91,16 +97,11 @@ class Audit(_base.BaseResource):
             "match": match,
             "catalog": catalog,
         }
-        if not isinstance(application, NotGiven):
-            body["application"] = application
-        if not isinstance(operating_system, NotGiven):
-            body["operating_system"] = operating_system
-        if not isinstance(hardware, NotGiven):
-            body["hardware"] = hardware
-        if not isinstance(fields, NotGiven):
-            body["fields"] = list(fields)
-        if not isinstance(config, NotGiven):
-            body["config"] = list(config)
+        self._set(body, "application", application)
+        self._set(body, "operating_system", operating_system)
+        self._set(body, "hardware", hardware)
+        self._set(body, "fields", fields, list)
+        self._set(body, "config", config, list)
         return self._request(_HOST, body=body, timeout=timeout)
 
     def os_audit(
@@ -198,8 +199,7 @@ class Audit(_base.BaseResource):
             file: Path to the SBOM file to upload.
         """
         path = os.fspath(file)
-        with open(path, "rb") as handle:
-            content = handle.read()
+        content = vulners._base_client._call_blocking(_read_file_bytes, path)
         files = {"file": (os.path.basename(path), content, "application/json")}
         return self._request(_SBOM, files=files, timeout=timeout)
 
@@ -262,8 +262,7 @@ class Audit(_base.BaseResource):
             "kb_list": list(kb_list),
             "software": list(software),
         }
-        if not isinstance(platform, NotGiven):
-            body["platform"] = platform
+        self._set(body, "platform", platform)
         # This endpoint requires the api key echoed in the request body.
         body["apiKey"] = self._api_key
         return self._request(_WINAUDIT, body=body, timeout=timeout)

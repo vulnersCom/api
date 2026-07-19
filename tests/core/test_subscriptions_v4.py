@@ -38,9 +38,10 @@ class TestSubscriptionsV4Wire:
     def test_get_sends_subscription_id_query(self):
         route = respx.get(f"{BASE}/get/").mock(return_value=_v4({"id": "s1"}))
         with Vulners(KEY) as client:
-            client.subscriptions_v4.get("s1")
-            client.subscriptions_v4.get(subscription_id="s2")
+            client.subscriptions_v4.get("s2")
         assert route.calls.last.request.url.params["subscription_id"] == "s2"
+
+    def test_get_requires_id(self):
         with Vulners(KEY) as client:
             with pytest.raises(TypeError):
                 client.subscriptions_v4.get()

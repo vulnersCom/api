@@ -215,24 +215,15 @@ class VscannerResults(_base.BaseResource):
             "offset": offset,
             "limit": limit,
         }
-        if not isinstance(search, NotGiven):
-            body["search"] = search
-        if not isinstance(in_port, NotGiven):
-            body["in_port"] = list(in_port)
-        if not isinstance(ex_port, NotGiven):
-            body["ex_port"] = list(ex_port)
-        if not isinstance(min_cvss, NotGiven):
-            body["min_cvss"] = min_cvss
-        if not isinstance(max_cvss, NotGiven):
-            body["max_cvss"] = max_cvss
-        if not isinstance(last_seen, NotGiven):
-            body["last_seen"] = last_seen
-        if not isinstance(first_seen, NotGiven):
-            body["first_seen"] = first_seen
-        if not isinstance(last_seen_port, NotGiven):
-            body["last_seen_port"] = last_seen_port
-        if not isinstance(first_seen_port, NotGiven):
-            body["first_seen_port"] = first_seen_port
+        self._set(body, "search", search)
+        self._set(body, "in_port", in_port, list)
+        self._set(body, "ex_port", ex_port, list)
+        self._set(body, "min_cvss", min_cvss)
+        self._set(body, "max_cvss", max_cvss)
+        self._set(body, "last_seen", last_seen)
+        self._set(body, "first_seen", first_seen)
+        self._set(body, "last_seen_port", last_seen_port)
+        self._set(body, "first_seen_port", first_seen_port)
         spec = _spec("GET", f"{_ROOT}/{_seg(project_id)}/results")
         return self._request(spec, body=body, timeout=timeout)
 
@@ -313,8 +304,7 @@ class VscannerProjects(_base.BaseResource):
             "license_id": str(license_id),
             "notification": dict(notification),
         }
-        if not isinstance(result_expire_in, NotGiven):
-            body["result_expire_in"] = result_expire_in
+        self._set(body, "result_expire_in", result_expire_in)
         spec = _spec("POST", f"{_ROOT}/", body_mode="json")
         return self._request(spec, body=body, timeout=timeout)
 

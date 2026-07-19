@@ -2,7 +2,7 @@
 
 Representative slice of the search domain: Lucene search returning a typed
 :class:`AsyncSearchPage` (cursor-aware, auto-paginating to the 10k window), an
-auto-paginating :meth:`iter_query`, and single / multi document lookup. Rows are
+auto-paginating :meth:`aiter_query`, and single / multi document lookup. Rows are
 built through :func:`construct_bulletin`, so each row is the family-specific
 :class:`Bulletin` subclass for its ``bulletinFamily``.
 """
@@ -66,8 +66,7 @@ class AsyncSearch(_base.AsyncBaseResource):
             )
         size = min(limit, SEARCH_WINDOW - offset)
         body: dict[str, Any] = {"query": query, "size": size, "skip": offset}
-        if not isinstance(fields, NotGiven):
-            body["fields"] = list(fields)
+        self._set(body, "fields", fields, list)
 
         async def _fetch(next_offset: int, next_size: int) -> AsyncSearchPage[Bulletin]:
             return await self.query(
@@ -88,7 +87,7 @@ class AsyncSearch(_base.AsyncBaseResource):
 
         return await self._request(_SEARCH_SPEC, cast=_build, body=body, timeout=timeout)
 
-    async def iter_query(
+    async def aiter_query(
         self,
         query: str,
         *,
@@ -116,10 +115,23 @@ class AsyncSearch(_base.AsyncBaseResource):
         fields: Sequence[str] | NotGiven = not_given,
         references: bool = False,
     ) -> dict[str, Bulletin]:
-        """Fetch several documents by id, keyed by id."""
+        """Fetch several documents by id, keyed by id.
+
+        Args:
+            ids: Document ids to fetch (e.g. ``CVE-2021-44228``). The returned
+                mapping is keyed by these ids; ids with no matching document are
+                absent from the result.
+            fields: Restrict the returned fields on each document; the server
+                default projection is used when omitted.
+            references: When ``True``, also resolve and include documents the
+                requested bulletins reference/cross-link (e.g. the exploits and
+                advisories tied to a CVE); defaults to ``False``.
+
+        Returns:
+            A mapping of id to the family-specific :class:`Bulletin`.
+        """
         body: dict[str, Any] = {"id": list(ids), "references": references}
-        if not isinstance(fields, NotGiven):
-            body["fields"] = list(fields)
+        self._set(body, "fields", fields, list)
 
         def _cast(data: Any) -> dict[str, Bulletin]:
             docs = data.get("documents", {}) if isinstance(data, dict) else {}
@@ -137,10 +149,19 @@ class AsyncSearch(_base.AsyncBaseResource):
         *,
         fields: Sequence[str] | NotGiven = not_given,
     ) -> Bulletin | None:
-        """Fetch a single document by id, or ``None`` if it does not exist."""
+        """Fetch a single document by id, or ``None`` if it does not exist.
+
+        Args:
+            id: The document id to fetch (e.g. ``CVE-2021-44228``).
+            fields: Restrict the returned fields; the server default projection
+                is used when omitted.
+
+        Returns:
+            The family-specific :class:`Bulletin`, or ``None`` if no document
+            matches ``id``.
+        """
         body: dict[str, Any] = {"id": [id], "references": False}
-        if not isinstance(fields, NotGiven):
-            body["fields"] = list(fields)
+        self._set(body, "fields", fields, list)
 
         def _cast(data: Any) -> Bulletin | None:
             docs = data.get("documents", {}) if isinstance(data, dict) else {}

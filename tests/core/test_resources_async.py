@@ -421,8 +421,7 @@ class TestSubscriptionsV4AsyncFull:
         route = respx.get(f"{self.BASE}/get/").mock(return_value=_v4({"id": "s1"}))
         async with AsyncVulners(KEY) as client:
             assert await client.subscriptions_v4.get_list() == [{"id": "s1"}]
-            await client.subscriptions_v4.get("s1")
-            await client.subscriptions_v4.get(subscription_id="s2")
+            await client.subscriptions_v4.get("s2")
             with pytest.raises(TypeError):
                 await client.subscriptions_v4.get()
         assert route.calls.last.request.url.params["subscription_id"] == "s2"

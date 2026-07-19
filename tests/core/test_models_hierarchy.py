@@ -66,6 +66,20 @@ class TestNoValidationOnConstruct:
         b = construct_bulletin({"bulletinFamily": "NVD", "brandNewField": [1, 2, 3]})
         assert b.brandNewField == [1, 2, 3]
 
+    def test_reserved_fields_set_field_name_does_not_crash(self):
+        # A server field literally named "_fields_set" collides with
+        # model_construct's kwarg; it must be preserved as an extra, not crash.
+        b = construct_bulletin({"bulletinFamily": "NVD", "id": "CVE-1", "_fields_set": "boom"})
+        assert isinstance(b, CveBulletin)
+        assert b.id == "CVE-1"
+        assert b.__pydantic_extra__["_fields_set"] == "boom"
+
+    def test_reserved_fields_set_with_other_extras(self):
+        # "_fields_set" alongside another unknown field: both land in extras.
+        b = construct_bulletin({"bulletinFamily": "NVD", "_fields_set": [1], "otherUnknown": "x"})
+        assert b.__pydantic_extra__["_fields_set"] == [1]
+        assert b.otherUnknown == "x"
+
     def test_nested_family_field_is_recursed(self):
         # cvss2/cvss3 on a CVE are nested models built recursively.
         b = construct_bulletin(

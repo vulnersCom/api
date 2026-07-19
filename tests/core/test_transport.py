@@ -7,7 +7,12 @@ import orjson
 import pytest
 
 from vulners._exceptions import APIConnectionError
-from vulners._transport import AsyncVulnersTransport, VulnersTransport
+from vulners._transport import (
+    AsyncVulnersTransport,
+    VulnersTransport,
+    _guard_redirect_target,
+    _host_as_ip,
+)
 
 ORIGIN = httpx.URL("https://vulners.com")
 
@@ -77,6 +82,46 @@ class TestSyncTransport:
         req = httpx.Request("GET", "https://127.0.0.1/")
         with pytest.raises(APIConnectionError):
             transport.handle_request(req)
+
+
+class TestSsrfNumericHosts:
+    """Numeric-encoded IP literals (decimal/hex/octal integer hosts) that the OS
+    resolver accepts must not slip past the private-address guard."""
+
+    @pytest.mark.parametrize(
+        "host",
+        [
+            "2130706433",  # decimal 127.0.0.1
+            "0x7f000001",  # hex 127.0.0.1
+            "0X7F000001",  # hex, upper-case prefix
+            "017700000001",  # octal 127.0.0.1
+        ],
+    )
+    def test_numeric_loopback_forms_resolve(self, host):
+        ip = _host_as_ip(host)
+        assert ip is not None
+        assert str(ip) == "127.0.0.1"
+
+    def test_numeric_loopback_redirect_is_refused(self):
+        with pytest.raises(APIConnectionError):
+            _guard_redirect_target(httpx.URL("http://placeholder/").copy_with(host="2130706433"))
+
+    def test_dotted_literal_still_parsed(self):
+        ip = _host_as_ip("10.0.0.5")
+        assert ip is not None and ip.is_private
+
+    def test_dns_name_is_not_an_ip_literal(self):
+        # A real hostname is delegated unchanged (base stays None) — literal-only.
+        assert _host_as_ip("storage.googleapis.com") is None
+
+    def test_bare_zero_is_unspecified(self):
+        ip = _host_as_ip("0")
+        assert ip is not None and ip.is_unspecified
+
+    @pytest.mark.parametrize("host", ["0x", "999999999999999999999999999999999999999999"])
+    def test_unparseable_numeric_host_is_not_ip(self, host):
+        # Parses as digits/hex but is not a valid address range -> not a literal.
+        assert _host_as_ip(host) is None
 
 
 class TestAsyncTransport:

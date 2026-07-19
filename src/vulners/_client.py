@@ -2,8 +2,8 @@
 
 Two mirror clients: a synchronous one owning an ``httpx.Client`` and an async one
 owning an ``httpx.AsyncClient``. Resources hang off each as ``cached_property``.
-These are not yet re-exported from the package root — import them from
-``vulners._client`` for now; public wiring lands with a later work package.
+Both are re-exported from the package root — prefer ``from vulners import
+Vulners, AsyncVulners`` in downstream code.
 """
 
 from __future__ import annotations
@@ -14,7 +14,6 @@ from typing import TYPE_CHECKING, Any
 
 from typing_extensions import Self
 
-from ._base_client import AsyncAPIClient, SyncAPIClient
 from ._config import ClientConfig, resolve_config
 from ._logging import install_key_redaction
 from ._resources._async.archive import AsyncArchive
@@ -37,6 +36,8 @@ from ._resources._sync.subscriptions import Subscriptions
 from ._resources._sync.subscriptions_v4 import SubscriptionsV4
 from ._resources._sync.vscanner import Vscanner
 from ._resources._sync.webhooks import Webhooks
+from ._transport_client_async import AsyncAPIClient
+from ._transport_client_sync import SyncAPIClient
 from ._types import NotGiven, not_given
 from ._version import __version__
 
@@ -69,6 +70,33 @@ class Vulners:
         max_response_bytes: int | None = None,
         http_client: httpx.Client | None = None,
     ) -> None:
+        """Create a synchronous Vulners API client.
+
+        Args:
+            api_key: Your Vulners API key, as a ``str`` or ``pydantic.SecretStr``.
+                If omitted or empty, falls back to the ``VULNERS_API_KEY``
+                environment variable; when neither is set, ``VulnersError`` is
+                raised. Get a free key at https://vulners.com.
+            base_url: Override the API base URL. If omitted, falls back to the
+                ``VULNERS_BASE_URL`` environment variable, then to
+                ``https://vulners.com``.
+            timeout: Per-request timeout, in seconds or as an ``httpx.Timeout``.
+                ``None`` (the default) uses the built-in timeout profiles (a 60s
+                read budget for normal calls, 300s for archive/bulk streams).
+            max_retries: How many times to retry a failed request (connection
+                errors and retryable status codes, honouring ``Retry-After``).
+                ``None`` uses the built-in default (2).
+            max_response_bytes: Optional cap on the decoded/decompressed response
+                size, in bytes. ``None`` (the default) leaves decompression
+                unbounded so legitimate multi-gigabyte archive downloads succeed;
+                set it to guard against decompression-bomb amplification when
+                pointing ``base_url`` at an untrusted host.
+            http_client: Bring your own ``httpx.Client`` (e.g. for custom proxies,
+                transport or connection limits). Its transport is wrapped with the
+                SDK's credential-safety guard so the ``X-Api-Key`` is still
+                stripped on cross-origin redirects. A client you pass is not
+                closed by this client's ``close()``.
+        """
         config = resolve_config(
             api_key=api_key,
             base_url=base_url,
@@ -142,9 +170,12 @@ class Vulners:
         if not isinstance(max_response_bytes, NotGiven):
             changes["max_response_bytes"] = max_response_bytes
         clone = object.__new__(type(self))
-        # The shared httpx client is injected, so the clone never closes it.
+        # The shared httpx client is injected, so the clone never closes it; the
+        # parent's pacing buckets are shared so rate-limit pacing is not reset.
         clone._api = SyncAPIClient(
-            self._api.config.replace(**changes), http_client=self._api._client
+            self._api.config.replace(**changes),
+            http_client=self._api._client,
+            buckets=self._api._buckets,
         )
         return clone
 
@@ -181,6 +212,33 @@ class AsyncVulners:
         max_response_bytes: int | None = None,
         http_client: httpx.AsyncClient | None = None,
     ) -> None:
+        """Create an asynchronous Vulners API client.
+
+        Args:
+            api_key: Your Vulners API key, as a ``str`` or ``pydantic.SecretStr``.
+                If omitted or empty, falls back to the ``VULNERS_API_KEY``
+                environment variable; when neither is set, ``VulnersError`` is
+                raised. Get a free key at https://vulners.com.
+            base_url: Override the API base URL. If omitted, falls back to the
+                ``VULNERS_BASE_URL`` environment variable, then to
+                ``https://vulners.com``.
+            timeout: Per-request timeout, in seconds or as an ``httpx.Timeout``.
+                ``None`` (the default) uses the built-in timeout profiles (a 60s
+                read budget for normal calls, 300s for archive/bulk streams).
+            max_retries: How many times to retry a failed request (connection
+                errors and retryable status codes, honouring ``Retry-After``).
+                ``None`` uses the built-in default (2).
+            max_response_bytes: Optional cap on the decoded/decompressed response
+                size, in bytes. ``None`` (the default) leaves decompression
+                unbounded so legitimate multi-gigabyte archive downloads succeed;
+                set it to guard against decompression-bomb amplification when
+                pointing ``base_url`` at an untrusted host.
+            http_client: Bring your own ``httpx.AsyncClient`` (e.g. for custom
+                proxies, transport or connection limits). Its transport is wrapped
+                with the SDK's credential-safety guard so the ``X-Api-Key`` is
+                still stripped on cross-origin redirects. A client you pass is not
+                closed by this client's ``aclose()``.
+        """
         config = resolve_config(
             api_key=api_key,
             base_url=base_url,
@@ -254,8 +312,12 @@ class AsyncVulners:
         if not isinstance(max_response_bytes, NotGiven):
             changes["max_response_bytes"] = max_response_bytes
         clone = object.__new__(type(self))
+        # The shared httpx client is injected, so the clone never closes it; the
+        # parent's pacing buckets are shared so rate-limit pacing is not reset.
         clone._api = AsyncAPIClient(
-            self._api.config.replace(**changes), http_client=self._api._client
+            self._api.config.replace(**changes),
+            http_client=self._api._client,
+            buckets=self._api._buckets,
         )
         return clone
 

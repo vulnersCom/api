@@ -1,9 +1,10 @@
 """Async ``archive`` resource (unasyncd source for the sync ``archive`` resource).
 
 Bulk collection / distributive / getsploit downloads. These endpoints return
-whole compressed archives; this resource matches the v3 behaviour of buffering
-and decoding the body (true lazy streaming is a later work package). Large
-collections can be gigabytes, so they use the archive timeout profile.
+whole compressed archives; the ``fetch_*``/``get_*`` methods match the v3
+behaviour of buffering and decoding the whole body, while :meth:`aiter_collection`
+streams NDJSON records lazily. Large collections can be gigabytes, so they use
+the archive timeout profile.
 """
 
 from __future__ import annotations
@@ -68,7 +69,8 @@ def _decode_archive(value: Any) -> Any:
 
     The body arrives gzip/zip-compressed and is decoded to bytes by the core;
     small collections are a single JSON document, so parse them. NDJSON / binary
-    bodies pass through as bytes (real line streaming lands in a later package).
+    bodies pass through as bytes; use :meth:`aiter_collection` for lazy per-record
+    streaming of large collections.
     """
     if isinstance(value, (bytes, bytearray)):
         try:

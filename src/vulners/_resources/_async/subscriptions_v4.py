@@ -63,23 +63,17 @@ class AsyncSubscriptionsV4(_base.AsyncBaseResource):
 
     async def get(
         self,
-        id: str | None = None,
+        id: str,
         *,
-        subscription_id: str | None = None,
         timeout: float | httpx.Timeout | NotGiven = not_given,
     ) -> Any:
-        """Fetch a single subscription.
+        """Fetch a single subscription by id.
 
-        Accepts either ``id`` or ``subscription_id``; both are sent to the server
-        as the ``subscription_id`` query parameter it requires.
-
-        Raises:
-            TypeError: neither ``id`` nor ``subscription_id`` was supplied.
+        Args:
+            id: The subscription id (sent to the server as its
+                ``subscription_id`` query parameter).
         """
-        value = subscription_id if subscription_id is not None else id
-        if value is None:
-            raise TypeError("get() requires either 'id' or 'subscription_id'")
-        return await self._request(_GET, body={"subscription_id": value}, timeout=timeout)
+        return await self._request(_GET, body={"subscription_id": id}, timeout=timeout)
 
     async def create(
         self,

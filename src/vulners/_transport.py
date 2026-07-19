@@ -49,24 +49,55 @@ def _key_allowed(url: httpx.URL, origin: httpx.URL) -> bool:
     )
 
 
-def _guard_redirect_target(url: httpx.URL) -> None:
-    # Reached only for a cross-origin hop, so an on-prem server_url that is itself
-    # a private IP still works (its own requests are same-origin). Any public host
-    # is delegated unchanged; what is refused is a redirect whose target is an IP
-    # literal in a loopback / link-local / private / reserved range (cloud
-    # metadata at 169.254.169.254, 127.0.0.0/8, ::1, RFC1918, 0.0.0.0).
-    try:
-        ip = ipaddress.ip_address(url.host)
-    except ValueError:
-        return
-    if (
+def _is_forbidden_ip(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
+    return (
         ip.is_private
         or ip.is_loopback
         or ip.is_link_local
         or ip.is_reserved
         or ip.is_multicast
         or ip.is_unspecified
-    ):
+    )
+
+
+def _host_as_ip(host: str) -> ipaddress.IPv4Address | ipaddress.IPv6Address | None:
+    """Parse a host that is an IP *literal*, including bare-integer encodings.
+
+    Covers dotted-quad / IPv6 literals plus the single-integer decimal, hex
+    (``0x…``) and octal (``0…``) forms that the OS resolver accepts — classic
+    SSRF obfuscations of, e.g., 127.0.0.1 as ``2130706433`` / ``0x7f000001``.
+    Returns ``None`` for anything that is not a numeric literal (a real DNS name).
+    """
+    try:
+        return ipaddress.ip_address(host)
+    except ValueError:
+        pass
+    base: int | None = None
+    if host.isdigit():
+        base = 8 if len(host) > 1 and host[0] == "0" else 10
+    elif host[:2].lower() == "0x":
+        base = 16
+    if base is None:
+        return None
+    try:
+        return ipaddress.ip_address(int(host, base))
+    except ValueError:
+        return None
+
+
+def _guard_redirect_target(url: httpx.URL) -> None:
+    # Reached only for a cross-origin hop, so an on-prem server_url that is itself
+    # a private IP still works (its own requests are same-origin). Any public host
+    # is delegated unchanged; what is refused is a redirect whose target is an IP
+    # literal in a loopback / link-local / private / reserved range (cloud
+    # metadata at 169.254.169.254, 127.0.0.0/8, ::1, RFC1918, 0.0.0.0), including
+    # the numeric-encoded forms above.
+    # simplification: only literal hosts are inspected; a DNS name that *resolves*
+    # to an internal address is not caught (no getaddrinfo here — this mirrors
+    # httpx/legacy behaviour and avoids blocking I/O plus a rebinding TOCTOU on
+    # the redirect path). Upgrade path: resolve and check every A/AAAA record.
+    ip = _host_as_ip(url.host)
+    if ip is not None and _is_forbidden_ip(ip):
         raise APIConnectionError(
             f"refusing to follow a redirect to a private or internal address: {url.host}"
         )

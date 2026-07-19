@@ -11,25 +11,20 @@ dominate real corpora (CVE/NVD, exploit, scanner, software advisory, info); ever
 other family lands in :class:`GenericBulletin`. Widening the hierarchy is a 4.x
 minor, and because construction never validates, an under-typed family is safe.
 
-An opt-in *strict* path (:func:`construct_bulletin` with ``strict=True``) runs the
-same discrimination through a module-level :class:`~pydantic.TypeAdapter`, i.e.
-full pydantic validation instead of the construct fast path.
+An opt-in *strict* path (:func:`construct_bulletin` with ``strict=True``) runs
+full pydantic validation: it selects the family model from :data:`_FAMILY_MODELS`
+(the single source of truth) and validates through
+:meth:`~pydantic.BaseModel.model_validate` instead of the construct fast path.
 """
 
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Annotated, Any
+from typing import Any
 
-import pydantic
-from pydantic import Field, TypeAdapter
+from pydantic import Field
 
 from ._base import VulnersModel, construct_type, register_discriminator
-
-# pydantic's Tag/Discriminator are referenced inline as ``pydantic.Tag`` /
-# ``pydantic.Discriminator`` (never bound to a module name): they are dataclasses
-# whose exec-generated __repr__ would otherwise be mistaken for an endpoint by
-# the codegen test scanner, which walks every class in the package namespace.
 
 # ---------------------------------------------------------------------------
 # CVSS — a union by Literal version
@@ -165,28 +160,17 @@ def _family_tag(value: Any) -> str:
     return str(family) if family in _FAMILY_MODELS else "generic"
 
 
-# A real pydantic discriminated union (callable discriminator) for the strict
-# path; mirrors _FAMILY_MODELS so the two never diverge.
-_StrictBulletin = Annotated[
-    Annotated[CveBulletin, pydantic.Tag("NVD")]
-    | Annotated[ExploitBulletin, pydantic.Tag("exploit")]
-    | Annotated[ScannerBulletin, pydantic.Tag("scanner")]
-    | Annotated[SoftwareBulletin, pydantic.Tag("software")]
-    | Annotated[InfoBulletin, pydantic.Tag("info")]
-    | Annotated[GenericBulletin, pydantic.Tag("generic")],
-    pydantic.Discriminator(_family_tag),
-]
-_BULLETIN_ADAPTER: TypeAdapter[Bulletin] = TypeAdapter(_StrictBulletin)
-
-
 def construct_bulletin(data: Any, *, strict: bool = False) -> Bulletin:
     """Build the family-specific :class:`Bulletin` for *data*.
 
-    ``strict=True`` validates through the module-level :class:`TypeAdapter`
-    (full pydantic validation); the default construct path never validates.
+    ``strict=True`` runs full pydantic validation: it selects the family model
+    from :data:`_FAMILY_MODELS` (the single source of truth shared with the
+    non-strict path via :func:`_family_tag`) and validates through
+    ``model_validate``. The default construct path never validates.
     """
     if strict:
-        return _BULLETIN_ADAPTER.validate_python(data)
+        model = _FAMILY_MODELS.get(_family_tag(data), GenericBulletin)
+        return model.model_validate(data)
     return construct_type(data, bulletin_class_for(data))
 
 

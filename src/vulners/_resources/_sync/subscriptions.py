@@ -70,8 +70,7 @@ class Subscriptions(_base.BaseResource):
             "format": format,
             "query_type": query_type,
         }
-        if not isinstance(crontab, NotGiven):
-            body["crontab"] = crontab
+        self._set(body, "crontab", crontab)
         body["apiKey"] = self._api_key
         return self._request(_ADD, body=body, timeout=timeout)
 
@@ -93,12 +92,9 @@ class Subscriptions(_base.BaseResource):
             active: New active state, if changing.
         """
         body: dict[str, Any] = {"subscriptionid": subscription_id}
-        if not isinstance(format, NotGiven):
-            body["format"] = format
-        if not isinstance(crontab, NotGiven):
-            body["crontab"] = crontab
-        if not isinstance(active, NotGiven):
-            body["active"] = active
+        self._set(body, "format", format)
+        self._set(body, "crontab", crontab)
+        self._set(body, "active", active)
         body["apiKey"] = self._api_key
         return self._request(_EDIT, body=body, timeout=timeout)
 

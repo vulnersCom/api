@@ -52,10 +52,8 @@ class AsyncMisc(_base.AsyncBaseResource):
             size: Maximum number of results (0..10000, ``0`` means all).
         """
         body: dict[str, Any] = {"product": product}
-        if not isinstance(vendor, NotGiven):
-            body["vendor"] = vendor
-        if not isinstance(size, NotGiven):
-            body["size"] = size
+        self._set(body, "vendor", vendor)
+        self._set(body, "size", size)
         return await self._request(_SEARCH_CPE, body=body, timeout=timeout)
 
     async def query_autocomplete(

@@ -1,7 +1,8 @@
 """The v4 public surface is importable from the package root and coexists with v3.
 
-Locks the WP6 backward-compat wiring: `from vulners import Vulners` works, the
-exception hierarchy is coherent, and the v3 names are untouched alongside it.
+Locks the backward-compat wiring: `from vulners import Vulners` works, the public
+types and exception hierarchy are reachable from the root, and the v3 names are
+untouched alongside it.
 """
 
 from __future__ import annotations
@@ -23,12 +24,36 @@ class TestV4Importable:
         assert vulners.Vulners is PrivateVulners
 
     def test_sentinels_importable(self):
-        from vulners import NotGiven, Omit, not_given, omit
+        from vulners import NotGiven, not_given
 
-        assert bool(omit) is False
         assert bool(not_given) is False
-        assert isinstance(omit, Omit)
         assert isinstance(not_given, NotGiven)
+
+    def test_omit_not_public(self):
+        # `omit`/`Omit` are internal (no public method accepts them); they must
+        # not be part of the package-root surface.
+        import pytest
+
+        assert "omit" not in vulners.__all__
+        assert "Omit" not in vulners.__all__
+        with pytest.raises(AttributeError):
+            _ = vulners.omit
+        with pytest.raises(AttributeError):
+            _ = vulners.Omit
+
+    def test_public_types_reexported(self):
+        # Annotation-worthy return/input types are reachable from the root, lazily.
+        from vulners import AsyncSearchPage, Bulletin, SearchPage
+
+        assert Bulletin.__name__ == "Bulletin"
+        assert SearchPage.__name__ == "SearchPage"
+        assert AsyncSearchPage.__name__ == "AsyncSearchPage"
+        # Same object as the private module's (lazy re-export identity).
+        from vulners._models.bulletin import Bulletin as PrivateBulletin
+        from vulners._pagination import SearchPage as PrivateSearchPage
+
+        assert Bulletin is PrivateBulletin
+        assert SearchPage is PrivateSearchPage
 
     def test_unknown_attribute_raises(self):
         import pytest

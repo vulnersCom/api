@@ -25,6 +25,10 @@ try:
 except ImportError:  # pragma: no cover
     UnionType = None  # type: ignore[assignment, misc]
 
+# Distinguishes "key absent" from a legitimate ``None`` value when popping the
+# one server field name that would collide with model_construct's kwarg.
+_UNSET: Any = object()
+
 
 class VulnersModel(BaseModel):
     """Base for every response model.
@@ -160,7 +164,19 @@ def _construct_model(model_cls: type[BaseModel], data: collections.abc.Mapping[A
         values[key] = raw
         fields_set.add(key)
 
-    return model_cls.model_construct(_fields_set=fields_set, **values)
+    # ``_fields_set`` is the sole reserved kwarg of model_construct; a server
+    # field literally named that would raise "multiple values for keyword
+    # argument". Keep it out of **values and reattach it as an extra so an
+    # unexpected field name never breaks construction.
+    reserved = values.pop("_fields_set", _UNSET)
+    model = model_cls.model_construct(_fields_set=fields_set, **values)
+    if reserved is not _UNSET:
+        # extra="allow" makes __pydantic_extra__ a dict; guard None only in case a
+        # non-allow model is ever constructed through this generic helper.
+        if model.__pydantic_extra__ is None:  # pragma: no cover
+            model.__pydantic_extra__ = {}
+        model.__pydantic_extra__["_fields_set"] = reserved
+    return model
 
 
 __all__ = ["Discriminator", "VulnersModel", "construct_type", "register_discriminator"]

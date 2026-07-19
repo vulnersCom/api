@@ -28,20 +28,10 @@ T = TypeVar("T")
 ParseFn = Callable[["httpx.Response", bytes], Any]
 
 
-class APIResponse(Generic[T]):
-    """Transport facts of a buffered response plus a lazy parse to the value."""
+class _BaseResponse:
+    """Shared read-only passthrough of the underlying ``httpx.Response`` facts."""
 
-    def __init__(
-        self,
-        response: httpx.Response,
-        content: bytes,
-        parsed: Any,
-        parser: Callable[[Any], T] | None = None,
-    ) -> None:
-        self._response = response
-        self._content = content
-        self._parsed = parsed
-        self._parser = parser
+    _response: httpx.Response
 
     @property
     def status_code(self) -> int:
@@ -58,6 +48,22 @@ class APIResponse(Generic[T]):
     @property
     def url(self) -> httpx.URL:
         return self._response.url
+
+
+class APIResponse(_BaseResponse, Generic[T]):
+    """Transport facts of a buffered response plus a lazy parse to the value."""
+
+    def __init__(
+        self,
+        response: httpx.Response,
+        content: bytes,
+        parsed: Any,
+        parser: Callable[[Any], T] | None = None,
+    ) -> None:
+        self._response = response
+        self._content = content
+        self._parsed = parsed
+        self._parser = parser
 
     @property
     def content(self) -> bytes:
@@ -87,29 +93,13 @@ class APIResponse(Generic[T]):
         return f"<APIResponse [{self.status_code}]>"
 
 
-class StreamedAPIResponse(Generic[T]):
+class StreamedAPIResponse(_BaseResponse, Generic[T]):
     """A live, un-buffered view over a streaming response (sync)."""
 
     def __init__(self, response: httpx.Response, parse: ParseFn) -> None:
         self._response = response
         self._parse = parse
         self._content: bytes | None = None
-
-    @property
-    def status_code(self) -> int:
-        return self._response.status_code
-
-    @property
-    def headers(self) -> httpx.Headers:
-        return self._response.headers
-
-    @property
-    def http_request(self) -> httpx.Request:
-        return self._response.request
-
-    @property
-    def url(self) -> httpx.URL:
-        return self._response.url
 
     def iter_bytes(self, chunk_size: int | None = None) -> Iterator[bytes]:
         yield from self._response.iter_bytes(chunk_size)
@@ -135,29 +125,13 @@ class StreamedAPIResponse(Generic[T]):
         return f"<StreamedAPIResponse [{self.status_code}]>"
 
 
-class AsyncStreamedAPIResponse(Generic[T]):
+class AsyncStreamedAPIResponse(_BaseResponse, Generic[T]):
     """A live, un-buffered view over a streaming response (async)."""
 
     def __init__(self, response: httpx.Response, parse: ParseFn) -> None:
         self._response = response
         self._parse = parse
         self._content: bytes | None = None
-
-    @property
-    def status_code(self) -> int:
-        return self._response.status_code
-
-    @property
-    def headers(self) -> httpx.Headers:
-        return self._response.headers
-
-    @property
-    def http_request(self) -> httpx.Request:
-        return self._response.request
-
-    @property
-    def url(self) -> httpx.URL:
-        return self._response.url
 
     async def iter_bytes(self, chunk_size: int | None = None) -> AsyncIterator[bytes]:
         async for chunk in self._response.aiter_bytes(chunk_size):

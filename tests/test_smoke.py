@@ -12,6 +12,7 @@ import sys
 import textwrap
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
+from typing import ClassVar
 
 import pytest
 
@@ -54,13 +55,20 @@ class TestPublicSurface:
     """__all__ pins the public export surface and keeps star-import from leaking
     warnings/submodules; the private import paths must keep working."""
 
+    # The v3 names are preserved verbatim; v4 adds names additively (Vulners,
+    # AsyncVulners, the exception hierarchy, sentinels).
+    V3_NAMES: ClassVar[set[str]] = {
+        "VScannerApi",
+        "VulnersApi",
+        "VulnersApiError",
+        "VulnersDeprecationWarning",
+    }
+    V4_NAMES: ClassVar[set[str]] = {"Vulners", "AsyncVulners"}
+
     def test_all_declared_and_resolves(self):
-        assert vulners.__all__ == [
-            "VScannerApi",
-            "VulnersApi",
-            "VulnersApiError",
-            "VulnersDeprecationWarning",
-        ]
+        declared = set(vulners.__all__)
+        assert declared >= self.V3_NAMES
+        assert declared >= self.V4_NAMES
         for name in vulners.__all__:
             assert hasattr(vulners, name)
 
@@ -68,12 +76,10 @@ class TestPublicSurface:
         ns: dict = {}
         exec("from vulners import *", ns)
         names = {k for k in ns if not k.startswith("__")}
-        assert names == {
-            "VulnersApi",
-            "VScannerApi",
-            "VulnersApiError",
-            "VulnersDeprecationWarning",
-        }
+        assert names >= self.V3_NAMES
+        assert names >= self.V4_NAMES
+        # star-import surface is exactly __all__
+        assert names == set(vulners.__all__)
 
     def test_reexport_identity(self):
         assert vulners.VulnersApiError is vulners.base.VulnersApiError

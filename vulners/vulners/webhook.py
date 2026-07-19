@@ -9,7 +9,9 @@ class WebhookApi(VulnersApiProxy):
         method="GET",
         url="/api/v3/subscriptions/listWebhookSubscriptions/",
         response_handler=lambda c: c["subscriptions"],
-        add_api_key=True,
+        # No add_api_key: authenticated header-only (X-Api-Key), confirmed on the
+        # success path. Keeps the key out of the query string / access logs
+        # (CWE-598). Note: __read below intentionally keeps add_api_key.
     )
 
     add = endpoint(
@@ -54,6 +56,11 @@ class WebhookApi(VulnersApiProxy):
             "subscriptionid": str,
             "newest_only": Literal["true", "false"],
         },
+        # DO NOT remove add_api_key here: unlike list/add above, this endpoint
+        # ignores the X-Api-Key header and requires apiKey in the query string
+        # (header-only -> errorCode 103 "Missing parameters"). Dropping it would
+        # break read(). The residual key-in-query exposure is a known
+        # server-side limitation.
         add_api_key=True,
     )
 

@@ -11,7 +11,10 @@ class SubscriptionApi(VulnersApiProxy):
         method="GET",
         url="/api/v3/subscriptions/listEmailSubscriptions/",
         response_handler=lambda c: c["subscriptions"],
-        add_api_key=True,
+        # No add_api_key: this GET is authenticated header-only (X-Api-Key). The
+        # server accepts header-only auth on this endpoint (confirmed on the
+        # success path), so the key must not be duplicated into the query string
+        # where it would leak into access logs / proxies / APM (CWE-598).
         deprecated=(
             "SubscriptionApi.list() is deprecated and will be removed in future releases.\n"
         ),

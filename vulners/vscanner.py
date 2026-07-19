@@ -1,13 +1,21 @@
 from __future__ import annotations
 
 import base64
+import posixpath
 import uuid
 from typing import Annotated, Any, Iterable, Iterator, Literal, Mapping
+from urllib.parse import unquote, urlsplit
 
 from pydantic import Field
 from typing_extensions import TypedDict
 
 from .base import Unset, VulnersApiBase, endpoint
+
+# Upper bound on the decode-to-fixed-point passes in get_image_binary. A
+# legitimate uri stabilizes in one or two passes; the cap stops a server-supplied
+# value with deeply nested percent-encoding from driving the repeated unquote
+# into O(n^2) work.
+_MAX_DECODE_PASSES = 40
 
 
 class NotificationObj(TypedDict):
@@ -36,42 +44,43 @@ class ApiObject(Mapping[str, Any]):
         return repr(self.__dict__)
 
 
-class ProjectList(list):
+class ProjectList(list["Project"]):
     def __init__(self, api: VScannerApi, value: Iterable[dict[str, Any]]) -> None:
         super().__init__(Project(api, c) for c in value)
 
 
 class Project(ApiObject):
+    # id fields identify vscanner resources as UUIDs.
     _id: uuid.UUID
     name: str
     license_id: str
     notification: NotificationObj
     result_expire_in: int | None
 
-    def update(self, **kwargs):
+    def update(self, **kwargs: Any) -> None:
         kwargs.setdefault("name", self.name)
         kwargs.setdefault("license_id", self.license_id)
         kwargs.setdefault("notification", self.notification)
         kwargs.setdefault("result_expire_in", self.result_expire_in)
         self.__dict__ = self._api.update_project(self._id, **kwargs).__dict__
 
-    def delete(self):
+    def delete(self) -> None:
         self._api.delete_project(self._id)
 
-    def get_tasks(self, *args, **kwargs):
+    def get_tasks(self, *args: Any, **kwargs: Any) -> TaskList:
         return self._api.get_tasks(self._id, *args, **kwargs)
 
-    def create_task(self, *args, **kwargs):
+    def create_task(self, *args: Any, **kwargs: Any) -> Task:
         return self._api.create_task(self._id, *args, **kwargs)
 
-    def get_results(self, *args, **kwargs):
+    def get_results(self, *args: Any, **kwargs: Any) -> ResultList:
         return self._api.get_results(self._id, *args, **kwargs)
 
-    def get_statistics(self, *args, **kwargs):
+    def get_statistics(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
         return self._api.get_statistics(self._id, *args, **kwargs)
 
 
-class TaskList(list):
+class TaskList(list["Task"]):
     def __init__(self, api: VScannerApi, value: Iterable[dict[str, Any]]) -> None:
         super().__init__(Task(api, c) for c in value)
 
@@ -87,7 +96,7 @@ class Task(ApiObject):
     enabled: bool
     context_id: uuid.UUID
 
-    def update(self, **kwargs):
+    def update(self, **kwargs: Any) -> None:
         kwargs.setdefault("name", self.name)
         kwargs.setdefault("networks", self.networks)
         kwargs.setdefault("ports", self.ports)
@@ -96,14 +105,14 @@ class Task(ApiObject):
         kwargs.setdefault("enabled", self.enabled)
         self.__dict__ = self._api.update_task(self.project_id, self._id, **kwargs).__dict__
 
-    def delete(self):
+    def delete(self) -> None:
         self._api.delete_task(self.project_id, self._id)
 
-    def start_task(self):
+    def start_task(self) -> None:
         self.__dict__ = self._api.start_task(self.project_id, self._id).__dict__
 
 
-class ResultList(list):
+class ResultList(list["Result"]):
     def __init__(self, api: VScannerApi, value: Iterable[dict[str, Any]]) -> None:
         super().__init__(Result(api, c) for c in value)
 
@@ -113,10 +122,10 @@ class Result(ApiObject):
     project_id: uuid.UUID
     screens: Mapping[str, Any]
 
-    def delete(self):
+    def delete(self) -> None:
         self._api.delete_result(self.project_id, self._id)
 
-    def get_screenshot(self, port, as_base64=False):
+    def get_screenshot(self, port: Any, as_base64: bool = False) -> bytes | None:
         try:
             screen = self.screens[str(port)]["screen"]
         except (AttributeError, KeyError):
@@ -361,10 +370,32 @@ class VScannerApi(VulnersApiBase):
         },
     )
 
-    def get_image_binary(self, image_uri: str, as_base64: bool = False):
-        content = self._invoke(
-            "GET", "/vscanner/screen/" + image_uri, {}, (), parse_content=False
-        )
+    def get_image_binary(self, image_uri: str, as_base64: bool = False) -> bytes:
+        # image_uri is server-controlled; reject any uri whose normalized path
+        # escapes /vscanner/screen/ before sending.
+        url = "/vscanner/screen/" + image_uri
+        # Percent-decode before normalizing so an encoded separator (e.g. "%2f")
+        # or dot ("%2e") cannot smuggle a traversal past normpath, which treats
+        # "%2f" as an ordinary character. Decode until stable to also defeat
+        # double-encoding. Only the validation copy is decoded; the wire still
+        # carries the original url.
+        decoded_path = urlsplit(url).path
+        # Bounded pass count; see _MAX_DECODE_PASSES.
+        for _ in range(_MAX_DECODE_PASSES):
+            once = unquote(decoded_path)
+            if once == decoded_path:
+                break
+            decoded_path = once
+        else:
+            raise ValueError("Invalid image_uri: excessive percent-encoding")
+        # Fold backslashes to "/" before normalizing: posixpath.normpath treats
+        # "\" as an ordinary character, so "\..\..\x" would pass the prefix check
+        # yet reach a backend that reads "\" as a separator. A legitimate uri
+        # never contains a backslash, so the sent url is left untouched.
+        decoded_path = decoded_path.replace("\\", "/")
+        if not posixpath.normpath(decoded_path).startswith("/vscanner/screen/"):
+            raise ValueError("Invalid image_uri: path must stay under /vscanner/screen/")
+        content = self._invoke("GET", url, {}, (), parse_content=False)
         if as_base64:
             return base64.b64encode(content)
         return content

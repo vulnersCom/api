@@ -17,8 +17,26 @@ from typing_extensions import Self
 from ._base_client import AsyncAPIClient, SyncAPIClient
 from ._config import ClientConfig, resolve_config
 from ._logging import install_key_redaction
+from ._resources._async.archive import AsyncArchive
+from ._resources._async.audit import AsyncAudit
+from ._resources._async.misc import AsyncMisc
+from ._resources._async.report import AsyncReport
 from ._resources._async.search import AsyncSearch
+from ._resources._async.stix import AsyncStix
+from ._resources._async.subscriptions import AsyncSubscriptions
+from ._resources._async.subscriptions_v4 import AsyncSubscriptionsV4
+from ._resources._async.vscanner import AsyncVscanner
+from ._resources._async.webhooks import AsyncWebhooks
+from ._resources._sync.archive import Archive
+from ._resources._sync.audit import Audit
+from ._resources._sync.misc import Misc
+from ._resources._sync.report import Report
 from ._resources._sync.search import Search
+from ._resources._sync.stix import Stix
+from ._resources._sync.subscriptions import Subscriptions
+from ._resources._sync.subscriptions_v4 import SubscriptionsV4
+from ._resources._sync.vscanner import Vscanner
+from ._resources._sync.webhooks import Webhooks
 from ._types import NotGiven, not_given
 from ._version import __version__
 
@@ -73,6 +91,42 @@ class Vulners:
     @cached_property
     def search(self) -> Search:
         return Search(self._api)
+
+    @cached_property
+    def audit(self) -> Audit:
+        return Audit(self._api)
+
+    @cached_property
+    def archive(self) -> Archive:
+        return Archive(self._api)
+
+    @cached_property
+    def misc(self) -> Misc:
+        return Misc(self._api)
+
+    @cached_property
+    def report(self) -> Report:
+        return Report(self._api)
+
+    @cached_property
+    def stix(self) -> Stix:
+        return Stix(self._api)
+
+    @cached_property
+    def subscriptions(self) -> Subscriptions:
+        return Subscriptions(self._api)
+
+    @cached_property
+    def subscriptions_v4(self) -> SubscriptionsV4:
+        return SubscriptionsV4(self._api)
+
+    @cached_property
+    def webhooks(self) -> Webhooks:
+        return Webhooks(self._api)
+
+    @cached_property
+    def vscanner(self) -> Vscanner:
+        return Vscanner(self._api)
 
     def with_options(
         self,
@@ -149,6 +203,42 @@ class AsyncVulners:
     @cached_property
     def search(self) -> AsyncSearch:
         return AsyncSearch(self._api)
+
+    @cached_property
+    def audit(self) -> AsyncAudit:
+        return AsyncAudit(self._api)
+
+    @cached_property
+    def archive(self) -> AsyncArchive:
+        return AsyncArchive(self._api)
+
+    @cached_property
+    def misc(self) -> AsyncMisc:
+        return AsyncMisc(self._api)
+
+    @cached_property
+    def report(self) -> AsyncReport:
+        return AsyncReport(self._api)
+
+    @cached_property
+    def stix(self) -> AsyncStix:
+        return AsyncStix(self._api)
+
+    @cached_property
+    def subscriptions(self) -> AsyncSubscriptions:
+        return AsyncSubscriptions(self._api)
+
+    @cached_property
+    def subscriptions_v4(self) -> AsyncSubscriptionsV4:
+        return AsyncSubscriptionsV4(self._api)
+
+    @cached_property
+    def webhooks(self) -> AsyncWebhooks:
+        return AsyncWebhooks(self._api)
+
+    @cached_property
+    def vscanner(self) -> AsyncVscanner:
+        return AsyncVscanner(self._api)
 
     def with_options(
         self,

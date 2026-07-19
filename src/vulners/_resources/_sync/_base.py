@@ -32,6 +32,11 @@ class BaseResource:
         self._wrap = _wrap
 
     @property
+    def _api_key(self) -> str:
+        """The configured API key value, for endpoints that echo it in query/body."""
+        return self._client.config.api_key.get_secret_value()
+
+    @property
     def with_raw_response(self) -> Self:
         """A view whose methods return an :class:`APIResponse` (status/headers + parse)."""
         return type(self)(self._client, _wrap="raw")
@@ -48,10 +53,13 @@ class BaseResource:
         cast: Callable[[Any], Any] | None = None,
         params: Mapping[str, Any] | None = None,
         body: Any = None,
+        files: Any = None,
         timeout: float | httpx.Timeout | None | NotGiven = not_given,
     ) -> Any:
         if self._wrap is not None:
             return self._client.request_with_response(
-                spec, cast=cast, params=params, body=body, timeout=timeout
+                spec, cast=cast, params=params, body=body, files=files, timeout=timeout
             )
-        return self._client.request(spec, cast=cast, params=params, body=body, timeout=timeout)
+        return self._client.request(
+            spec, cast=cast, params=params, body=body, files=files, timeout=timeout
+        )

@@ -1,0 +1,54 @@
+"""Async ``stix`` resource (unasyncd source for the sync ``stix`` resource).
+
+Builds a STIX bundle for a bulletin. The server sometimes returns the bundle as
+a JSON *string* inside ``result``; the caster parses it a second time so callers
+always receive a decoded object.
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+import httpx
+import orjson
+
+from ..._base_client import RequestSpec
+from ..._types import NotGiven, not_given
+from . import _base
+
+_BUNDLE = RequestSpec("GET", "/api/v4/stix/bundle", body_mode="query", unwrap=("result",))
+
+
+def _parse_bundle(value: Any) -> Any:
+    # The server occasionally double-encodes: result arrives as a JSON string.
+    if isinstance(value, (str, bytes, bytearray)):
+        try:
+            return orjson.loads(value)
+        except orjson.JSONDecodeError:
+            return value
+    return value
+
+
+class AsyncStix(_base.AsyncBaseResource):
+    """Build STIX bundles from Vulners bulletins."""
+
+    async def make_bundle_by_id(
+        self,
+        id: str,
+        *,
+        opencti_id: str | None = None,
+        timeout: float | httpx.Timeout | NotGiven = not_given,
+    ) -> Any:
+        """Build a STIX bundle of objects for a bulletin id.
+
+        Args:
+            id: The bulletin id to build a bundle for.
+            opencti_id: Existing OpenCTI object id to reuse, if any.
+        """
+        body: dict[str, Any] = {"id": id}
+        if opencti_id is not None:
+            body["opencti_id"] = opencti_id
+        return await self._request(_BUNDLE, cast=_parse_bundle, body=body, timeout=timeout)
+
+
+__all__ = ["AsyncStix"]

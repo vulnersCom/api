@@ -15,7 +15,8 @@ from pathlib import Path
 import pytest
 
 SAMPLES_DIR = Path(__file__).resolve().parent.parent / "samples"
-SAMPLE_FILES = sorted(SAMPLES_DIR.glob("*.py"))
+# Two sets: samples/legacy/ (v3 API) and samples/v4/ (v4 API).
+SAMPLE_FILES = sorted(SAMPLES_DIR.rglob("*.py"))
 
 
 def test_samples_exist():

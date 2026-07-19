@@ -1,0 +1,68 @@
+name: ci
+
+on:
+  push:
+    branches: [v3.2]
+  pull_request:
+    branches: [v3.2]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: install poetry
+        run: pipx install poetry
+      - name: install dependencies
+        run: poetry install
+      - name: import smoke
+        run: poetry run python -c "import vulners"
+      - name: run tests
+        # live-marked tests are not run in CI: they skip without an API key
+        run: poetry run pytest tests -q
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+      - name: install poetry
+        run: pipx install poetry
+      - name: install dependencies
+        run: poetry install
+      - name: ruff (as-is, non-blocking until mypy/ruff config is settled)
+        run: poetry run ruff check vulners
+        continue-on-error: true
+      - name: mypy (as-is, non-blocking until mypy/ruff config is settled)
+        run: poetry run mypy vulners
+        continue-on-error: true
+
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+      - name: install poetry
+        run: pipx install poetry
+      - name: poetry check
+        run: poetry check
+      - name: build sdist and wheel
+        run: poetry build
+      - name: twine check
+        run: pipx run twine check dist/*
+      - name: install wheel into clean venv + import smoke
+        run: |
+          python -m venv /tmp/wheel-venv
+          /tmp/wheel-venv/bin/pip install --quiet dist/*.whl
+          /tmp/wheel-venv/bin/python -c "import vulners; print(vulners.base.__version__)"

@@ -65,6 +65,11 @@ Repository = "https://github.com/vulnersCom/api"
 Changelog = "https://github.com/vulnersCom/api/blob/master/CHANGELOG.md"
 Issues = "https://github.com/vulnersCom/api/issues"
 
+[project.scripts]
+# Model Context Protocol server (agentic layer). Requires the `mcp` extra:
+#   pip install "vulners[mcp]" && vulners-mcp
+vulners-mcp = "vulners._mcp.server:main"
+
 # Dev toolchain (PEP 735 dependency groups; installed by `uv sync`).
 # Conservative floors that resolve today; tightened to plan pins (§7.1) at lock (WP8/WP9).
 [dependency-groups]
@@ -82,6 +87,11 @@ dev = [
     # Runtime optional extra, installed for tests exercising the zip stream path.
     "stream-unzip>=0.0.100,<0.1",
     "pytest-codspeed>=2.2.1",
+    # Documentation site (WP10): Material theme + mkdocstrings API reference +
+    # llms.txt emitter. `mike` versioning is deferred (single-version site for now).
+    "mkdocs-material>=9.7.6",
+    "mkdocstrings[python]>=1.0.4",
+    "mkdocs-llmstxt>=0.5.0",
 ]
 
 [tool.uv]
@@ -166,6 +176,13 @@ warn_redundant_casts = true
 warn_unused_ignores = true
 warn_unused_configs = true
 no_implicit_reexport = false
+
+# fastmcp ships only with the optional `mcp` extra and cannot be installed in the
+# default type-check environment (its rich pin conflicts with the dev group's
+# unasyncd). Treat it as untyped so vulners._mcp still type-checks against Any.
+[[tool.mypy.overrides]]
+module = ["fastmcp.*"]
+ignore_missing_imports = true
 
 [tool.pyright]
 include = ["src"]

@@ -1,0 +1,43 @@
+# Vulners Python SDK
+
+> The official Python client for the Vulners vulnerability intelligence API
+> (https://vulners.com). Typed synchronous (`Vulners`) and asynchronous
+> (`AsyncVulners`) clients for searching CVEs, exploits and advisories, and
+> auditing software, hosts, libraries and SBOMs.
+
+Install with `pip install vulners` (Python 3.10+). Authenticate via the
+`VULNERS_API_KEY` environment variable or `Vulners(api_key="…")`. The v4 clients
+return typed `Bulletin` models and paginate up to a 10,000-document search
+window; the legacy v3 `VulnersApi` remains fully supported. A Model Context
+Protocol server ships in the `mcp` extra (`pip install "vulners[mcp]"`, then
+`vulners-mcp`).
+
+## Docs (source under documentation/)
+
+- [Home & install](documentation/index.md): what the SDK is, install, quickstart.
+- [Quickstart tutorial](documentation/tutorials/quickstart.md): first search and audit, sync and async.
+- [Migrating v3 → v4](documentation/explanation/migration.md): map v3 calls to their v4 equivalents.
+
+## How-to guides
+
+- [Audit a host](documentation/how-to/audit-a-host.md): Linux/Windows/SBOM/CPE audits.
+- [Stream the archive](documentation/how-to/stream-the-archive.md): bulk download and incremental sync.
+- [Search exploits](documentation/how-to/search-exploits.md): find exploits/PoCs; expose them to an agent.
+- [Proxy, timeouts & retries](documentation/how-to/proxy-timeout-retries.md): network configuration.
+
+## Reference
+
+- [Clients](documentation/reference/clients.md): `Vulners` and `AsyncVulners`.
+- [Resources](documentation/reference/resources.md): search, audit, archive, misc, report, stix, subscriptions, webhooks, vscanner.
+- [Models & pagination](documentation/reference/models.md): the `Bulletin` hierarchy and `SearchPage`.
+- [Exceptions](documentation/reference/exceptions.md): the `VulnersError` hierarchy.
+
+## Explanation
+
+- [Network & rate limits](documentation/explanation/network-and-rate-limits.md): pooling, auth, timeouts, retries, token-bucket rate limiting.
+- [The 10,000-document search window](documentation/explanation/search-window.md): why search paginates only to 10k, and using the archive for more.
+- [Error model](documentation/explanation/error-model.md): how a response becomes an exception.
+
+## Agents
+
+- [AGENTS.md](AGENTS.md): how an AI agent should use the SDK (library and MCP server).

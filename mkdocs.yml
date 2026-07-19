@@ -1,0 +1,117 @@
+site_name: Vulners Python SDK
+site_description: Python SDK for the Vulners vulnerability intelligence API — typed sync & async clients.
+site_url: https://vulnersCom.github.io/api/
+repo_url: https://github.com/vulnersCom/api
+repo_name: vulnersCom/api
+copyright: Copyright &copy; Vulners
+
+# `docs/` is reserved for local dev artifacts in this repo, so the public site
+# source lives under `documentation/`.
+docs_dir: documentation
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.top
+    - navigation.instant
+    - navigation.tracking
+    - content.code.copy
+    - content.code.annotate
+    - toc.follow
+    - search.suggest
+    - search.highlight
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  icon:
+    repo: fontawesome/brands/github
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - toc:
+      permalink: true
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            docstring_style: google
+            separate_signature: true
+            show_signature_annotations: true
+            signature_crossrefs: true
+            merge_init_into_class: true
+            show_root_heading: true
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+            members_order: source
+            filters: ["!^_"]
+  # Emits `llms.txt` (a structured index) and `llms-full.txt` (full content) at
+  # the site root, so LLM agents can consume the docs. `mike` multi-version
+  # docs are deferred for now (single-version site).
+  - llmstxt:
+      markdown_description: >-
+        The official Python SDK for the Vulners vulnerability intelligence API.
+        Typed synchronous and asynchronous clients for searching CVEs, exploits
+        and advisories, and auditing software, hosts and SBOMs.
+      full_output: llms-full.txt
+      sections:
+        Getting started:
+          - index.md
+          - tutorials/quickstart.md
+        How-to guides:
+          - how-to/audit-a-host.md
+          - how-to/stream-the-archive.md
+          - how-to/search-exploits.md
+          - how-to/proxy-timeout-retries.md
+        Reference:
+          - reference/clients.md
+          - reference/resources.md
+          - reference/models.md
+          - reference/exceptions.md
+        Explanation:
+          - explanation/network-and-rate-limits.md
+          - explanation/search-window.md
+          - explanation/error-model.md
+          - explanation/migration.md
+
+nav:
+  - Home: index.md
+  - Tutorials:
+      - Quickstart: tutorials/quickstart.md
+  - How-to guides:
+      - Audit a host: how-to/audit-a-host.md
+      - Stream the archive: how-to/stream-the-archive.md
+      - Search exploits: how-to/search-exploits.md
+      - Proxy, timeouts & retries: how-to/proxy-timeout-retries.md
+  - Reference:
+      - Clients: reference/clients.md
+      - Resources: reference/resources.md
+      - Models & pagination: reference/models.md
+      - Exceptions: reference/exceptions.md
+  - Explanation:
+      - Network & rate limits: explanation/network-and-rate-limits.md
+      - The 10,000-doc search window: explanation/search-window.md
+      - Error model: explanation/error-model.md
+      - Migrating v3 → v4: explanation/migration.md

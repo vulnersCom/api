@@ -86,6 +86,11 @@ celerybeat-schedule
 .venv
 venv/
 ENV/
+.venv-dev/
+
+# local-only test configuration (never commit)
+tests/live.local.toml
+*.local.toml
 
 # Spyder project settings
 .spyderproject
@@ -97,8 +102,16 @@ ENV/
 # mkdocs documentation
 /site
 
+# pytest
+.pytest_cache/
+
+# ruff
+.ruff_cache/
+
 # mypy
 .mypy_cache/
+.dmypy.json
+dmypy.json
 
 # PyCharm
 .idea/

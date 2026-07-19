@@ -1,0 +1,926 @@
+{
+  "archive.fetch_collection": {
+    "body": {
+      "text": ""
+    },
+    "headers": {
+      "accept": "*/*",
+      "accept-encoding": "gzip, deflate",
+      "connection": "keep-alive",
+      "host": "vulners.com",
+      "user-agent": "Vulners Python API {VERSION}",
+      "x-api-key": "SYNTHETIC-TEST-KEY-0000000000"
+    },
+    "method": "GET",
+    "path": "/api/v4/archive/collection",
+    "query": "type=cve"
+  },
+  "archive.fetch_collection_update": {
+    "body": {
+      "text": ""
+    },
+    "headers": {
+      "accept": "*/*",
+      "accept-encoding": "gzip, deflate",
+      "connection": "keep-alive",
+      "host": "vulners.com",
+      "user-agent": "Vulners Python API {VERSION}",
+      "x-api-key": "SYNTHETIC-TEST-KEY-0000000000"
+    },
+    "method": "GET",
+    "path": "/api/v4/archive/collection-update",
+    "query": "type=cve&after=2099-01-01T00%3A00%3A00"
+  },
+  "archive.get_collection": {
+    "body": {
+      "text": ""
+    },
+    "headers": {
+      "accept": "*/*",
+      "accept-encoding": "gzip, deflate",
+      "connection": "keep-alive",
+      "host": "vulners.com",
+      "user-agent": "Vulners Python API {VERSION}",
+      "x-api-key": "SYNTHETIC-TEST-KEY-0000000000"
+    },
+    "method": "GET",
+    "path": "/api/v3/archive/collection/",
+    "query": "type=cve&datefrom=1976-01-01&dateto=2199-01-01"
+  },
+  "archive.get_distributive": {
+    "body": {
+      "text": ""
+    },
+    "headers": {
+      "accept": "*/*",
+      "accept-encoding": "gzip, deflate",
+      "connection": "keep-alive",
+      "host": "vulners.com",
+      "user-agent": "Vulners Python API {VERSION}",
+      "x-api-key": "SYNTHETIC-TEST-KEY-0000000000"
+    },
+    "method": "GET",
+    "path": "/api/v3/archive/distributive/",
+    "query": "os=centos&version=7"
+  },
+  "archive.getsploit": {
+    "body": {
+      "text": ""
+    },
+    "headers": {
+      "accept": "*/*",
+      "accept-encoding": "gzip, deflate",
+      "connection": "keep-alive",
+      "host": "vulners.com",
+      "user-agent": "Vulners Python API {VERSION}",
+      "x-api-key": "SYNTHETIC-TEST-KEY-0000000000"
+    },
+    "method": "GET",
+    "path": "/api/v3/archive/getsploit/",
+    "query": ""
+  },
+  "audit.cve_audit": {
+    "body": {
+      "text": "{\"cve\":\"CVE-2099-0001\"}"
+    },
+    "headers": {
+      "accept": "*/*",
+      "accept-encoding": "gzip, deflate",
+      "connection": "keep-alive",
+      "content-length": "23",
+      "content-type": "application/json",
+      "host": "vulners.com",
+      "user-agent": "Vulners Python API {VERSION}",
+      "x-api-key": "SYNTHETIC-TEST-KEY-0000000000"
+    },
+    "method": "POST",
+    "path": "/api/v4/audit/cve",
+    "query": ""
+  },
+  "audit.cve_batch_audit": {
+    "body": {
+      "text": "{\"cve\":[\"CVE-2099-0001\",\"CVE-2099-0002\"]}"
+    },
+    "headers": {
+      "accept": "*/*",
+      "accept-encoding": "gzip, deflate",
+      "connection": "keep-alive",
+      "content-length": "41",
+      "content-type": "application/json",
+      "host": "vulners.com",
+      "user-agent": "Vulners Python API {VERSION}",
+      "x-api-key": "SYNTHETIC-TEST-KEY-0000000000"
+    },
+    "method": "POST",
+    "path": "/api/v4/audit/cves",
+    "query": ""
+  },
+  "audit.host": {
+    "body": {
+      "text": "{\"software\":[\"nginx 1.20.0\"],\"match\":\"partial\",\"catalog\":\"official\"}"
+    },
+    "headers": {
+      "accept": "*/*",
+      "accept-encoding": "gzip, deflate",
+      "connection": "keep-alive",
+      "content-length": "68",
+      "content-type": "application/json",
+      "host": "vulners.com",
+      "user-agent": "Vulners Python API {VERSION}",
+      "x-api-key": "SYNTHETIC-TEST-KEY-0000000000"
+    },
+    "method": "POST",
+    "path": "/api/v4/audit/host/",
+    "query": ""
+  },
+  "audit.kb_audit": {
+    "body": {
+      "text": "{\"os\":\"windows-server-2019\",\"kbList\":[\"KB5000001\"]}"
+    },
+    "headers": {
+      "accept": "*/*",
+      "accept-encoding": "gzip, deflate",
+      "connection": "keep-alive",
+      "content-length": "51",
+      "content-type": "application/json",
+      "host": "vulners.com",
+      "user-agent": "Vulners Python API {VERSION}",
+      "x-api-key": "SYNTHETIC-TEST-KEY-0000000000"
+    },
+    "method": "POST",
+    "path": "/api/v3/audit/kb/",
+    "query": ""
+  },
+  "audit.library_audit": {
+    "body": {
+      "text": "{\"packages\":[\"pkg:pypi/requests@2.0.0\"],\"includeUnofficial\":false,\"includeCandidates\":false,\"includeAnyVersion\":false,\"cvelistMetrics\":false}"
+    },
+    "headers": {
+      "accept": "*/*",
+      "accept-encoding": "gzip, deflate",
+      "connection": "keep-alive",
+      "content-length": "141",
+      "content-type": "application/json",
+      "host": "vulners.com",
+      "user-agent": "Vulners Python API {VERSION}",
+      "x-api-key": "SYNTHETIC-TEST-KEY-0000000000"
+    },
+    "method": "POST",
+    "path": "/api/v4/audit/library",
+    "query": ""
+  },
+  "audit.linux_audit": {
+    "body": {
+      "text": "{\"osName\":\"centos\",\"osVersion\":\"7\",\"packages\":[\"glibc-2.17-292.el7\"],\"osArch\":\"x86_64\",\"includeUnofficial\":false,\"includeCandidates\":false,\"includeAnyVersion\":false,\"cvelistMetrics\":false}"
+    },
+    "headers": {
+      "accept": "*/*",
+      "accept-encoding": "gzip, deflate",
+      "connection": "keep-alive",
+      "content-length": "188",
+      "content-type": "application/json",
+      "host": "vulners.com",
+      "user-agent": "Vulners Python API {VERSION}",
+      "x-api-key": "SYNTHETIC-TEST-KEY-0000000000"
+    },
+    "method": "POST",
+    "path": "/api/v4/audit/linux",
+    "query": ""
+  },
+  "audit.os_audit": {
+    "body": {
+      "text": "{\"os\":\"centos\",\"version\":\"7\",\"package\":[\"glibc-2.17-292.el7\"]}"
+    },
+    "headers": {
+      "accept": "*/*",
+      "accept-encoding": "gzip, deflate",
+      "connection": "keep-alive",
+      "content-length": "62",
+      "content-type": "application/json",
+      "host": "vulners.com",
+      "user-agent": "Vulners Python API {VERSION}",
+      "x-api-key": "SYNTHETIC-TEST-KEY-0000000000"
+    },
+    "method": "POST",
+    "path": "/api/v3/audit/audit/",
+    "query": ""
+  },
+  "audit.sbom_audit": {
+    "body": {
+      "text": "--{BOUNDARY}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"vulners_bc_sbom.json\"\r\nContent-Type: application/json\r\n\r\n{\"spdxVersion\":\"SPDX-2.3\",\"name\":\"synthetic\",\"packages\":[]}\r\n--{BOUNDARY}--\r\n"
+    },
+    "headers": {
+      "accept": "*/*",
+      "accept-encoding": "gzip, deflate",
+      "connection": "keep-alive",
+      "content-length": "247",
+      "content-type": "multipart/form-data; boundary={BOUNDARY}",
+      "host": "vulners.com",
+      "user-agent": "Vulners Python API {VERSION}",
+      "x-api-key": "SYNTHETIC-TEST-KEY-0000000000"
+    },
+    "method": "POST",
+    "path": "/api/v4/audit/sbom",
+    "query": ""
+  },
+  "audit.software": {
+    "body": {
+      "text": "{\"software\":[\"nginx 1.20.0\"],\"match\":\"partial\",\"catalog\":\"official\"}"
+    },
+    "headers": {
+      "accept": "*/*",
+      "accept-encoding": "gzip, deflate",
+      "connection": "keep-alive",
+      "content-length": "68",
+      "content-type": "application/json",
+      "host": "vulners.com",
+      "user-agent": "Vulners Python API {VERSION}",
+      "x-api-key": "SYNTHETIC-TEST-KEY-0000000000"
+    },
+    "method": "POST",
+    "path": "/api/v4/audit/software/",
+    "query": ""
+  },
+  "audit.win_audit": {
+    "body": {
+      "text": "{\"os\":\"windows-server-2019\",\"os_version\":\"10.0.17763\",\"kb_list\":[\"KB5000001\"],\"software\":[],\"apiKey\":\"SYNTHETIC-TEST-KEY-0000000000\"}"
+    },
+    "headers": {
+      "accept": "*/*",
+      "accept-encoding": "gzip, deflate",
+      "connection": "keep-alive",
+      "content-length": "133",
+      "content-type": "application/json",
+      "host": "vulners.com",
+      "user-agent": "Vulners Python API {VERSION}",
+      "x-api-key": "SYNTHETIC-TEST-KEY-0000000000"
+    },
+    "method": "POST",
+    "path": "/api/v3/audit/winaudit/",
+    "query": ""
+  },
+  "misc.get_suggestion": {
+    "body": {
+      "text": "{\"fieldName\":\"type\",\"type\":\"distinct\"}"
+    },
+    "headers": {
+      "accept": "*/*",
+      "accept-encoding": "gzip, deflate",
+      "connection": "keep-alive",
+      "content-length": "38",
+      "content-type": "application/json",
+      "host": "vulners.com",
+      "user-agent": "Vulners Python API {VERSION}",
+      "x-api-key": "SYNTHETIC-TEST-KEY-0000000000"
+    },
+    "method": "POST",
+    "path": "/api/v3/search/suggest/",
+    "query": ""
+  },
+  "misc.get_web_application_rules": {
+    "body": {
+      "text": ""
+    },
+    "headers": {
+      "accept": "*/*",
+      "accept-encoding": "gzip, deflate",
+      "connection": "keep-alive",
+      "host": "vulners.com",
+      "user-agent": "Vulners Python API {VERSION}",
+      "x-api-key": "SYNTHETIC-TEST-KEY-0000000000"
+    },
+    "method": "GET",
+    "path": "/api/v3/burp/rules/",
+    "query": ""
+  },
+  "misc.query_autocomplete": {
+    "body": {
+      "text": "{\"query\":\"type:exp\"}"
+    },
+    "headers": {
+      "accept": "*/*",
+      "accept-encoding": "gzip, deflate",
+      "connection": "keep-alive",
+      "content-length": "20",
+      "content-type": "application/json",
+      "host": "vulners.com",
+      "user-agent": "Vulners Python API {VERSION}",
+      "x-api-key": "SYNTHETIC-TEST-KEY-0000000000"
+    },
+    "method": "POST",
+    "path": "/api/v3/search/autocomplete/",
+    "query": ""
+  },
+  "misc.search_cpe": {
+    "body": {
+      "text": ""
+    },
+    "headers": {
+      "accept": "*/*",
+      "accept-encoding": "gzip, deflate",
+      "connection": "keep-alive",
+      "host": "vulners.com",
+      "user-agent": "Vulners Python API {VERSION}",
+      "x-api-key": "SYNTHETIC-TEST-KEY-0000000000"
+    },
+    "method": "GET",
+    "path": "/api/v4/search/cpe",
+    "query": "product=nginx&vendor=nginx"
+  },
+  "report.host_vulns": {
+    "body": {
+      "text": "{\"reporttype\":\"hostvulns\",\"skip\":0,\"size\":30,\"filter\":{},\"sort\":\"\"}"
+    },
+    "headers": {
+      "accept": "*/*",
+      "accept-encoding": "gzip, deflate",
+      "connection": "keep-alive",
+      "content-length": "67",
+      "content-type": "application/json",
+      "host": "vulners.com",
+      "user-agent": "Vulners Python API {VERSION}",
+      "x-api-key": "SYNTHETIC-TEST-KEY-0000000000"
+    },
+    "method": "POST",
+    "path": "/api/v3/reports/vulnsreport",
+    "query": ""
+  },
+  "report.ip_summary": {
+    "body": {
+      "text": "{\"reporttype\":\"ipsummary\",\"skip\":0,\"size\":30,\"filter\":{},\"sort\":\"\"}"
+    },
+    "headers": {
+      "accept": "*/*",
+      "accept-encoding": "gzip, deflate",
+      "connection": "keep-alive",
+      "content-length": "67",
+      "content-type": "application/json",
+      "host": "vulners.com",
+      "user-agent": "Vulners Python API {VERSION}",
+      "x-api-key": "SYNTHETIC-TEST-KEY-0000000000"
+    },
+    "method": "POST",
+    "path": "/api/v3/reports/vulnsreport",
+    "query": ""
+  },
+  "report.scan_list": {
+    "body": {
+      "text": "{\"reporttype\":\"scanlist\",\"skip\":0,\"size\":30,\"filter\":{},\"sort\":\"\"}"
+    },
+    "headers": {
+      "accept": "*/*",
+      "accept-encoding": "gzip, deflate",
+      "connection": "keep-alive",
+      "content-length": "66",
+      "content-type": "application/json",
+      "host": "vulners.com",
+      "user-agent": "Vulners Python API {VERSION}",
+      "x-api-key": "SYNTHETIC-TEST-KEY-0000000000"
+    },
+    "method": "POST",
+    "path": "/api/v3/reports/vulnsreport",
+    "query": ""
+  },
+  "report.vulns_list": {
+    "body": {
+      "text": "{\"reporttype\":\"vulnslist\",\"skip\":0,\"size\":30,\"filter\":{},\"sort\":\"\"}"
+    },
+    "headers": {
+      "accept": "*/*",
+      "accept-encoding": "gzip, deflate",
+      "connection": "keep-alive",
+      "content-length": "67",
+      "content-type": "application/json",
+      "host": "vulners.com",
+      "user-agent": "Vulners Python API {VERSION}",
+      "x-api-key": "SYNTHETIC-TEST-KEY-0000000000"
+    },
+    "method": "POST",
+    "path": "/api/v3/reports/vulnsreport",
+    "query": ""
+  },
+  "report.vulns_summary": {
+    "body": {
+      "text": "{\"reporttype\":\"vulnssummary\",\"skip\":0,\"size\":30,\"filter\":{},\"sort\":\"\"}"
+    },
+    "headers": {
+      "accept": "*/*",
+      "accept-encoding": "gzip, deflate",
+      "connection": "keep-alive",
+      "content-length": "70",
+      "content-type": "application/json",
+      "host": "vulners.com",
+      "user-agent": "Vulners Python API {VERSION}",
+      "x-api-key": "SYNTHETIC-TEST-KEY-0000000000"
+    },
+    "method": "POST",
+    "path": "/api/v3/reports/vulnsreport",
+    "query": ""
+  },
+  "search.get_bulletin": {
+    "body": {
+      "text": "{\"id\":[\"CVE-2099-0001\"],\"fields\":[\"id\",\"title\",\"description\",\"type\",\"bulletinFamily\",\"cvss\",\"published\",\"modified\",\"lastseen\",\"href\",\"sourceHref\",\"sourceData\",\"cvelist\",\"vulnStatus\",\"assigned\"],\"references\":false}"
+    },
+    "headers": {
+      "accept": "*/*",
+      "accept-encoding": "gzip, deflate",
+      "connection": "keep-alive",
+      "content-length": "213",
+      "content-type": "application/json",
+      "host": "vulners.com",
+      "user-agent": "Vulners Python API {VERSION}",
+      "x-api-key": "SYNTHETIC-TEST-KEY-0000000000"
+    },
+    "method": "POST",
+    "path": "/api/v3/search/id/",
+    "query": ""
+  },
+  "search.get_bulletin_history": {
+    "body": {
+      "text": ""
+    },
+    "headers": {
+      "accept": "*/*",
+      "accept-encoding": "gzip, deflate",
+      "connection": "keep-alive",
+      "host": "vulners.com",
+      "user-agent": "Vulners Python API {VERSION}",
+      "x-api-key": "SYNTHETIC-TEST-KEY-0000000000"
+    },
+    "method": "GET",
+    "path": "/api/v3/search/history/",
+    "query": "id=CVE-2099-0001"
+  },
+  "search.get_bulletin_references": {
+    "body": {
+      "text": "{\"id\":[\"CVE-2099-0001\"],\"fields\":[],\"references\":true}"
+    },
+    "headers": {
+      "accept": "*/*",
+      "accept-encoding": "gzip, deflate",
+      "connection": "keep-alive",
+      "content-length": "54",
+      "content-type": "application/json",
+      "host": "vulners.com",
+      "user-agent": "Vulners Python API {VERSION}",
+      "x-api-key": "SYNTHETIC-TEST-KEY-0000000000"
+    },
+    "method": "POST",
+    "path": "/api/v3/search/id/",
+    "query": ""
+  },
+  "search.get_bulletin_with_references": {
+    "body": {
+      "text": "{\"id\":[\"CVE-2099-0001\"],\"fields\":[\"id\",\"title\",\"description\",\"type\",\"bulletinFamily\",\"cvss\",\"published\",\"modified\",\"lastseen\",\"href\",\"sourceHref\",\"sourceData\",\"cvelist\",\"vulnStatus\",\"assigned\"],\"references\":true}"
+    },
+    "headers": {
+      "accept": "*/*",
+      "accept-encoding": "gzip, deflate",
+      "connection": "keep-alive",
+      "content-length": "212",
+      "content-type": "application/json",
+      "host": "vulners.com",
+      "user-agent": "Vulners Python API {VERSION}",
+      "x-api-key": "SYNTHETIC-TEST-KEY-0000000000"
+    },
+    "method": "POST",
+    "path": "/api/v3/search/id/",
+    "query": ""
+  },
+  "search.get_kb_seeds": {
+    "body": {
+      "text": "{\"id\":[\"KB5000001\"],\"fields\":[\"superseeds\",\"parentseeds\"],\"references\":false}"
+    },
+    "headers": {
+      "accept": "*/*",
+      "accept-encoding": "gzip, deflate",
+      "connection": "keep-alive",
+      "content-length": "77",
+      "content-type": "application/json",
+      "host": "vulners.com",
+      "user-agent": "Vulners Python API {VERSION}",
+      "x-api-key": "SYNTHETIC-TEST-KEY-0000000000"
+    },
+    "method": "POST",
+    "path": "/api/v3/search/id/",
+    "query": ""
+  },
+  "search.get_kb_updates": {
+    "body": {
+      "text": "{\"query\":\"type:msupdate AND kb:(KB5000001)\",\"size\":1000,\"skip\":0,\"fields\":[\"id\",\"title\",\"description\",\"type\",\"bulletinFamily\",\"cvss\",\"published\",\"modified\",\"lastseen\",\"href\",\"sourceHref\",\"sourceData\",\"cvelist\",\"vulnStatus\",\"assigned\"]}"
+    },
+    "headers": {
+      "accept": "*/*",
+      "accept-encoding": "gzip, deflate",
+      "connection": "keep-alive",
+      "content-length": "235",
+      "content-type": "application/json",
+      "host": "vulners.com",
+      "user-agent": "Vulners Python API {VERSION}",
+      "x-api-key": "SYNTHETIC-TEST-KEY-0000000000"
+    },
+    "method": "POST",
+    "path": "/api/v3/search/lucene/",
+    "query": ""
+  },
+  "search.get_multiple_bulletin_references": {
+    "body": {
+      "text": "{\"id\":[\"CVE-2099-0001\",\"CVE-2099-0002\"],\"fields\":[],\"references\":true}"
+    },
+    "headers": {
+      "accept": "*/*",
+      "accept-encoding": "gzip, deflate",
+      "connection": "keep-alive",
+      "content-length": "70",
+      "content-type": "application/json",
+      "host": "vulners.com",
+      "user-agent": "Vulners Python API {VERSION}",
+      "x-api-key": "SYNTHETIC-TEST-KEY-0000000000"
+    },
+    "method": "POST",
+    "path": "/api/v3/search/id/",
+    "query": ""
+  },
+  "search.get_multiple_bulletins": {
+    "body": {
+      "text": "{\"id\":[\"CVE-2099-0001\",\"CVE-2099-0002\"],\"fields\":[\"id\",\"title\",\"description\",\"type\",\"bulletinFamily\",\"cvss\",\"published\",\"modified\",\"lastseen\",\"href\",\"sourceHref\",\"sourceData\",\"cvelist\",\"vulnStatus\",\"assigned\"],\"references\":false}"
+    },
+    "headers": {
+      "accept": "*/*",
+      "accept-encoding": "gzip, deflate",
+      "connection": "keep-alive",
+      "content-length": "229",
+      "content-type": "application/json",
+      "host": "vulners.com",
+      "user-agent": "Vulners Python API {VERSION}",
+      "x-api-key": "SYNTHETIC-TEST-KEY-0000000000"
+    },
+    "method": "POST",
+    "path": "/api/v3/search/id/",
+    "query": ""
+  },
+  "search.get_multiple_bulletins_with_references": {
+    "body": {
+      "text": "{\"id\":[\"CVE-2099-0001\"],\"fields\":[\"id\",\"title\",\"description\",\"type\",\"bulletinFamily\",\"cvss\",\"published\",\"modified\",\"lastseen\",\"href\",\"sourceHref\",\"sourceData\",\"cvelist\",\"vulnStatus\",\"assigned\"],\"references\":true}"
+    },
+    "headers": {
+      "accept": "*/*",
+      "accept-encoding": "gzip, deflate",
+      "connection": "keep-alive",
+      "content-length": "212",
+      "content-type": "application/json",
+      "host": "vulners.com",
+      "user-agent": "Vulners Python API {VERSION}",
+      "x-api-key": "SYNTHETIC-TEST-KEY-0000000000"
+    },
+    "method": "POST",
+    "path": "/api/v3/search/id/",
+    "query": ""
+  },
+  "search.get_web_vulns": {
+    "body": {
+      "text": "{\"paths\":[\"/wp-login.php\"],\"application\":\"wordpress\",\"match\":\"partial\",\"catalog\":\"official\"}"
+    },
+    "headers": {
+      "accept": "*/*",
+      "accept-encoding": "gzip, deflate",
+      "connection": "keep-alive",
+      "content-length": "92",
+      "content-type": "application/json",
+      "host": "vulners.com",
+      "user-agent": "Vulners Python API {VERSION}",
+      "x-api-key": "SYNTHETIC-TEST-KEY-0000000000"
+    },
+    "method": "POST",
+    "path": "/api/v4/search/web-vulns/",
+    "query": ""
+  },
+  "search.search_bulletins": {
+    "body": {
+      "text": "{\"query\":\"ssh\",\"size\":5,\"skip\":0,\"fields\":[\"id\",\"title\",\"description\",\"type\",\"bulletinFamily\",\"cvss\",\"published\",\"modified\",\"lastseen\",\"href\",\"sourceHref\",\"sourceData\",\"cvelist\",\"vulnStatus\",\"assigned\"]}"
+    },
+    "headers": {
+      "accept": "*/*",
+      "accept-encoding": "gzip, deflate",
+      "connection": "keep-alive",
+      "content-length": "203",
+      "content-type": "application/json",
+      "host": "vulners.com",
+      "user-agent": "Vulners Python API {VERSION}",
+      "x-api-key": "SYNTHETIC-TEST-KEY-0000000000"
+    },
+    "method": "POST",
+    "path": "/api/v3/search/lucene/",
+    "query": ""
+  },
+  "search.search_bulletins_all": {
+    "body": {
+      "text": "{\"query\":\"ssh\",\"size\":5,\"skip\":0,\"fields\":[\"id\",\"title\",\"description\",\"type\",\"bulletinFamily\",\"cvss\",\"published\",\"modified\",\"lastseen\",\"href\",\"sourceHref\",\"sourceData\",\"cvelist\",\"vulnStatus\",\"assigned\"]}"
+    },
+    "headers": {
+      "accept": "*/*",
+      "accept-encoding": "gzip, deflate",
+      "connection": "keep-alive",
+      "content-length": "203",
+      "content-type": "application/json",
+      "host": "vulners.com",
+      "user-agent": "Vulners Python API {VERSION}",
+      "x-api-key": "SYNTHETIC-TEST-KEY-0000000000"
+    },
+    "method": "POST",
+    "path": "/api/v3/search/lucene/",
+    "query": ""
+  },
+  "search.search_exploits": {
+    "body": {
+      "text": "{\"query\":\"bulletinFamily:exploit AND (\\\"CVE-2099-0001\\\")\",\"size\":20,\"skip\":0,\"fields\":[\"id\",\"title\",\"description\",\"type\",\"bulletinFamily\",\"cvss\",\"published\",\"modified\",\"lastseen\",\"href\",\"sourceHref\",\"sourceData\",\"cvelist\",\"vulnStatus\",\"assigned\"]}"
+    },
+    "headers": {
+      "accept": "*/*",
+      "accept-encoding": "gzip, deflate",
+      "connection": "keep-alive",
+      "content-length": "247",
+      "content-type": "application/json",
+      "host": "vulners.com",
+      "user-agent": "Vulners Python API {VERSION}",
+      "x-api-key": "SYNTHETIC-TEST-KEY-0000000000"
+    },
+    "method": "POST",
+    "path": "/api/v3/search/lucene/",
+    "query": ""
+  },
+  "search.search_exploits_all": {
+    "body": {
+      "text": "{\"query\":\"bulletinFamily:exploit AND (\\\"CVE-2099-0001\\\")\",\"size\":100,\"skip\":0,\"fields\":[\"id\",\"title\",\"description\",\"type\",\"bulletinFamily\",\"cvss\",\"published\",\"modified\",\"lastseen\",\"href\",\"sourceHref\",\"sourceData\",\"cvelist\",\"vulnStatus\",\"assigned\"]}"
+    },
+    "headers": {
+      "accept": "*/*",
+      "accept-encoding": "gzip, deflate",
+      "connection": "keep-alive",
+      "content-length": "248",
+      "content-type": "application/json",
+      "host": "vulners.com",
+      "user-agent": "Vulners Python API {VERSION}",
+      "x-api-key": "SYNTHETIC-TEST-KEY-0000000000"
+    },
+    "method": "POST",
+    "path": "/api/v3/search/lucene/",
+    "query": ""
+  },
+  "stix.make_bundle_by_id": {
+    "body": {
+      "text": ""
+    },
+    "headers": {
+      "accept": "*/*",
+      "accept-encoding": "gzip, deflate",
+      "connection": "keep-alive",
+      "host": "vulners.com",
+      "user-agent": "Vulners Python API {VERSION}",
+      "x-api-key": "SYNTHETIC-TEST-KEY-0000000000"
+    },
+    "method": "GET",
+    "path": "/api/v4/stix/bundle",
+    "query": "id=CVE-2099-0001&opencti_id="
+  },
+  "subscription.add": {
+    "body": {
+      "text": "{\"query\":\"type:exploit\",\"email\":\"user@example.com\",\"format\":\"html\",\"query_type\":\"lucene\",\"apiKey\":\"SYNTHETIC-TEST-KEY-0000000000\"}"
+    },
+    "headers": {
+      "accept": "*/*",
+      "accept-encoding": "gzip, deflate",
+      "connection": "keep-alive",
+      "content-length": "130",
+      "content-type": "application/json",
+      "host": "vulners.com",
+      "user-agent": "Vulners Python API {VERSION}",
+      "x-api-key": "SYNTHETIC-TEST-KEY-0000000000"
+    },
+    "method": "POST",
+    "path": "/api/v3/subscriptions/addEmailSubscription/",
+    "query": ""
+  },
+  "subscription.delete": {
+    "body": {
+      "text": "{\"subscriptionid\":\"SYNTHETIC-SUB-1\",\"apiKey\":\"SYNTHETIC-TEST-KEY-0000000000\"}"
+    },
+    "headers": {
+      "accept": "*/*",
+      "accept-encoding": "gzip, deflate",
+      "connection": "keep-alive",
+      "content-length": "77",
+      "content-type": "application/json",
+      "host": "vulners.com",
+      "user-agent": "Vulners Python API {VERSION}",
+      "x-api-key": "SYNTHETIC-TEST-KEY-0000000000"
+    },
+    "method": "POST",
+    "path": "/api/v3/subscriptions/removeEmailSubscription/",
+    "query": ""
+  },
+  "subscription.edit": {
+    "body": {
+      "text": "{\"subscriptionid\":\"SYNTHETIC-SUB-1\",\"active\":\"no\",\"apiKey\":\"SYNTHETIC-TEST-KEY-0000000000\"}"
+    },
+    "headers": {
+      "accept": "*/*",
+      "accept-encoding": "gzip, deflate",
+      "connection": "keep-alive",
+      "content-length": "91",
+      "content-type": "application/json",
+      "host": "vulners.com",
+      "user-agent": "Vulners Python API {VERSION}",
+      "x-api-key": "SYNTHETIC-TEST-KEY-0000000000"
+    },
+    "method": "POST",
+    "path": "/api/v3/subscriptions/editEmailSubscription/",
+    "query": ""
+  },
+  "subscription.list": {
+    "body": {
+      "text": ""
+    },
+    "headers": {
+      "accept": "*/*",
+      "accept-encoding": "gzip, deflate",
+      "connection": "keep-alive",
+      "host": "vulners.com",
+      "user-agent": "Vulners Python API {VERSION}",
+      "x-api-key": "SYNTHETIC-TEST-KEY-0000000000"
+    },
+    "method": "GET",
+    "path": "/api/v3/subscriptions/listEmailSubscriptions/",
+    "query": ""
+  },
+  "subscription_v4.create": {
+    "body": {
+      "text": "{\"name\":\"synthetic\",\"query\":{\"query\":\"type:exploit\"},\"delivery\":{\"type\":\"webhook\"},\"licenseId\":null,\"bulletin_fields\":[\"title\",\"short_description\",\"type\",\"href\",\"published\",\"modified\",\"ai_score\"],\"is_active\":true,\"timestamp_source\":\"modified\",\"send_empty_result\":false}"
+    },
+    "headers": {
+      "accept": "*/*",
+      "accept-encoding": "gzip, deflate",
+      "connection": "keep-alive",
+      "content-length": "269",
+      "content-type": "application/json",
+      "host": "vulners.com",
+      "user-agent": "Vulners Python API {VERSION}",
+      "x-api-key": "SYNTHETIC-TEST-KEY-0000000000"
+    },
+    "method": "POST",
+    "path": "/api/v4/subscriptions/create/",
+    "query": ""
+  },
+  "subscription_v4.delete": {
+    "body": {
+      "text": ""
+    },
+    "headers": {
+      "accept": "*/*",
+      "accept-encoding": "gzip, deflate",
+      "connection": "keep-alive",
+      "host": "vulners.com",
+      "user-agent": "Vulners Python API {VERSION}",
+      "x-api-key": "SYNTHETIC-TEST-KEY-0000000000"
+    },
+    "method": "DELETE",
+    "path": "/api/v4/subscriptions/delete/",
+    "query": "id=SYNTHETIC-SUB-1"
+  },
+  "subscription_v4.get": {
+    "body": {
+      "text": ""
+    },
+    "headers": {
+      "accept": "*/*",
+      "accept-encoding": "gzip, deflate",
+      "connection": "keep-alive",
+      "host": "vulners.com",
+      "user-agent": "Vulners Python API {VERSION}",
+      "x-api-key": "SYNTHETIC-TEST-KEY-0000000000"
+    },
+    "method": "GET",
+    "path": "/api/v4/subscriptions/get/",
+    "query": "subscription_id=SYNTHETIC-SUB-1"
+  },
+  "subscription_v4.get_list": {
+    "body": {
+      "text": ""
+    },
+    "headers": {
+      "accept": "*/*",
+      "accept-encoding": "gzip, deflate",
+      "connection": "keep-alive",
+      "host": "vulners.com",
+      "user-agent": "Vulners Python API {VERSION}",
+      "x-api-key": "SYNTHETIC-TEST-KEY-0000000000"
+    },
+    "method": "GET",
+    "path": "/api/v4/subscriptions/list/",
+    "query": ""
+  },
+  "subscription_v4.update": {
+    "body": {
+      "text": "{\"id\":\"SYNTHETIC-SUB-1\",\"name\":\"synthetic\",\"query\":{\"query\":\"type:exploit\"},\"delivery\":{\"type\":\"webhook\"},\"licenseId\":null,\"bulletin_fields\":[\"title\",\"short_description\",\"type\",\"href\",\"published\",\"modified\",\"ai_score\"],\"is_active\":true,\"timestamp_source\":\"modified\",\"send_empty_result\":false}"
+    },
+    "headers": {
+      "accept": "*/*",
+      "accept-encoding": "gzip, deflate",
+      "connection": "keep-alive",
+      "content-length": "292",
+      "content-type": "application/json",
+      "host": "vulners.com",
+      "user-agent": "Vulners Python API {VERSION}",
+      "x-api-key": "SYNTHETIC-TEST-KEY-0000000000"
+    },
+    "method": "PUT",
+    "path": "/api/v4/subscriptions/update/",
+    "query": ""
+  },
+  "webhook.add": {
+    "body": {
+      "text": "{\"query\":\"type:exploit\",\"apiKey\":\"SYNTHETIC-TEST-KEY-0000000000\"}"
+    },
+    "headers": {
+      "accept": "*/*",
+      "accept-encoding": "gzip, deflate",
+      "connection": "keep-alive",
+      "content-length": "65",
+      "content-type": "application/json",
+      "host": "vulners.com",
+      "user-agent": "Vulners Python API {VERSION}",
+      "x-api-key": "SYNTHETIC-TEST-KEY-0000000000"
+    },
+    "method": "POST",
+    "path": "/api/v3/subscriptions/addWebhookSubscription/",
+    "query": ""
+  },
+  "webhook.delete": {
+    "body": {
+      "text": "{\"subscriptionid\":\"SYNTHETIC-WH-1\",\"apiKey\":\"SYNTHETIC-TEST-KEY-0000000000\"}"
+    },
+    "headers": {
+      "accept": "*/*",
+      "accept-encoding": "gzip, deflate",
+      "connection": "keep-alive",
+      "content-length": "76",
+      "content-type": "application/json",
+      "host": "vulners.com",
+      "user-agent": "Vulners Python API {VERSION}",
+      "x-api-key": "SYNTHETIC-TEST-KEY-0000000000"
+    },
+    "method": "POST",
+    "path": "/api/v3/subscriptions/removeWebhookSubscription/",
+    "query": ""
+  },
+  "webhook.enable": {
+    "body": {
+      "text": "{\"subscriptionid\":\"SYNTHETIC-WH-1\",\"active\":\"true\",\"apiKey\":\"SYNTHETIC-TEST-KEY-0000000000\"}"
+    },
+    "headers": {
+      "accept": "*/*",
+      "accept-encoding": "gzip, deflate",
+      "connection": "keep-alive",
+      "content-length": "92",
+      "content-type": "application/json",
+      "host": "vulners.com",
+      "user-agent": "Vulners Python API {VERSION}",
+      "x-api-key": "SYNTHETIC-TEST-KEY-0000000000"
+    },
+    "method": "POST",
+    "path": "/api/v3/subscriptions/editWebhookSubscription/",
+    "query": ""
+  },
+  "webhook.list": {
+    "body": {
+      "text": ""
+    },
+    "headers": {
+      "accept": "*/*",
+      "accept-encoding": "gzip, deflate",
+      "connection": "keep-alive",
+      "host": "vulners.com",
+      "user-agent": "Vulners Python API {VERSION}",
+      "x-api-key": "SYNTHETIC-TEST-KEY-0000000000"
+    },
+    "method": "GET",
+    "path": "/api/v3/subscriptions/listWebhookSubscriptions/",
+    "query": ""
+  },
+  "webhook.read": {
+    "body": {
+      "text": ""
+    },
+    "headers": {
+      "accept": "*/*",
+      "accept-encoding": "gzip, deflate",
+      "connection": "keep-alive",
+      "host": "vulners.com",
+      "user-agent": "Vulners Python API {VERSION}",
+      "x-api-key": "SYNTHETIC-TEST-KEY-0000000000"
+    },
+    "method": "GET",
+    "path": "/api/v3/subscriptions/webhook",
+    "query": "subscriptionid=SYNTHETIC-WH-1&newest_only=true&apiKey=SYNTHETIC-TEST-KEY-0000000000"
+  }
+}

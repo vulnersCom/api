@@ -23,40 +23,37 @@ factory-built ones) and to the docs.
 
 ### Refresh workflow (when Vulners adds collections/fields)
 
-Needs an API key — `VULNERS_API_KEY` env, or `[live] api_key = "…"` in the
-untracked `tests/live.local.toml`.
+**One command.** Needs an API key — `VULNERS_API_KEY` env, or `[live] api_key = "…"`
+in the untracked `tests/live.local.toml`.
 
 ```bash
-# 1. sample every collection (20 docs each) -> regenerable schema JSONs
-python dev-tools/data-models/sample_collections.py --limit 20
-
-# 2. author a description for any NEW field the sampler reports as undescribed,
-#    in src/vulners/_models/_field_descriptions.py
-
-# 3. (re)generate the per-collection field data and the reference docs
-python dev-tools/data-models/sample_collections.py --emit-models   # -> _collections_data.py
-python dev-tools/data-models/sample_collections.py --emit-docs      # -> documentation/reference/
-
-# 4. verify offline (no key): every collection/family/field is modelled & described
-python dev-tools/data-models/sample_collections.py --verify
+python dev-tools/data-models/sample_collections.py
 ```
 
-New `bulletinFamily` values need a hand-written family model in
-`src/vulners/_models/bulletin.py` (families are dynamic; the sampler only
-generates the per-`type` layer). `--verify` fails loudly until you add it.
+It samples every collection, then updates the repo locally (never commits/pushes):
+
+- if every collection field already has a description in `_field_descriptions.py`,
+  it regenerates `_collections_data.py` and the reference docs — done;
+- if some fields have none, it **lists them** and asks whether to stop (so you can
+  author them) or proceed anyway (undescribed fields get a `TODO` placeholder you
+  fill in later — grep `TODO`).
+
+New `bulletinFamily` values are handled automatically — they fall back to
+`GenericBulletin`; the tool just prints a note so you can add a richer family model
+in `src/vulners/_models/bulletin.py` later. Offline coherence (every field
+described, every collection modelled) is enforced by the test suite in CI.
 
 ### Layout
 
 `sample_collections.py` is a thin CLI over one module per phase, so each is edited
 in isolation: `_sample.py` (live sampling), `_emit_models.py` (the
-`_collections_data.py` codegen), `_emit_docs.py` (the reference docs), `_verify.py`
-(offline coherence), with shared paths in `_paths.py`.
+`_collections_data.py` codegen), `_emit_docs.py` (the reference docs),
+`_descriptions.py` (missing-description handling), with shared paths in `_paths.py`.
 
 ### What is committed vs regenerable
 
 Committed: `sample_collections.py` and its sibling modules. The baseline of what
-Vulners serves is
-the generated `src/vulners/_models/_collections_data.py` itself, so `--verify`
-(and the test suite) run offline in CI without a key. Every sampled JSON
-(`type_schemas.json`, …) is regenerable and git-ignored (see
+Vulners serves is the generated `src/vulners/_models/_collections_data.py` itself,
+so the test suite re-checks coherence offline in CI without a key. Every sampled
+JSON (`type_schemas.json`, …) is regenerable and git-ignored (see
 `data-models/.gitignore`).

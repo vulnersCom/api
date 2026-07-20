@@ -4,8 +4,7 @@ Maps a collection ``type`` to ``{"family": <bulletinFamily>, "fields": {<wire>:
 <type token>}}`` — the fields it adds beyond its family model. Consumed by the
 lazy model factory in :mod:`.collections`. Regenerate from live data with::
 
-    python dev-tools/data-models/sample_collections.py            # sample
-    python dev-tools/data-models/sample_collections.py --emit-models
+    python dev-tools/data-models/sample_collections.py
 """
 
 # fmt: off

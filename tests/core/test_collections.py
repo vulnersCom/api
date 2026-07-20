@@ -81,9 +81,11 @@ class TestFieldNaming:
 
 
 class TestDataModelCoherence:
-    def test_every_collection_family_is_mapped(self):
-        families = {s["family"] for s in COLLECTIONS.values()}
-        assert families <= set(b._FAMILY_MODELS)
+    def test_unmapped_family_falls_back_to_generic(self):
+        # Families are dynamic: a collection whose family has no dedicated model
+        # still builds (base = GenericBulletin), so a new family is never a blocker.
+        model = b.bulletin_class_for({"type": "x", "bulletinFamily": "brand-new-family"})
+        assert model is b.GenericBulletin
 
     def test_every_collection_field_is_described(self):
         fields = {w for s in COLLECTIONS.values() for w in s["fields"]}

@@ -10,7 +10,6 @@ field descriptions always match what your IDE shows):
 
 from __future__ import annotations
 
-import json
 import re
 import shutil
 import sys
@@ -18,7 +17,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
-from _paths import COLLECTION_OUT, DOC_DIR, TYPE_OUT
+from _paths import DOC_DIR
 
 
 def _md_escape(text: str) -> str:
@@ -123,8 +122,8 @@ def _emit_data_models_narrative(bmod: Any) -> None:
         "still there on the object, just untyped — nothing is ever dropped.",
         "",
         "> These tables are generated from the models themselves "
-        "(`dev-tools/data-models/sample_collections.py --emit-docs`); the field "
-        "descriptions are the same ones your IDE shows on hover.",
+        "(`dev-tools/data-models/sample_collections.py`); the field descriptions are "
+        "the same ones your IDE shows on hover.",
         "",
         "## `Bulletin` — base fields",
         "",
@@ -235,17 +234,12 @@ def _emit_collections_reference(
     (coll_dir / "index.md").write_text("\n".join(lines) + "\n")
 
 
-def emit_docs() -> int:
-    """Generate the committed data-model reference (no API key; reads the sampled
-    JSONs plus the code models for the authored field descriptions)."""
-    if not (TYPE_OUT.exists() and COLLECTION_OUT.exists()):
-        print("run the sampler first (produces type_schemas.json etc.)", file=sys.stderr)
-        return 2
+def emit_docs(type_schemas: dict, collection_map: dict) -> int:
+    """Generate the committed data-model reference from the sampled schemas plus the
+    code models (for the authored field descriptions)."""
     from vulners._models import bulletin as bmod
     from vulners._models._field_descriptions import FIELD_DESCRIPTIONS
 
-    type_schemas = json.loads(TYPE_OUT.read_text())
-    collection_map = json.loads(COLLECTION_OUT.read_text())
     fam_names = _family_model_names()
     DOC_DIR.mkdir(parents=True, exist_ok=True)
 

@@ -8,7 +8,7 @@ Every document Vulners returns is a **bulletin**. The SDK models them in three l
 
 `search`/`archive`/`audit` return the most specific model that matches a document's `type`, then its `bulletinFamily`, then `Bulletin`. Every model keeps `extra="allow"`: a field Vulners adds before the SDK models it is still there on the object, just untyped — nothing is ever dropped.
 
-> These tables are generated from the models themselves (`dev-tools/data-models/sample_collections.py --emit-docs`); the field descriptions are the same ones your IDE shows on hover.
+> These tables are generated from the models themselves (`dev-tools/data-models/sample_collections.py`); the field descriptions are the same ones your IDE shows on hover.
 
 ## `Bulletin` — base fields
 

@@ -2,8 +2,8 @@
 
 Samples EVERY collection from ``/api/v4/search/collections`` (one at a time,
 discarding the raw docs after extracting their shape) and derives the per-``type``
-and per-``bulletinFamily`` field schema. Never writes or prints the API key — it is
-read from an untracked file / env and redacted out of every saved example.
+field schema. Never writes or prints the API key — it is read from an untracked
+file / env and redacted out of every saved example.
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ from collections import defaultdict
 from typing import Any
 
 import tomllib
-from _paths import COLLECTION_OUT, REPO, REPORT_OUT, SCHEMA_OUT, TYPE_OUT
+from _paths import COLLECTION_OUT, REPO, TYPE_OUT
 
 
 def _load_key() -> tuple[str, str]:
@@ -54,13 +54,12 @@ def _new_field() -> dict[str, Any]:
     return {"count": 0, "types": set(), "example": None}
 
 
-def sample(limit_per: int) -> tuple[dict, dict, dict]:
-    """Return (type_schemas, family_schemas, collection_map).
+def sample(limit_per: int) -> tuple[dict, dict]:
+    """Return (type_schemas, collection_map).
 
-    Fields are aggregated per collection ``type`` (the primary analysis, since the
-    field set differs per collection), and the per-``bulletinFamily`` schema is the
-    union across the types that share a family. One collection at a time; raw docs
-    are dropped after their shape is extracted.
+    Fields are aggregated per collection ``type`` (the field set differs per
+    collection). One collection at a time; raw docs are dropped after their shape
+    is extracted.
     """
     from vulners import Vulners
 
@@ -70,7 +69,6 @@ def sample(limit_per: int) -> tuple[dict, dict, dict]:
 
     collections = client.get("/api/v4/search/collections")["result"]
     collection_map: dict[str, Any] = {}
-    # type -> field -> {count, types:set, example}
     type_fields: dict[str, dict[str, dict[str, Any]]] = defaultdict(
         lambda: defaultdict(_new_field)
     )
@@ -116,11 +114,11 @@ def sample(limit_per: int) -> tuple[dict, dict, dict]:
     finally:
         client.close()
 
-    def _finish_fields(fields: dict[str, dict[str, Any]], docn: int) -> dict[str, Any]:
+    def _finish(fields: dict[str, dict[str, Any]], docn: int) -> dict[str, Any]:
         # ``fields=["*"]`` returns a GLOBAL field template: fields that don't apply
         # to a collection still come back empty ({} / "" / [] / null). Such a field
-        # is noise (e.g. exploit-tool `appercut` on an `android` doc) — a field
-        # only belongs to a type if it carried a real value in at least one sample
+        # is noise (e.g. exploit-tool `appercut` on an `android` doc) — a field only
+        # belongs to a type if it carried a real value in at least one sample
         # (``example`` is set only for non-empty values), so drop the empty-only ones.
         return {
             name: {
@@ -137,89 +135,14 @@ def sample(limit_per: int) -> tuple[dict, dict, dict]:
             "bulletinFamily": collection_map[t].get("bulletinFamily"),
             "doc_count": type_docn[t],
             "description": collection_map[t].get("description"),
-            "fields": _finish_fields(type_fields[t], type_docn[t]),
+            "fields": _finish(type_fields[t], type_docn[t]),
         }
         for t in sorted(type_fields)
     }
-
-    # Derive per-family union across the types sharing that family.
-    fam_fields: dict[str, dict[str, dict[str, Any]]] = defaultdict(
-        lambda: defaultdict(_new_field)
-    )
-    fam_docn: dict[str, int] = defaultdict(int)
-    fam_types: dict[str, set[str]] = defaultdict(set)
-    for t, tinfo in type_schemas.items():
-        fam = tinfo["bulletinFamily"] or "?"
-        fam_docn[fam] += tinfo["doc_count"]
-        fam_types[fam].add(t)
-        finished = tinfo["fields"]  # already filtered of empty-only fields
-        for name, meta in type_fields[t].items():
-            if name not in finished:
-                continue
-            slot = fam_fields[fam][name]
-            slot["count"] += meta["count"]
-            slot["types"].update(meta["types"])
-            if slot["example"] is None:
-                slot["example"] = finished[name]["example"]
-    family_schemas = {
-        fam: {
-            "doc_count": fam_docn[fam],
-            "collections": sorted(fam_types[fam]),
-            "fields": _finish_fields(fam_fields[fam], fam_docn[fam]),
-        }
-        for fam in sorted(fam_fields)
-    }
-    return type_schemas, family_schemas, dict(sorted(collection_map.items()))
+    return type_schemas, dict(sorted(collection_map.items()))
 
 
-def write_sampled(type_schemas: dict, family_schemas: dict, collection_map: dict) -> None:
-    """Write the regenerable sampled JSONs and the human coverage report."""
-    from vulners._models import bulletin as bmod
-
+def write_records(type_schemas: dict, collection_map: dict) -> None:
+    """Persist the raw sample as git-ignored JSON records (for inspection)."""
     TYPE_OUT.write_text(json.dumps(type_schemas, indent=1) + "\n")
-    SCHEMA_OUT.write_text(json.dumps(family_schemas, indent=1) + "\n")
     COLLECTION_OUT.write_text(json.dumps(collection_map, indent=1) + "\n")
-
-    mapped = set(bmod._FAMILY_MODELS)
-    live = {f for f in family_schemas if f != "?"}
-    field_types: dict[str, set[str]] = defaultdict(set)
-    for t, tinfo in type_schemas.items():
-        for name in tinfo["fields"]:
-            field_types[name].add(t)
-    lines = [
-        "# Bulletin data-model coverage (generated by sample_collections.py)",
-        "",
-        f"- collections (type) sampled: {len(collection_map)}",
-        f"- distinct bulletinFamily values: {len(live)}",
-        f"- distinct field names across all types: {len(field_types)}",
-        f"- mapped in `_FAMILY_MODELS`: {sorted(mapped)}",
-        f"- **missing from `_FAMILY_MODELS`**: {sorted(live - mapped)}",
-        "",
-        "## Per bulletinFamily (union across its collections)",
-        "",
-        "| bulletinFamily | #docs | #fields | #collections | collections |",
-        "|---|---|---|---|---|",
-    ]
-    for fam, info in family_schemas.items():
-        cols = info["collections"]
-        lines.append(
-            f"| `{fam}` | {info['doc_count']} | {len(info['fields'])} | {len(cols)} | "
-            f"{', '.join(cols[:8])}{'…' if len(cols) > 8 else ''} |"
-        )
-    lines += [
-        "",
-        "## Field → which collection types carry it",
-        "",
-        "| field | #types | example types |",
-        "|---|---|---|",
-    ]
-    for name, types in sorted(field_types.items(), key=lambda kv: (-len(kv[1]), kv[0])):
-        ex = ", ".join(sorted(types)[:6])
-        lines.append(f"| `{name}` | {len(types)} | {ex}{'…' if len(types) > 6 else ''} |")
-    REPORT_OUT.write_text("\n".join(lines) + "\n")
-    print(
-        f"wrote {TYPE_OUT.name}, {SCHEMA_OUT.name}, {COLLECTION_OUT.name}, {REPORT_OUT.name}",
-        file=sys.stderr,
-    )
-    print(f"families: {sorted(live)}", file=sys.stderr)
-    print(f"MISSING from _FAMILY_MODELS: {sorted(live - mapped)}", file=sys.stderr)

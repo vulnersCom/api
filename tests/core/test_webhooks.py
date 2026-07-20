@@ -77,6 +77,49 @@ class TestWebhooksAsync:
         assert route.calls.last.request.url.params["apiKey"] == KEY
 
 
+class TestWebhooksOwnerKey:
+    """Passing ``api_key`` names a different subscription owner in the body/query,
+    while the client's own key stays in the ``X-Api-Key`` header — this is how a
+    privileged key manages another key's subscriptions."""
+
+    OWNER = "OWNER-KEY-XYZ"
+
+    @respx.mock
+    def test_add_owner_key_in_body_header_unchanged(self):
+        route = respx.post(f"{BASE}/addWebhookSubscription/").mock(return_value=_v3({"id": "w1"}))
+        with Vulners(KEY) as client:
+            client.webhooks.add("ssh", api_key=self.OWNER)
+        req = route.calls.last.request
+        assert orjson.loads(req.content) == {"query": "ssh", "apiKey": self.OWNER}
+        assert req.headers["X-Api-Key"] == KEY
+
+    @respx.mock
+    def test_enable_and_delete_owner_key(self):
+        edit = respx.post(f"{BASE}/editWebhookSubscription/").mock(return_value=_v3({}))
+        dele = respx.post(f"{BASE}/removeWebhookSubscription/").mock(return_value=_v3({}))
+        with Vulners(KEY) as client:
+            client.webhooks.enable("w1", True, api_key=self.OWNER)
+            client.webhooks.delete("w1", api_key=self.OWNER)
+        assert orjson.loads(edit.calls.last.request.content)["apiKey"] == self.OWNER
+        assert orjson.loads(dele.calls.last.request.content)["apiKey"] == self.OWNER
+
+    @respx.mock
+    def test_read_owner_key_in_query(self):
+        route = respx.get(f"{BASE}/webhook").mock(return_value=_v3({"payloads": []}))
+        with Vulners(KEY) as client:
+            client.webhooks.read("w1", api_key=self.OWNER)
+        req = route.calls.last.request
+        assert req.url.params["apiKey"] == self.OWNER
+        assert req.headers["X-Api-Key"] == KEY
+
+    @respx.mock
+    async def test_create_alias_threads_owner_key(self):
+        route = respx.post(f"{BASE}/addWebhookSubscription/").mock(return_value=_v3({"id": "w4"}))
+        async with AsyncVulners(KEY) as client:
+            await client.webhooks.create("nginx", api_key=self.OWNER)
+        assert orjson.loads(route.calls.last.request.content)["apiKey"] == self.OWNER
+
+
 class TestWebhooksAliases:
     @respx.mock
     def test_create_delegates_to_add(self):

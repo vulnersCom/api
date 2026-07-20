@@ -27,8 +27,8 @@ Needs an API key — `VULNERS_API_KEY` env, or `[live] api_key = "…"` in the
 untracked `tests/live.local.toml`.
 
 ```bash
-# 1. sample every collection (5 docs each) -> schemas + schema_snapshot.json
-python dev-tools/data-models/sample_collections.py
+# 1. sample every collection (20 docs each) -> regenerable schema JSONs
+python dev-tools/data-models/sample_collections.py --limit 20
 
 # 2. author a description for any NEW field the sampler reports as undescribed,
 #    in src/vulners/_models/_field_descriptions.py
@@ -47,7 +47,8 @@ generates the per-`type` layer). `--verify` fails loudly until you add it.
 
 ### What is committed vs regenerable
 
-Committed: `sample_collections.py`, and `schema_snapshot.json` — a compact
-`type -> {family, fields}` baseline so `--verify` runs offline in CI without a
-key. The large sampled JSONs (`type_schemas.json`, …) are regenerable and
-git-ignored (see `data-models/.gitignore`).
+Committed: `sample_collections.py` only. The baseline of what Vulners serves is
+the generated `src/vulners/_models/_collections_data.py` itself, so `--verify`
+(and the test suite) run offline in CI without a key. Every sampled JSON
+(`type_schemas.json`, …) is regenerable and git-ignored (see
+`data-models/.gitignore`).

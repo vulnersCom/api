@@ -1,0 +1,32 @@
+# `wolfi`  ·  ~12k documents
+
+Wolfi is a vulnerability collection from the Wolfi project, focusing on Linux OS packages, typically containing advisories and CVEs.
+
+**Family model:** [`UnixBulletin`](../../data-models.md) — `bulletinFamily: unix`. Fields beyond the model stay accessible via `extra="allow"`; *in samples* is how often the field appeared in the sampled documents.
+
+| field | type | in samples | description | example |
+|---|---|---|---|---|
+| `affectedPackage` | `list[object{OS,OSVersion,arch,operator,packageFilename,packageManager,packageName,packageVersion}]` | 100% | Affected OS/distribution packages (name, version, OS, arch). | `[{"OS": "wolfi", "OSVersion": "any", "arch": …` |
+| `bulletinFamily` | `str` | 100% | Broad family the document belongs to (cve, exploit, software, …). | `"unix"` |
+| `cvelist` | `list[?], list[str]` | 100% | Related CVE identifiers referenced by this document. | `["CVE-2026-56742"]` |
+| `cvss` | `object{score,severity,source,vector,version}` | 100% | Primary CVSS score block (version, base score, vector, severity, source). | `{"version": "3.1", "score": 8.9, "vector": "C…` |
+| `cvss2` | `object{score,severity,source,vector,version}` | 100% | CVSS v2 score block. | `{"version": null, "score": null, "vector": nu…` |
+| `cvss3` | `object{cvssV31,score,severity,source,vector,version}, object{score,severity,source,vector,version}` | 100% | CVSS v3.x score block. | `{"version": null, "score": null, "vector": nu…` |
+| `cvss4` | `object{score,severity,source,vector,version}` | 100% | CVSS v4.0 score block. | `{"version": null, "score": null, "vector": nu…` |
+| `description` | `str` | 100% | Full text or summary of the vulnerability/advisory. | `"Vulnerabilities for packages: hubble, kubesc…` |
+| `enchantments` | `object{dependencies,score,short_description,tags}` | 100% | Vulners-computed enrichment layer (AI score, tags, related docs). | `{"score": {"value": 5.1, "uncertanity": 2.2, …` |
+| `epss` | `list[?], list[object{cve,date,epss,percentile}]` | 100% | EPSS exploitation-probability forecast datapoints (score + percentile). | `[{"cve": "CVE-2026-56742", "date": "2026-07-1…` |
+| `href` | `str` | 100% | Canonical URL of the document at its original source. | `"https://packages.wolfi.dev/os/security.json"` |
+| `id` | `str` | 100% | Unique document identifier (e.g. a CVE id, exploit id or advisory id). | `"WOLFI:CVE-2026-56742"` |
+| `lastseen` | `str` | 100% | Last time Vulners observed/refreshed the document (ISO-8601). | `"2026-07-20T02:16:27"` |
+| `metrics` | `object{adp,cna,nvd}, object{adp,cna}, object{}` | 100% | Raw scoring metrics blob (CNA/ADP/NVD/vendor sub-objects). | `{"nvd": {"cvss31": {"source": "nvd", "version…` |
+| `modified` | `str` | 100% | Last modification timestamp at the source (ISO-8601). | `"2026-07-20T02:16:27"` |
+| `published` | `str` | 100% | Original publication timestamp (ISO-8601). | `"2026-07-18T20:24:31"` |
+| `reporter` | `str` | 100% | Person or organization credited with reporting/authoring it. | `"Wolfi"` |
+| `sourceAvailable` | `bool` | 100% | Whether the raw source data is available for this document. | `true` |
+| `timestamps` | `object{contentUpdated,created,enriched,metricsUpdated,reviewed,updated,webApplicabilityUpdated}` | 100% | Vulners lifecycle timestamps (created/updated/enriched/reviewed/…). | `{"created": "2026-07-18T20:24:31.654000Z", "u…` |
+| `title` | `str` | 100% | Human-readable title of the document. | `"CVE-2026-56742 vulnerabilities"` |
+| `type` | `str` | 100% | Source collection the document comes from (cve, exploitdb, ubuntu, …). | `"wolfi"` |
+| `vhref` | `str` | 100% | URL of the document on vulners.com. | `"https://vulners.com/wolfi/WOLFI:CVE-2026-56742"` |
+| `viewCount` | `int` | 100% | How many times the document has been viewed on Vulners. | `8` |
+

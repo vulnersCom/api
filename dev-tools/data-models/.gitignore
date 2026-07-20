@@ -1,7 +1,9 @@
 # Regenerable sampled data — recreate with sample_collections.py (needs an API key).
-# Only schema_snapshot.json (the compact offline --verify baseline) is committed.
+# The committed baseline of what Vulners serves is the generated
+# src/vulners/_models/_collections_data.py, so nothing here needs committing.
 type_schemas.json
 family_schemas.json
 collection_map.json
 collections_list.json
 coverage_report.md
+schema_snapshot.json

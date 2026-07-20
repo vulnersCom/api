@@ -4,7 +4,7 @@ Every document Vulners returns is a **bulletin**. The SDK models them in three l
 
 1. **`Bulletin`** — the base: the fields every document carries.
 2. **Family models** (`CveBulletin`, `ExploitBulletin`, …) — one per `bulletinFamily`, each adding that family's fields.
-3. **Collection models** — one per collection `type` (see [Collections reference](collections.md)), adding the fields specific to that collection.
+3. **Collection models** — one per collection `type` (see [Collections reference](collections/index.md)), adding the fields specific to that collection.
 
 `search`/`archive`/`audit` return the most specific model that matches a document's `type`, then its `bulletinFamily`, then `Bulletin`. Every model keeps `extra="allow"`: a field Vulners adds before the SDK models it is still there on the object, just untyped — nothing is ever dropped.
 

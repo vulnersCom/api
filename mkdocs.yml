@@ -9,6 +9,11 @@ copyright: Copyright &copy; Vulners
 # source lives under `documentation/`.
 docs_dir: documentation
 
+# The per-collection pages (one per `type`, generated) are reached from the
+# Collections reference index, not listed individually in the nav.
+not_in_nav: |
+  /reference/collections/types/*.md
+
 theme:
   name: material
   features:
@@ -90,7 +95,7 @@ plugins:
           - reference/resources.md
           - reference/models.md
           - reference/data-models.md
-          - reference/collections.md
+          - reference/collections/index.md
           - reference/exceptions.md
         Explanation:
           - explanation/network-and-rate-limits.md
@@ -112,7 +117,7 @@ nav:
       - Resources: reference/resources.md
       - Models & pagination: reference/models.md
       - Data models: reference/data-models.md
-      - Collections reference: reference/collections.md
+      - Collections reference: reference/collections/index.md
       - Exceptions: reference/exceptions.md
   - Explanation:
       - Network & rate limits: explanation/network-and-rate-limits.md

@@ -95,6 +95,11 @@ dev = [
 ]
 
 [tool.uv]
+# Reproducible resolution: pin the dev/CI dependency universe to a fixed date so
+# the committed uv.lock resolves identically everywhere (a bare `uv sync
+# --locked` in CI has no machine-global cutoff, so without this the lock would
+# be seen as stale). Dev/build tooling only — end users are unaffected.
+exclude-newer = "2026-04-21T00:00:00Z"
 # The [fast] and [mcp] extras carry mutually incompatible msgspec constraints
 # (msgspec>=0.19 for the bulk NDJSON fast-path vs. the pin fastmcp transitively
 # requires). They are never installed together, so declare them conflicting;

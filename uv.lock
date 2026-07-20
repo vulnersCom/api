@@ -2800,6 +2800,7 @@ lint = [
     { name = "basedpyright" },
     { name = "mypy" },
     { name = "ruff" },
+    { name = "stream-unzip" },
 ]
 test = [
     { name = "coverage" },
@@ -2848,6 +2849,7 @@ lint = [
     { name = "basedpyright", specifier = ">=1.21" },
     { name = "mypy", specifier = ">=1.15" },
     { name = "ruff", specifier = ">=0.11.8" },
+    { name = "stream-unzip", specifier = ">=0.0.100,<0.1" },
 ]
 test = [
     { name = "coverage", specifier = ">=7" },

@@ -87,10 +87,13 @@ test = [
     "stream-unzip>=0.0.100,<0.1",
 ]
 # Lint/typecheck only (no unasyncd -> no msgspec); the CI lint job installs this.
+# stream-unzip is a pure-Python optional runtime dep imported by _streaming; it
+# is present so both type checkers resolve the import.
 lint = [
     "ruff>=0.11.8",
     "mypy>=1.15",
     "basedpyright>=1.21",
+    "stream-unzip>=0.0.100,<0.1",
 ]
 dev = [
     { include-group = "test" },

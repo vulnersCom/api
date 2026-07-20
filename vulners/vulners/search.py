@@ -54,7 +54,19 @@ class SearchApi(VulnersApiProxy):
 
         Returns list of the documents.
         Use .total to get the total number of found documents.
+
+        The API caps the result window at 10000 documents (limit + offset). An
+        offset >= 10000 cannot be served by the backend, so it raises a
+        ValueError before any request is sent. To page beyond 10000 results, use
+        the archive API instead.
         """
+        if offset >= 10000:
+            # Elasticsearch max_result_window: no valid page at offset>=10000.
+            raise ValueError(
+                f"offset must be less than 10000 (got {offset}); the Vulners "
+                "search window is capped at 10000 documents. Use the archive "
+                "API to retrieve more."
+            )
         limit = min(limit, 10000 - offset)  # real limit is unknown
         search = self.__search(query, limit, offset, fields)
         return ResultSet.from_dataset([e["_source"] for e in search["search"]], search["total"])
@@ -112,6 +124,9 @@ class SearchApi(VulnersApiProxy):
 
         Returns list of the documents.
         Use .total to get the total number of found documents.
+
+        As with search_bulletins, an offset >= 10000 raises a ValueError (the
+        result window is capped at 10000 documents).
         """
         return self.search_bulletins(
             self.__get_exploit_query(query, lookup_fields),

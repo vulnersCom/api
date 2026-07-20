@@ -41,6 +41,12 @@ AuditFields = Literal[
     "enchantments",
     "webApplicability",
     "cvelistMetrics",
+    # Extra fields accepted by the server. The enum is
+    # only IDE guidance; the `| str` union on the parameters carries validation,
+    # so any other server-side field name passes through too.
+    "cvss",
+    "bulletinFamily",
+    "lastseen",
 ]
 
 
@@ -59,7 +65,7 @@ class AuditApi(VulnersApiProxy):
             ],
             "match": Annotated[Literal["partial", "full"], Field(default="partial")],
             "fields": Annotated[
-                Sequence[AuditFields],
+                Sequence[AuditFields | str],
                 Field(
                     default=Unset,
                     description="List of fields to retrieve about each vulnerability",
@@ -88,7 +94,7 @@ class AuditApi(VulnersApiProxy):
             "hardware": Annotated[AuditItem | str, Field(default=Unset)],
             "match": Annotated[Literal["partial", "full"], Field(default="partial")],
             "fields": Annotated[
-                Sequence[AuditFields],
+                Sequence[AuditFields | str],
                 Field(
                     default=Unset,
                     description="List of fields to retrieve about each vulnerability",

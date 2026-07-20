@@ -12,6 +12,10 @@ from .subscription import SubscriptionApi
 from .subscription_v4 import SubscriptionV4Api
 from .webhook import WebhookApi
 
+# VulnersApi is the sole public export; __all__ prevents `import *` leaking the
+# sub-API classes and satisfies mypy --strict reexport.
+__all__ = ["VulnersApi"]
+
 
 class VulnersApi(VulnersApiBase):
     @cached_property
@@ -315,7 +319,8 @@ class VulnersApi(VulnersApiBase):
         return self.archive.get_distributive(*args, **kwargs)
 
     @deprecated(
-        "VulnersApi.get_distributive() is deprecated and will be removed in future releases.\n"
+        "VulnersApi.getsploit() is deprecated and will be removed in future releases.\n"
+        "Use VulnersApi.archive.getsploit() instead."
     )
     def getsploit(self, *args: Any, **kwargs: Any) -> Any:
         return self.archive.getsploit(*args, **kwargs)

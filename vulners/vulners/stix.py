@@ -2,7 +2,7 @@ from typing import Annotated
 
 from pydantic import Field
 
-from ..base import Unset, VulnersApiProxy, endpoint
+from ..base import VulnersApiProxy, endpoint
 
 
 class StixApi(VulnersApiProxy):

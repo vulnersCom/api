@@ -1,4 +1,4 @@
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import Field
 
@@ -20,6 +20,12 @@ BulletinField = Literal[
     "enchantments",
     "webApplicability",
     "cvelistMetrics",
+    # Extra fields accepted by the server. The enum is
+    # only IDE guidance; the `| str` union on the parameters carries validation,
+    # so any other server-side field name passes through too.
+    "cvss",
+    "bulletinFamily",
+    "lastseen",
 ]
 
 DEFAULT_BULLETIN_FIELDS: list[BulletinField] = [
@@ -40,12 +46,27 @@ class SubscriptionV4Api(VulnersApiProxy):
         url="/api/v4/subscriptions/list/",
     )
 
-    get = endpoint(
+    __get = endpoint(
         "SubscriptionV4Api.get",
         method="GET",
         url="/api/v4/subscriptions/get/",
-        params={"id": str},
+        # The server requires the `subscription_id` query parameter here; `?id=`
+        # returns 400. PUT update / DELETE delete keep `id` (accepted there).
+        params={"subscription_id": str},
     )
+
+    def get(self, id: str | None = None, subscription_id: str | None = None) -> dict[str, Any]:
+        """Fetch a single subscription.
+
+        Accepts either ``id`` or ``subscription_id`` for convenience; both are
+        sent to the server as the ``subscription_id`` query parameter it
+        requires. ``get("...")``, ``get(id=...)`` and ``get(subscription_id=...)``
+        are equivalent.
+        """
+        value = subscription_id if subscription_id is not None else id
+        if value is None:
+            raise TypeError("get() requires either 'id' or 'subscription_id'")
+        return self.__get(subscription_id=value)
 
     create = endpoint(
         "SubscriptionV4Api.create",
@@ -57,7 +78,7 @@ class SubscriptionV4Api(VulnersApiProxy):
             "delivery": dict,
             "licenseId": Annotated[str | None, Field(default=None)],
             "bulletin_fields": Annotated[
-                list[BulletinField], Field(default=DEFAULT_BULLETIN_FIELDS)
+                list[BulletinField | str], Field(default=DEFAULT_BULLETIN_FIELDS)
             ],
             "is_active": Annotated[bool, Field(default=True)],
             "timestamp_source": Annotated[
@@ -81,6 +102,17 @@ class SubscriptionV4Api(VulnersApiProxy):
         "SubscriptionV4Api.update",
         method="PUT",
         url="/api/v4/subscriptions/update/",
+        description=(
+            "WARNING: this is a FULL-REPLACE update, not a partial patch. The "
+            "server requires the complete subscription body, so any optional "
+            "argument you omit (licenseId, bulletin_fields, is_active, "
+            "timestamp_source, send_empty_result) is sent with its SDK DEFAULT "
+            "and OVERWRITES the subscription's current value on the server. To "
+            "avoid silently resetting fields, read the current subscription with "
+            "get() and pass every field you want to keep explicitly. Partial "
+            "(merge) updates are only available in the v4 client API; the "
+            "server does not support partial PUT on this endpoint."
+        ),
         params={
             "id": str,
             "name": str,
@@ -88,7 +120,7 @@ class SubscriptionV4Api(VulnersApiProxy):
             "delivery": dict,
             "licenseId": Annotated[str | None, Field(default=None)],
             "bulletin_fields": Annotated[
-                list[BulletinField], Field(default=DEFAULT_BULLETIN_FIELDS)
+                list[BulletinField | str], Field(default=DEFAULT_BULLETIN_FIELDS)
             ],
             "is_active": Annotated[bool, Field(default=True)],
             "timestamp_source": Annotated[

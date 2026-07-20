@@ -1,9 +1,13 @@
 [tool.poetry]
 name = "vulners"
-version = "3.1.11"
-description = "Python library and command-line utility for Vulners (https://vulners.com)"
+version = "3.2.0"
+description = "Python library for the Vulners vulnerability database (https://vulners.com)"
+license = "GPL-3.0-only"
 readme = "README.md"
 authors = ["Vulners Team"]
+homepage = "https://vulners.com"
+repository = "https://github.com/vulnersCom/api"
+documentation = "https://docs.vulners.com/docs/api/"
 keywords = ["security", "network", "vulners", "vulnerability", "CVE"]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
@@ -12,27 +16,52 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Intended Audience :: Developers",
     "Intended Audience :: Information Technology",
-    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
-    "Topic :: Software Development :: Version Control",
     "Topic :: Utilities",
 ]
 packages = [
     { include = "vulners" },
 ]
+# PEP 561 marker so type checkers read the inline annotations. A single marker
+# in the package root covers the subpackages recursively; the explicit include
+# is a safety net alongside the package inclusion above.
+include = [
+    { path = "vulners/py.typed", format = ["sdist", "wheel"] },
+    { path = "CHANGELOG.md", format = ["sdist"] },
+]
+
+[tool.poetry.urls]
+Changelog = "https://github.com/vulnersCom/api/blob/master/CHANGELOG.md"
 
 [tool.poetry.dependencies]
 python = ">=3.10"
 httpx = "^0.28.1"
 orjson = "^3.10.18"
 pydantic = "^2.11.4"
+# Imported directly (vulners/base.py, vscanner.py, audit.py) but previously only
+# reached transitively through pydantic; declare them so a future pydantic that
+# stops depending on them (or a --no-deps install) can't break `import vulners`.
+# Floor-only (not caret) to stay compatible with future pydantic; >=4.12 aligns
+# with pydantic ^2.11.4, which forces typing-extensions >=4.12.2.
+typing-extensions = ">=4.12"
+typing-inspection = ">=0.4"
 
 [tool.poetry.group.dev.dependencies]
 mypy = { version = "^1.15.0", extras = ["faster-cache"] }
 ruff = "^0.11.8"
+pytest = "^8"
 
 [tool.ruff]
 line-length = 98
-target-version = "py313"
+# Match the package floor (python = ">=3.10"). Ruff does not derive the target
+# from requires-python under the legacy Poetry layout, so a py313 target let
+# pyupgrade-style rules rewrite code into 3.11-3.13-only idioms that would break
+# on 3.10 (e.g. UP040 rewriting TypeAlias to `type X = ...`).
+target-version = "py310"
+
+[tool.pytest.ini_options]
+markers = [
+    "live: hits the real Vulners API; needs VULNERS_API_KEY env or tests/live.local.toml",
+]
 
 [build-system]
 requires = ["poetry-core"]

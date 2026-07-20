@@ -15,3 +15,6 @@ mypy-one:
 cc:
 	make format
 	make isort
+
+test:
+	poetry run pytest tests -q

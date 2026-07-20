@@ -1,18 +1,17 @@
-# Vulners software vulnerabilities search example
+"""Assessment: find the vulnerabilities affecting your installed software.
+
+Docs: https://docs.vulners.com/docs/
+"""
 
 import os
 
 import vulners
 
-vulners_api = vulners.VulnersApi(api_key=os.environ["KEY"])
+# Direct: VulnersApi(api_key="YOUR_API_KEY_HERE"), or from the environment:
+api = vulners.VulnersApi(api_key=os.environ["VULNERS_API_KEY"])
 
-rules = vulners_api.misc.get_web_application_rules()
-print(rules)
-
-# Plain text software + version example for Apache Httpd 1.3
-sw_results = vulners_api.audit.software([{"product": "nginx", "version": "1.4"}])
-print(sw_results)
-
-
-sw_results = vulners_api.audit.software(["cpe:2.3:a:adobe:acrobat_reader:20"])
-print(sw_results)
+# Pass product/version dicts and/or raw CPE 2.3 strings.
+for item in api.audit.software(
+    [{"product": "openssl", "version": "1.0.1"}, "cpe:2.3:a:apache:log4j:2.14.1"]
+):
+    print(item["matched_criteria"], "->", len(item["vulnerabilities"]), "vulnerabilities")

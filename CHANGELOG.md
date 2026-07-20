@@ -26,6 +26,13 @@ backward compatibility with the v3 API.
 - A structured exception hierarchy (`VulnersError` → `APIError` → …) and
   `with_raw_response` / `with_streaming_response` accessors.
 - `audit.smart()` — the Smart Audit endpoint (`POST /api/v4/audit/smart`).
+- Subscription and webhook methods accept an optional `api_key` argument naming
+  the *owner* of the subscription (sent in the body as `apiKey`), defaulting to
+  the client's own key so existing calls stay byte-identical on the wire. A
+  privileged key sent in the `X-Api-Key` header can pass a different owner key to
+  manage that key's subscriptions — on the modern `webhooks` and
+  `subscriptions_email` resources and on the legacy `WebhookApi` /
+  `SubscriptionApi` compatibility layer.
 - **HTTP/2 on by default.** `h2` is now a core dependency, so the SDK-owned
   transport negotiates HTTP/2 out of the box, multiplexing concurrent API calls
   over one connection. A new `http2` constructor argument (`Vulners` /

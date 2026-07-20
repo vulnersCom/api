@@ -4,6 +4,11 @@ from pydantic import Field
 
 from ..base import Unset, VulnersApiProxy, endpoint
 
+# Optional owner key, sent in the body as `apiKey` (aliased). Defaults to the
+# client's own key via add_api_key; a privileged header key can pass a different
+# owner key to manage that key's subscriptions.
+_OwnerApiKey = Annotated[str, Field(default=Unset, alias="apiKey")]
+
 
 class SubscriptionApi(VulnersApiProxy):
     list = endpoint(
@@ -30,6 +35,7 @@ class SubscriptionApi(VulnersApiProxy):
             "format": Annotated[Literal["html", "json", "pdf"], Field(default="html")],
             "crontab": Annotated[str, Field(default=Unset)],
             "query_type": Annotated[str, Field(default="lucene")],
+            "api_key": _OwnerApiKey,
         },
         add_api_key=True,
         deprecated=(
@@ -46,6 +52,7 @@ class SubscriptionApi(VulnersApiProxy):
             "format": Annotated[Literal["html", "json", "pdf"], Field(default=Unset)],
             "crontab": Annotated[str, Field(default=Unset)],
             "active": Annotated[Literal["yes", "no", "true", "false"], Field(default=Unset)],
+            "api_key": _OwnerApiKey,
         },
         add_api_key=True,
         deprecated=(
@@ -59,6 +66,7 @@ class SubscriptionApi(VulnersApiProxy):
         url="/api/v3/subscriptions/removeEmailSubscription/",
         params={
             "subscriptionid": str,
+            "api_key": _OwnerApiKey,
         },
         add_api_key=True,
         deprecated=(

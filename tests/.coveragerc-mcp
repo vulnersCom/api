@@ -1,0 +1,12 @@
+# Coverage config for the isolated MCP gate (`make cov-mcp`).
+#
+# The main coverage run (pyproject `[tool.coverage.run]`) omits the MCP layer
+# (`*/vulners/_mcp/*`) because its `fastmcp` extra conflicts with the codegen
+# group and is not installed in the default test env. This dedicated config has
+# NO such omit, so the MCP gate actually measures the server it is responsible
+# for. Kept minimal and separate on purpose; `--cov=vulners._mcp` sets the scope.
+[run]
+branch = True
+
+[report]
+show_missing = True

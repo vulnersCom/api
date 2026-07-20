@@ -35,7 +35,13 @@ _DELETE = RequestSpec(
 
 
 class Subscriptions(_base.BaseResource):
-    """Manage v3 email subscriptions."""
+    """Manage v3 email subscriptions.
+
+    The ``api_key`` argument on the mutating methods names the *owner* of the
+    subscription (sent in the body as ``apiKey``) and defaults to the client's
+    own key. A privileged key sent in the ``X-Api-Key`` header can pass a
+    different owner key to manage that key's subscriptions.
+    """
 
     def list(
         self,
@@ -53,6 +59,7 @@ class Subscriptions(_base.BaseResource):
         format: Literal["html", "json", "pdf"] = "html",
         crontab: str | NotGiven = not_given,
         query_type: str = "lucene",
+        api_key: str | None = None,
         timeout: float | httpx.Timeout | NotGiven = not_given,
     ) -> Any:
         """Create an email subscription for a query.
@@ -63,6 +70,9 @@ class Subscriptions(_base.BaseResource):
             format: Report format, ``"html"``, ``"json"`` or ``"pdf"``.
             crontab: Optional crontab schedule.
             query_type: Query language, defaults to ``"lucene"``.
+            api_key: Owner key for the subscription. Defaults to the client's
+                own key; pass another key (with a privileged key on the client)
+                to create the subscription under that key.
         """
         body: dict[str, Any] = {
             "query": query,
@@ -71,7 +81,7 @@ class Subscriptions(_base.BaseResource):
             "query_type": query_type,
         }
         self._set(body, "crontab", crontab)
-        body["apiKey"] = self._api_key
+        body["apiKey"] = api_key or self._api_key
         return self._request(_ADD, body=body, timeout=timeout)
 
     def edit(
@@ -81,6 +91,7 @@ class Subscriptions(_base.BaseResource):
         format: Literal["html", "json", "pdf"] | NotGiven = not_given,
         crontab: str | NotGiven = not_given,
         active: Literal["yes", "no", "true", "false"] | NotGiven = not_given,
+        api_key: str | None = None,
         timeout: float | httpx.Timeout | NotGiven = not_given,
     ) -> Any:
         """Edit an existing email subscription.
@@ -90,22 +101,29 @@ class Subscriptions(_base.BaseResource):
             format: New report format, if changing.
             crontab: New crontab schedule, if changing.
             active: New active state, if changing.
+            api_key: Owner key for the subscription (see :meth:`add`).
         """
         body: dict[str, Any] = {"subscriptionid": subscription_id}
         self._set(body, "format", format)
         self._set(body, "crontab", crontab)
         self._set(body, "active", active)
-        body["apiKey"] = self._api_key
+        body["apiKey"] = api_key or self._api_key
         return self._request(_EDIT, body=body, timeout=timeout)
 
     def delete(
         self,
         subscription_id: str,
         *,
+        api_key: str | None = None,
         timeout: float | httpx.Timeout | NotGiven = not_given,
     ) -> Any:
-        """Delete an email subscription."""
-        body = {"subscriptionid": subscription_id, "apiKey": self._api_key}
+        """Delete an email subscription.
+
+        Args:
+            subscription_id: The subscription to delete.
+            api_key: Owner key for the subscription (see :meth:`add`).
+        """
+        body = {"subscriptionid": subscription_id, "apiKey": api_key or self._api_key}
         return self._request(_DELETE, body=body, timeout=timeout)
 
 

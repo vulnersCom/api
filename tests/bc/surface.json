@@ -770,17 +770,17 @@
         "add": {
           "deprecated": true,
           "kind": "method",
-          "signature": "(self, query: 'str', email: 'str', format: \"typing.Literal['html', 'json', 'pdf']\" = 'html', crontab: 'str' = Unset, query_type: 'str' = 'lucene') -> 'dict[str, typing.Any]'"
+          "signature": "(self, query: 'str', email: 'str', format: \"typing.Literal['html', 'json', 'pdf']\" = 'html', crontab: 'str' = Unset, query_type: 'str' = 'lucene', api_key: 'str' = Unset) -> 'dict[str, typing.Any]'"
         },
         "delete": {
           "deprecated": true,
           "kind": "method",
-          "signature": "(self, subscriptionid: 'str') -> 'dict[str, typing.Any]'"
+          "signature": "(self, subscriptionid: 'str', api_key: 'str' = Unset) -> 'dict[str, typing.Any]'"
         },
         "edit": {
           "deprecated": true,
           "kind": "method",
-          "signature": "(self, subscriptionid: 'str', format: \"typing.Literal['html', 'json', 'pdf']\" = Unset, crontab: 'str' = Unset, active: \"typing.Literal['yes', 'no', 'true', 'false']\" = Unset) -> 'dict[str, typing.Any]'"
+          "signature": "(self, subscriptionid: 'str', format: \"typing.Literal['html', 'json', 'pdf']\" = Unset, crontab: 'str' = Unset, active: \"typing.Literal['yes', 'no', 'true', 'false']\" = Unset, api_key: 'str' = Unset) -> 'dict[str, typing.Any]'"
         },
         "list": {
           "deprecated": true,
@@ -829,17 +829,17 @@
         "add": {
           "deprecated": false,
           "kind": "method",
-          "signature": "(self, query: 'str') -> 'dict[str, typing.Any]'"
+          "signature": "(self, query: 'str', api_key: 'str' = Unset) -> 'dict[str, typing.Any]'"
         },
         "delete": {
           "deprecated": false,
           "kind": "method",
-          "signature": "(self, subscriptionid: 'str') -> 'dict[str, typing.Any]'"
+          "signature": "(self, subscriptionid: 'str', api_key: 'str' = Unset) -> 'dict[str, typing.Any]'"
         },
         "enable": {
           "deprecated": false,
           "kind": "method",
-          "signature": "(self, id: str, active: bool) -> dict[str, typing.Any]"
+          "signature": "(self, id: str, active: bool, api_key: str | None = None) -> dict[str, typing.Any]"
         },
         "list": {
           "deprecated": false,
@@ -849,7 +849,7 @@
         "read": {
           "deprecated": false,
           "kind": "method",
-          "signature": "(self, id: str, newest_only: bool = True) -> dict[str, typing.Any]"
+          "signature": "(self, id: str, newest_only: bool = True, api_key: str | None = None) -> dict[str, typing.Any]"
         }
       }
     }

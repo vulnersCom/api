@@ -276,6 +276,10 @@ omit = [
     "*/vulners/base.py",
     "*/vulners/vscanner.py",
     "*/vulners/vulners/*",
+    # MCP agentic layer: lives behind the optional `mcp` extra (fastmcp), which
+    # the default test env does not install, so it is gated at 100% by the
+    # separate `make cov-mcp` job instead of this run.
+    "*/vulners/_mcp/*",
 ]
 
 [tool.coverage.report]

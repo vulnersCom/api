@@ -14,6 +14,57 @@ import pytest
 
 from vulners.vulners.subscription_v4 import SubscriptionV4Api
 
+OWNER = "SYNTHETIC-OWNER-KEY-9999"
+
+
+class TestLegacyOwnerKey:
+    """The legacy v3 polling/webhook and email subscription methods accept an
+    optional ``api_key`` naming the *owner* of the subscription (body ``apiKey``);
+    it defaults to the client's own key, so a privileged header key can manage a
+    different key's subscriptions."""
+
+    def test_webhook_add_owner_key_overrides_body_not_header(self, api, server):
+        server.enqueue_envelope({"id": "SYNTHETIC00-WH-0002"})
+        api.webhook.add("ssh", api_key=OWNER)
+        req = server.last
+        assert orjson.loads(req.content) == {"query": "ssh", "apiKey": OWNER}
+        assert req.headers["x-api-key"] == api._api_key
+
+    def test_webhook_enable_read_delete_owner_key(self, api, server):
+        server.enqueue_envelope({})
+        api.webhook.enable("SYNTHETIC00-WH-0003", True, api_key=OWNER)
+        assert orjson.loads(server.last.content)["apiKey"] == OWNER
+
+        server.enqueue_envelope({"webhook": {}})
+        api.webhook.read("SYNTHETIC00-WH-0003", api_key=OWNER)
+        assert dict(server.last.url.params)["apiKey"] == OWNER
+
+        server.enqueue_envelope({})
+        api.webhook.delete("SYNTHETIC00-WH-0003", api_key=OWNER)
+        assert orjson.loads(server.last.content)["apiKey"] == OWNER
+
+    def test_webhook_add_defaults_to_own_key(self, api, server):
+        # Omitting api_key keeps the wire byte-identical (own key via add_api_key).
+        server.enqueue_envelope({"id": "SYNTHETIC00-WH-0004"})
+        api.webhook.add("ssh")
+        assert orjson.loads(server.last.content) == {"query": "ssh", "apiKey": api._api_key}
+
+    def test_email_add_edit_delete_owner_key(self, api, server):
+        server.enqueue_envelope({"id": "SYNTHETIC00-EM-0001"})
+        with pytest.warns(DeprecationWarning):
+            api.subscription.add(query="ssh", email="a@synthetic.test", api_key=OWNER)
+        assert orjson.loads(server.last.content)["apiKey"] == OWNER
+
+        server.enqueue_envelope({})
+        with pytest.warns(DeprecationWarning):
+            api.subscription.edit("SYNTHETIC00-EM-0001", active="false", api_key=OWNER)
+        assert orjson.loads(server.last.content)["apiKey"] == OWNER
+
+        server.enqueue_envelope({})
+        with pytest.warns(DeprecationWarning):
+            api.subscription.delete("SYNTHETIC00-EM-0001", api_key=OWNER)
+        assert orjson.loads(server.last.content)["apiKey"] == OWNER
+
 
 class TestKeyNotInQuery:
     """Header-only GET endpoints no longer duplicate the API key

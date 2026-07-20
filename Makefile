@@ -40,8 +40,8 @@ cov:
 # (fastmcp) and cannot share the default env, so it is measured on its own.
 cov-mcp:
 	uv run --no-default-groups --extra mcp --with pytest --with pytest-asyncio --with pytest-cov \
-		pytest tests/test_mcp.py --cov=vulners._mcp --cov-branch \
-		--cov-report=term-missing --cov-fail-under=100
+		pytest tests/test_mcp.py --cov=vulners._mcp --cov-config=tests/.coveragerc-mcp \
+		--cov-branch --cov-report=term-missing --cov-fail-under=100
 
 # Same scope as `cov` ([tool.coverage.run] omits the legacy v3 layer), but
 # informational only — not gated. Kept as the no-fail variant of the report.

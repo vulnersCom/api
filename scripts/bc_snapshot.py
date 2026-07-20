@@ -1,11 +1,20 @@
 """Snapshot the public surface of the installed ``vulners`` package to JSON.
 
 Foundation of the v3 backward-compatibility oracle (``tests/bc``): the v4
-deprecated shims must preserve this surface exactly. Run it against an isolated
-baseline venv (real ``vulners==3.2.0``) to produce ``tests/bc/surface.json``,
-and against the working tree to diff. Deterministic: everything is sorted, and
-the version string is recorded separately so a version bump is the only expected
-delta between the baseline and the v4 tree.
+deprecated shims must preserve this surface. The baseline tracks the v3 (3.2.x)
+compatibility lineage — originally recorded from real ``vulners==3.2.0`` and
+maintained forward as that line evolves. Run it against the working tree to diff.
+Deterministic: everything is sorted, and the version string is recorded
+separately.
+
+Expected deltas between the baseline and the v4 tree are backward-compatible
+supersets only: the version string, plus intentional additive extensions that
+also ship in the 3.2.x line. One such extension is already baked into
+``surface.json``: the optional ``api_key`` (owner-key) argument on
+``WebhookApi.add/enable/delete/read`` and ``SubscriptionApi.add/edit/delete``.
+When regenerating, regenerate against the current 3.2.x source (the ``v3.2``
+branch), NOT the frozen ``vulners==3.2.0`` point release, or these intentional
+additions will be lost.
 
 Usage:
     python -m scripts.bc_snapshot            # print snapshot JSON to stdout
@@ -98,8 +107,18 @@ def snapshot() -> dict[str, Any]:
             continue
         module_names.append(info.name)
 
+    # Public entrypoints gated behind an optional extra: they raise ImportError
+    # unless the extra is installed. They are not part of the frozen v3 surface,
+    # so skip them when the extra is absent rather than crashing the snapshot; a
+    # non-optional module that fails to import is still a real error and re-raises.
+    optional_modules = {"vulners.mcp"}
     for mod_name in sorted(module_names):
-        mod = importlib.import_module(mod_name)
+        try:
+            mod = importlib.import_module(mod_name)
+        except ImportError:
+            if mod_name in optional_modules:
+                continue
+            raise
         public = sorted(n for n in dir(mod) if _is_public(n))
         modules[mod_name] = {
             "all": sorted(mod.__all__) if hasattr(mod, "__all__") else None,

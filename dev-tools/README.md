@@ -45,9 +45,17 @@ New `bulletinFamily` values need a hand-written family model in
 `src/vulners/_models/bulletin.py` (families are dynamic; the sampler only
 generates the per-`type` layer). `--verify` fails loudly until you add it.
 
+### Layout
+
+`sample_collections.py` is a thin CLI over one module per phase, so each is edited
+in isolation: `_sample.py` (live sampling), `_emit_models.py` (the
+`_collections_data.py` codegen), `_emit_docs.py` (the reference docs), `_verify.py`
+(offline coherence), with shared paths in `_paths.py`.
+
 ### What is committed vs regenerable
 
-Committed: `sample_collections.py` only. The baseline of what Vulners serves is
+Committed: `sample_collections.py` and its sibling modules. The baseline of what
+Vulners serves is
 the generated `src/vulners/_models/_collections_data.py` itself, so `--verify`
 (and the test suite) run offline in CI without a key. Every sampled JSON
 (`type_schemas.json`, …) is regenerable and git-ignored (see

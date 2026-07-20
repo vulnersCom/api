@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import gzip
+import io
+import zipfile
 from datetime import datetime, timezone
 
 import httpx
@@ -19,6 +21,16 @@ def _gzip_json(payload: object) -> httpx.Response:
     body = gzip.compress(orjson.dumps(payload))
     return httpx.Response(
         200, content=body, headers={"content-type": "application/x-gzip-compressed"}
+    )
+
+
+def _zip_json(payload: object, name: str = "distributive.json") -> httpx.Response:
+    """A single-member zip carrying ``payload`` as JSON — the distributive wire."""
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr(name, orjson.dumps(payload))
+    return httpx.Response(
+        200, content=buf.getvalue(), headers={"content-type": "application/zip"}
     )
 
 
@@ -57,10 +69,9 @@ class TestArchiveWire:
 
     @respx.mock
     def test_get_distributive_extracts_source(self):
+        # Real wire: application/zip whose member is a bare JSON list of _source objects.
         respx.get(f"{BASE}/api/v3/archive/distributive/").mock(
-            return_value=httpx.Response(
-                200, content=orjson.dumps({"result": "OK", "data": [{"_source": {"id": "A"}}]})
-            )
+            return_value=_zip_json([{"_source": {"id": "A"}}, {"no_source": 1}])
         )
         with Vulners(KEY) as client:
             out = client.archive.get_distributive("ubuntu", "22.04")

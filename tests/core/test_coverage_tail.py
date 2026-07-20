@@ -11,8 +11,9 @@ from __future__ import annotations
 
 import gzip
 import io
+import logging
 import zipfile
-from typing import Annotated
+from typing import Annotated, Any
 
 import httpx
 import orjson
@@ -20,16 +21,18 @@ import pytest
 import respx
 
 import vulners._transport as tp
+from vulners._base_client import BaseClient, RequestSpec
 from vulners._client import AsyncVulners, Vulners
-from vulners._config import DEFAULT_TIMEOUT
-from vulners._exceptions import _extract_message
-from vulners._models._base import VulnersModel, construct_type
+from vulners._config import DEFAULT_TIMEOUT, resolve_config
+from vulners._exceptions import ErrorInfo, _extract_message
+from vulners._logging import _SecretRedactingFilter
+from vulners._models._base import VulnersModel, _is_passthrough, construct_type
 from vulners._models.bulletin import CveBulletin, construct_bulletin
 from vulners._resources._async.archive import _decode_archive as async_decode_archive
 from vulners._resources._async.archive import _distributive as async_distributive
 from vulners._resources._sync.archive import _decode_archive as sync_decode_archive
 from vulners._resources._sync.archive import _distributive as sync_distributive
-from vulners._retry import _retry_after_seconds
+from vulners._retry import _retry_after_seconds, _should_retry
 from vulners._streaming import GzipNdjsonDecoder, PlainNdjsonDecoder, iter_zip_ndjson
 
 KEY = "SYNTHETIC-TEST-KEY"
@@ -247,6 +250,73 @@ class TestStreamingEmptyLines:
             z.writestr("c.ndjson", b'{"a":1}\n\n{"b":2}\n  ')
         assert list(iter_zip_ndjson(buf.getvalue())) == [{"a": 1}, {"b": 2}]
 
+    def test_gzip_feed_empty_chunk(self):
+        # An empty chunk exits the feed loop immediately (natural while exit).
+        d = GzipNdjsonDecoder()
+        assert list(d.feed(b"")) == []
+
+    def test_gzip_multi_member_stream(self):
+        # Two concatenated gzip members are decoded in full (not truncated at #1).
+        d = GzipNdjsonDecoder()
+        body = gzip.compress(b'{"a":1}\n') + gzip.compress(b'{"b":2}\n')
+        out = list(d.feed(body)) + list(d.flush())
+        assert out == [{"a": 1}, {"b": 2}]
+
+    def test_gzip_trailing_padding_after_member_ignored(self):
+        # Non-gzip trailing bytes after a complete member are ignored (not a member).
+        d = GzipNdjsonDecoder()
+        body = gzip.compress(b'{"a":1}\n') + b"\x00\x00padding"
+        out = list(d.feed(body)) + list(d.flush())
+        assert out == [{"a": 1}]
+
+    def test_gzip_member_spanning_chunks(self):
+        # A member fed in two halves: the first leaves the decoder mid-member with
+        # an empty unconsumed_tail (uncapped) -> the else/return path.
+        raw = gzip.compress(b'{"a":1}\n{"b":2}\n')
+        d = GzipNdjsonDecoder()
+        out = list(d.feed(raw[: len(raw) // 2]))
+        out += list(d.feed(raw[len(raw) // 2 :]))
+        out += list(d.flush())
+        assert out == [{"a": 1}, {"b": 2}]
+
+
+class TestTransportModernization:
+    def test_http2_default_on_and_opt_out(self):
+        with Vulners(KEY) as c:
+            assert c.config.http2 is True
+        with Vulners(KEY, http2=False) as c:
+            assert c.config.http2 is False
+
+    def test_accept_encoding_advertises_modern_codecs(self):
+        c = BaseClient(resolve_config(api_key=KEY))
+        req = c._build_request(RequestSpec("GET", "/x"))
+        assert req.headers["accept-encoding"] == "gzip, deflate, br, zstd"
+
+    def test_accept_encoding_identity_when_capped(self):
+        # In capped (untrusted-host) mode we advertise no transport compression, so
+        # the byte cap applies to raw wire bytes (no Content-Encoding bomb vector).
+        c = BaseClient(resolve_config(api_key=KEY, max_response_bytes=1000))
+        req = c._build_request(RequestSpec("GET", "/x"))
+        assert req.headers["accept-encoding"] == "identity"
+
+
+class TestInflateCappedBranches:
+    def _client(self):
+        return BaseClient(resolve_config(api_key=KEY, max_response_bytes=10_000_000))
+
+    def test_inflate_capped_multi_member(self):
+        body = gzip.compress(b"AAA") + gzip.compress(b"BBB")
+        assert self._client()._decode_binary("application/gzip", body, 200) == b"AAABBB"
+
+    def test_inflate_capped_trailing_padding_ignored(self):
+        body = gzip.compress(b"AAA") + b"\x00\x00pad"
+        assert self._client()._decode_binary("application/gzip", body, 200) == b"AAA"
+
+    def test_inflate_capped_truncated_returns_partial(self):
+        full = gzip.compress(b"X" * 300_000)  # inflated size > _CAP_CHUNK
+        out = self._client()._decode_binary("application/gzip", full[: len(full) // 2], 200)
+        assert isinstance(out, bytes) and 0 < len(out) < 300_000
+
 
 # ---------------------------------------------------------------------------
 # archive pure casters (defensive non-bytes / non-list branches)
@@ -265,6 +335,15 @@ class TestArchiveCasters:
     @pytest.mark.parametrize("dist", [async_distributive, sync_distributive])
     def test_distributive_non_list(self, dist):
         assert dist({"not": "a list"}) == []
+
+    @pytest.mark.parametrize("dist", [async_distributive, sync_distributive])
+    def test_distributive_parses_zip_member_bytes(self, dist):
+        # The zip member is decoded to bytes (a JSON list); parse then extract _source.
+        assert dist(orjson.dumps([{"_source": {"id": "A"}}, {"no_source": 1}])) == [{"id": "A"}]
+
+    @pytest.mark.parametrize("dist", [async_distributive, sync_distributive])
+    def test_distributive_non_json_bytes_is_empty(self, dist):
+        assert dist(b"not-json-bytes") == []
 
 
 # ---------------------------------------------------------------------------
@@ -295,6 +374,47 @@ class TestModelExceptionTails:
 
     def test_retry_after_seconds_empty_headers(self):
         assert _retry_after_seconds(httpx.Headers({})) is None
+
+    def test_should_retry_status_none_falls_to_error_code(self):
+        # No status -> skip the status block, fall through to the error-code check
+        # (RETRYABLE_ERROR_CODES is empty, so not retryable).
+        assert _should_retry(ErrorInfo(status_code=None)) is False
+
+    def test_is_passthrough_any_none_optional_and_model(self):
+        assert _is_passthrough(Any) is True
+        assert _is_passthrough(None) is True
+        assert _is_passthrough(str | None) is True  # optional scalar -> passthrough
+        assert _is_passthrough(_M) is False  # a model must still be constructed
+
+    def test_log_filter_redacts_non_str_url_arg(self):
+        # httpx logs the request URL as an httpx.URL arg carrying ?apiKey=.
+        f = _SecretRedactingFilter("SECRET123")
+        rec = logging.LogRecord(
+            "httpx",
+            logging.INFO,
+            __file__,
+            0,
+            "HTTP Request: %s",
+            (httpx.URL("https://vulners.com/api?apiKey=SECRET123"),),
+            None,
+        )
+        assert f.filter(rec) is True
+        rendered = rec.msg % rec.args
+        assert "SECRET123" not in rendered
+        assert "[REDACTED]" in rendered
+
+    def test_log_filter_preserves_non_secret_args(self):
+        f = _SecretRedactingFilter("SECRET123")
+        rec = logging.LogRecord(
+            "vulners", logging.INFO, __file__, 0, "n=%d h=%s", (5, "ok"), None
+        )
+        assert f.filter(rec) is True
+        assert rec.args == (5, "ok")  # non-secret args left untouched
+
+    def test_log_filter_empty_secret_is_noop(self):
+        assert _SecretRedactingFilter("").filter(
+            logging.LogRecord("vulners", logging.INFO, __file__, 0, "x", None, None)
+        )
 
 
 # ---------------------------------------------------------------------------

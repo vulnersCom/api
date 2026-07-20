@@ -44,13 +44,22 @@ dependencies = [
     # base.py (legacy shim layer) imports typing_inspection directly; keep it
     # explicit so a pydantic that drops the transitive dep can't break imports.
     "typing-inspection>=0.4",
+    # HTTP/2 transport, on by default. Pure-Python, so no wheel/build concern.
+    "h2>=4,<5",
+    # Streaming multi-member zip archive decode (used by _streaming). Pure-Python.
+    "stream-unzip>=0.0.100,<0.1",
+    # Response compression: httpx advertises br/zstd and decompresses them
+    # transparently only when these decoders are importable, so they are core
+    # (an extra would be opt-in and never help the default `pip install vulners`).
+    # Both ship cp310–cp314 wheels, so `pip install vulners` never builds from source.
+    "brotli>=1.1",
+    "zstandard>=0.22",
+    # ISA-L accelerated gzip inflate on the multi-GB archive hot path (drop-in
+    # zlib/gzip replacement). Ships cp310–cp314 wheels.
+    "isal>=1.7",
 ]
 
 [project.optional-dependencies]
-# Streaming multi-member zip archive decode (lazily imported by _streaming).
-stream-zip = ["stream-unzip>=0.0.100,<0.1"]
-# HTTP/2 transport.
-http2 = ["h2>=4,<5"]
 # Agentic layer: ships a Model Context Protocol server (vulners-mcp).
 mcp = ["fastmcp>=2.0"]
 # Opt-in OpenTelemetry tracing.
@@ -71,10 +80,7 @@ vulners-mcp = "vulners._mcp.server:main"
 # Dev toolchain (PEP 735 dependency groups; installed by `uv sync`).
 # Conservative floors that resolve today; tightened to exact pins at lock time.
 [dependency-groups]
-# Minimal group to RUN the tests. Deliberately excludes the code-gen tool
-# (unasyncd -> msgspec 0.18.6, which fails to build on 3.13/3.14). The CI test
-# matrix installs only this group, so those interpreters never build msgspec;
-# tests import the already-committed sync mirror and don't need unasyncd.
+# Minimal group to RUN the tests. The CI test matrix installs only this group.
 test = [
     "pytest>=8.3",
     "pytest-asyncio>=0.24",
@@ -83,27 +89,35 @@ test = [
     "pytest-cov>=5",
     "coverage>=7",
     "pytest-codspeed>=2.2.1",
-    # Runtime optional extra, installed for tests exercising the zip stream path.
-    "stream-unzip>=0.0.100,<0.1",
+    # tomllib is stdlib on 3.11+; the packaging/metadata tests use this backport
+    # on the 3.10 floor so they no longer skip there.
+    "tomli>=2; python_version < '3.11'",
 ]
-# Lint/typecheck only (no unasyncd -> no msgspec); the CI lint job installs this.
-# stream-unzip is a pure-Python optional runtime dep imported by _streaming; it
-# is present so both type checkers resolve the import.
+# Lint/typecheck only; the CI lint job installs this.
 lint = [
     "ruff>=0.11.8",
     "mypy>=1.15",
     "basedpyright>=1.21",
-    "stream-unzip>=0.0.100,<0.1",
 ]
-dev = [
-    { include-group = "test" },
-    { include-group = "lint" },
-    "unasyncd>=0.8.1",
-    # Documentation site: Material theme + mkdocstrings API reference +
-    # llms.txt emitter. `mike` versioning is deferred (single-version site for now).
+# Documentation site: Material theme + mkdocstrings API reference + llms.txt
+# emitter. Its own group so a `mkdocs build --strict` CI job installs just this.
+docs = [
     "mkdocs-material>=9.7.6",
     "mkdocstrings[python]>=1.0.4",
     "mkdocs-llmstxt>=0.5.0",
+]
+# Code generation (unasyncd -> msgspec 0.18.6). Isolated from the default `dev`
+# sync so a plain `uv sync` never pulls msgspec, and never affects tests/lint/docs
+# or the runtime package. Run `make unasync` / `make unasync-check` on Python
+# <=3.12 (msgspec 0.18.6 has cp310-cp312 wheels only). Note: a newer unasyncd that
+# would allow msgspec 0.19+ (with 3.13/3.14 wheels) pins rich incompatibly with
+# the `mcp` extra (fastmcp), so the tool stays here. ruff is included because
+# unasyncd shells out to it (ruff_fix / ruff_format).
+codegen = ["unasyncd>=0.8.1", "ruff>=0.11.8"]
+dev = [
+    { include-group = "test" },
+    { include-group = "lint" },
+    { include-group = "docs" },
 ]
 
 [tool.uv]
@@ -128,6 +142,9 @@ ruff_format = true
 "src/vulners/_resources/_async" = "src/vulners/_resources/_sync"
 
 [tool.unasyncd.add_replacements]
+# asyncio.sleep -> time.sleep is a unasyncd built-in; the Lock has no built-in, so
+# map it (and its import) here so the sync RateLimitBucket uses a threading.Lock.
+"asyncio.Lock" = "threading.Lock"
 AsyncRateLimitBucket = "RateLimitBucket"
 AsyncBaseResource = "BaseResource"
 AsyncIterator = "Iterator"

@@ -277,6 +277,15 @@ class TestStreamRecordsBranches:
             assert list(client.archive.iter_collection("cve")) == [{"id": "Z1"}, {"id": "Z2"}]
 
     @respx.mock
+    def test_sync_cap_aborts_zip(self):
+        # Sync mirror of test_async_cap_aborts_zip: an over-limit zip collection
+        # aborts the sync stream end-to-end.
+        respx.get(COLLECTION).mock(return_value=_zip_ndjson([{"id": "X"}] * 500))
+        with Vulners(KEY, max_response_bytes=50) as client:
+            with pytest.raises(APIResponseValidationError):
+                list(client.archive.iter_collection("cve"))
+
+    @respx.mock
     async def test_async_zip_with_cap(self):
         respx.get(COLLECTION).mock(return_value=_zip_ndjson([{"id": "Z1"}]))
         async with AsyncVulners(KEY, max_response_bytes=10_000_000) as client:

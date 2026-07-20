@@ -160,6 +160,18 @@ class TestStreamRedirect:
         # cross-origin hop drops the credential (transport SSRF/key-strip policy)
         assert "x-api-key" not in gcs_route.calls.last.request.headers
 
+    @respx.mock
+    async def test_async_follows_302_to_storage_and_strips_key(self):
+        # Async mirror: the 302-to-storage cross-origin key strip end-to-end.
+        records = [{"id": "CVE-1"}, {"id": "CVE-2"}]
+        gcs = "https://storage.googleapis.com/vulners/cve.ndjson.gz?sig=abc"
+        respx.get(COLLECTION).mock(return_value=httpx.Response(302, headers={"location": gcs}))
+        gcs_route = respx.get(gcs).mock(return_value=_gzip_ndjson(records))
+        async with AsyncVulners(KEY) as client:
+            out = [r async for r in client.archive.aiter_collection("cve")]
+        assert out == records
+        assert "x-api-key" not in gcs_route.calls.last.request.headers
+
 
 def _search_envelope(*ids: str) -> httpx.Response:
     data = {"search": [{"_source": {"id": i}} for i in ids], "total": len(ids)}

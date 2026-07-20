@@ -1,8 +1,10 @@
 # Resources
 
 Each namespace on the client (`v.search`, `v.audit`, …) is a resource. The classes below are
-the **synchronous** resources; the async client exposes an identical `Async*` mirror of each,
-with the same method names and signatures returning coroutines.
+the **synchronous** resources; the async client exposes an `Async*` mirror of each, with the
+same non-iterator methods as awaitable coroutines. The auto-paginating streaming iterators are
+renamed with an `a` prefix (`aiter_query`, `aiter_collection`) and are async generators consumed
+with `async for`, not coroutines.
 
 ## Search
 
@@ -70,6 +72,30 @@ with the same method names and signatures returning coroutines.
 ## VScanner
 
 ::: vulners._resources._sync.vscanner.Vscanner
+    options:
+      heading_level: 3
+      show_root_heading: true
+
+The `Vscanner` namespace delegates to nested resources for project, task, result and license
+operations (`v.vscanner.projects`, `v.vscanner.tasks`, `v.vscanner.results`,
+`v.vscanner.licenses`):
+
+::: vulners._resources._sync.vscanner.VscannerProjects
+    options:
+      heading_level: 3
+      show_root_heading: true
+
+::: vulners._resources._sync.vscanner.VscannerTasks
+    options:
+      heading_level: 3
+      show_root_heading: true
+
+::: vulners._resources._sync.vscanner.VscannerResults
+    options:
+      heading_level: 3
+      show_root_heading: true
+
+::: vulners._resources._sync.vscanner.VscannerLicenses
     options:
       heading_level: 3
       show_root_heading: true

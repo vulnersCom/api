@@ -17,14 +17,13 @@ import dataclasses
 import io
 import math
 import zipfile
-import zlib
 from collections.abc import Callable, Mapping
 from typing import Any, Literal
 
 import httpx
 import orjson
 
-from ._config import ClientConfig
+from ._config import ClientConfig, _coerce_timeout
 from ._exceptions import (
     APIResponseValidationError,
     _extract_error,
@@ -32,10 +31,11 @@ from ._exceptions import (
 )
 from ._ratelimit import RateLimitBucket
 from ._ratelimit_async import AsyncRateLimitBucket
+from ._streaming import _GZIP_MAGIC, _GZIP_MEDIA, _ZIP_MEDIA, _igzip, _new_gzip_decompressor
 from ._types import NotGiven, Omit, not_given
 
 BodyMode = Literal["json", "multipart", "text", "query", "none"]
-ResponseMode = Literal["json", "bytes", "stream", "ndjson"]
+ResponseMode = Literal["json", "bytes", "stream"]
 
 # Chunk size for the opt-in capped read/decompress loops.
 _CAP_CHUNK = 1 << 18
@@ -113,9 +113,20 @@ class BaseClient:
     # -- request building --------------------------------------------------
 
     def _default_headers(self) -> dict[str, str]:
+        # Advertise modern response compression (httpx auto-decompresses br/zstd
+        # because brotli/zstandard are core deps). In capped (untrusted-host) mode
+        # advertise identity instead: with no Content-Encoding there is no
+        # transport-level decompression-bomb vector, so the byte cap applies to
+        # raw wire bytes exactly rather than to httpx's unbounded per-chunk inflate.
+        accept_encoding = (
+            "identity"
+            if self._config.max_response_bytes is not None
+            else "gzip, deflate, br, zstd"
+        )
         return {
             "User-Agent": self._config.user_agent,
             "Accept": "application/json",
+            "Accept-Encoding": accept_encoding,
             "X-Api-Key": self._config.api_key.get_secret_value(),
         }
 
@@ -124,9 +135,7 @@ class BaseClient:
     ) -> httpx.Timeout:
         if isinstance(timeout, NotGiven):
             return self._config.timeout_for(spec.timeout_profile)
-        if timeout is None:
-            return httpx.Timeout(None)
-        return timeout if isinstance(timeout, httpx.Timeout) else httpx.Timeout(timeout)
+        return _coerce_timeout(timeout)
 
     def _build_request(
         self,
@@ -256,8 +265,6 @@ class BaseClient:
 
         if spec.response_mode == "bytes":
             return self._decode_binary(media, content, status)
-        if spec.response_mode == "ndjson":
-            return self._decode_ndjson(content)
 
         # response_mode == "json" but a non-JSON 2xx body: parse leniently.
         if not content:
@@ -279,11 +286,13 @@ class BaseClient:
         # opts into the bound by passing max_response_bytes= (upgrade path), which
         # switches to the streamed, per-chunk-capped inflate/read below.
         cap = self._config.max_response_bytes
-        if media in ("application/x-gzip-compressed", "application/gzip", "application/x-gzip"):
+        if media in _GZIP_MEDIA:
             if cap is None:
-                return zlib.decompress(content, wbits=31)
+                # igzip.decompress handles multi-member gzip natively (no first-member
+                # truncation) and is ISA-L accelerated.
+                return _igzip.decompress(content)
             return self._inflate_capped(content, status)
-        if media in ("application/x-zip-compressed", "application/zip"):
+        if media in _ZIP_MEDIA:
             with zipfile.ZipFile(io.BytesIO(content)) as archive:
                 names = archive.namelist()
                 if len(names) != 1:
@@ -296,35 +305,37 @@ class BaseClient:
                     return self._read_member_capped(member, status)
         return content
 
-    @staticmethod
-    def _decode_ndjson(content: bytes) -> list[Any]:
-        out: list[Any] = []
-        for line in content.split(b"\n"):
-            line = line.strip()
-            if line:
-                out.append(orjson.loads(line))
-        return out
-
     def _inflate_capped(self, data: bytes, status: int) -> bytes:
         cap = self._config.max_response_bytes
         assert cap is not None
-        decompressor = zlib.decompressobj(wbits=31)
         out = bytearray()
-        for i in range(0, len(data), _CAP_CHUNK):
-            out += decompressor.decompress(data[i : i + _CAP_CHUNK], _CAP_CHUNK)
-            while decompressor.unconsumed_tail:
-                out += decompressor.decompress(decompressor.unconsumed_tail, _CAP_CHUNK)
+
+        def _extend(piece: bytes) -> None:
+            # Guard after every decompress step so a single slice cannot inflate to
+            # hundreds of MB before the cap fires (bomb overshoot bounded to _CAP_CHUNK).
+            out.extend(piece)
             if len(out) > cap:
                 raise APIResponseValidationError(
                     "decompressed response exceeds max_response_bytes", status_code=status
                 )
-        out += decompressor.flush()
-        # Defensive double-check: the per-chunk guard above already caps output and
-        # unconsumed_tail is fully drained, so flush() adds no bytes that could cross.
-        if len(out) > cap:  # pragma: no cover
-            raise APIResponseValidationError(
-                "decompressed response exceeds max_response_bytes", status_code=status
-            )
+
+        decompressor = _new_gzip_decompressor()
+        remaining = data
+        while remaining:
+            _extend(decompressor.decompress(remaining, _CAP_CHUNK))
+            if decompressor.eof:
+                # Multi-member gzip: carry trailing bytes into a fresh member; stop
+                # at trailing padding (not a real member) after the last one.
+                rest = decompressor.unused_data
+                if rest[:2] != _GZIP_MAGIC:
+                    break
+                decompressor = _new_gzip_decompressor()
+                remaining = rest
+            else:
+                # Either more output is pending for this member (unconsumed_tail) or
+                # the input ran out mid-member (truncated) -> the while exits.
+                remaining = decompressor.unconsumed_tail
+        _extend(decompressor.flush())
         return bytes(out)
 
     def _read_member_capped(self, member: Any, status: int) -> bytes:

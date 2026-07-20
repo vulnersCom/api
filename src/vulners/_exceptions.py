@@ -304,6 +304,9 @@ def _extract_error(
     if not is_http_error and not _has_error_markers(parsed_body):
         return None
     error_code, message = _extract_message(parsed_body)
+    # Mask the key through the same primitive as ``data`` so a server that echoes
+    # it into the error text can never leak it via str(exc) while data is redacted.
+    message = _redact_secret(message, secret)
     retry_after = None
     if headers is not None:
         retry_after = _parse_retry_after(headers.get("Retry-After"))

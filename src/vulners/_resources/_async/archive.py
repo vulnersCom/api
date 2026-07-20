@@ -52,7 +52,7 @@ _GET_DISTRIBUTIVE = RequestSpec(
     "GET",
     "/api/v3/archive/distributive/",
     body_mode="query",
-    unwrap=("data",),
+    response_mode="bytes",
     timeout_profile="archive",
 )
 _GETSPLOIT = RequestSpec(
@@ -81,6 +81,13 @@ def _decode_archive(value: Any) -> Any:
 
 
 def _distributive(value: Any) -> list[Any]:
+    # The endpoint returns application/zip whose single member is a bare JSON list
+    # of {"_source": ...} objects; the core decodes the zip to those member bytes.
+    if isinstance(value, (bytes, bytearray)):
+        try:
+            value = orjson.loads(value)
+        except orjson.JSONDecodeError:
+            return []
     if not isinstance(value, list):
         return []
     return [item["_source"] for item in value if isinstance(item, dict) and "_source" in item]

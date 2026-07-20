@@ -54,7 +54,7 @@ from vulners import Vulners
 http_client = httpx.Client(
     proxy="http://proxy.corp.example:8080",
     verify="/etc/ssl/corp-ca.pem",
-    http2=True,                          # needs the vulners[http2] extra
+    http2=True,                          # h2 is a core dependency (no extra needed)
 )
 
 with httpx.Client() as _:                # illustrative

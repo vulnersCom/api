@@ -53,6 +53,11 @@ class ClientConfig:
     max_rate_limit_wait: float = DEFAULT_MAX_RATE_LIMIT_WAIT
     max_response_bytes: int | None = None
     follow_redirects: bool = True
+    # HTTP/2 for the SDK-owned transport. On by default (h2 is a core dependency):
+    # request multiplexing over one connection speeds up concurrent API calls.
+    # Pass http2=False for huge single-stream archive downloads, where HTTP/1.1
+    # avoids h2's fixed flow-control window overhead on one long body.
+    http2: bool = True
 
     def timeout_for(self, profile: TimeoutProfile) -> httpx.Timeout:
         return self.archive_timeout if profile == "archive" else self.timeout
@@ -67,6 +72,17 @@ class ClientConfig:
             f"ClientConfig(api_key={self.api_key!r}, base_url={self.base_url!r}, "
             f"max_retries={self.max_retries}, max_response_bytes={self.max_response_bytes})"
         )
+
+
+def _coerce_timeout(value: float | httpx.Timeout | None) -> httpx.Timeout:
+    """Normalize a scalar / ``None`` / ``httpx.Timeout`` into an ``httpx.Timeout``.
+
+    Single source of truth for timeout coercion, shared by construction, the
+    per-request override and ``with_options`` (``None`` means "no timeout").
+    """
+    if value is None:
+        return httpx.Timeout(None)
+    return value if isinstance(value, httpx.Timeout) else httpx.Timeout(value)
 
 
 def _coerce_key(api_key: str | SecretStr | None) -> SecretStr | None:
@@ -85,6 +101,7 @@ def resolve_config(
     timeout: float | httpx.Timeout | None = None,
     max_retries: int | None = None,
     max_response_bytes: int | None = None,
+    http2: bool = True,
 ) -> ClientConfig:
     """Resolve constructor arguments and environment into a :class:`ClientConfig`."""
     key = _coerce_key(api_key)
@@ -104,12 +121,11 @@ def resolve_config(
         base_url=httpx.URL(str(resolved_base)),
         user_agent=f"Vulners Python API {version}",
         max_response_bytes=max_response_bytes,
+        http2=http2,
     )
     changes: dict[str, object] = {}
     if timeout is not None:
-        changes["timeout"] = (
-            timeout if isinstance(timeout, httpx.Timeout) else httpx.Timeout(timeout)
-        )
+        changes["timeout"] = _coerce_timeout(timeout)
     if max_retries is not None:
         changes["max_retries"] = max_retries
     return config.replace(**changes) if changes else config
@@ -123,5 +139,6 @@ __all__ = [
     "DEFAULT_TIMEOUT",
     "ClientConfig",
     "TimeoutProfile",
+    "_coerce_timeout",
     "resolve_config",
 ]

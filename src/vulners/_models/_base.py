@@ -16,6 +16,7 @@ validation-free construct path while still returning the specific type.
 from __future__ import annotations
 
 import collections.abc
+from functools import cache
 from typing import Any, Union, get_args, get_origin
 
 from pydantic import BaseModel, ConfigDict
@@ -138,14 +139,53 @@ def construct_type(value: Any, type_: Any) -> Any:
     return value
 
 
+def _is_passthrough(type_: Any) -> bool:
+    """Whether ``construct_type`` can never transform a value of this annotation.
+
+    True for plain scalars, ``Any``/``None``, and unions whose every non-``None``
+    member is itself passthrough (crucially ``str | None`` / ``Optional[scalar]``,
+    where construct_type returns the value unchanged for both a scalar and
+    ``None``). False for model fields and list/tuple/dict fields (which build a
+    fresh container) and unions that contain a model or container — matching what
+    ``construct_type`` actually does, so skipping the call is byte-identical.
+    """
+    type_ = _strip_annotated(type_)
+    if type_ is Any or type_ is None:
+        return True
+    origin = get_origin(type_)
+    if origin is Union or (UnionType is not None and origin is UnionType):
+        return all(_is_passthrough(a) for a in get_args(type_) if a is not type(None))
+    if origin is not None:
+        return False  # list / tuple / dict / Sequence / Mapping -> fresh container
+    return not _is_model(type_)
+
+
+# Per-model construction plan: (attr_name, wire_key, passthrough, annotation) for
+# each field, so _construct_model does a dict lookup + one branch per field instead
+# of re-deriving the typing dispatch (get_origin/get_args/_strip_annotated) per row.
+_Plan = tuple[tuple[str, str, bool, Any], ...]
+
+
+# simplification: unbounded cache (functools.cache); a model's fields are fixed
+# per class (models never generate them dynamically), so this is bounded by the
+# finite model set. It memoizes the per-field passthrough classification too, so
+# _is_passthrough runs once per field, not per row. Revisit only if models become
+# dynamic.
+@cache
+def _model_plan(model_cls: type[BaseModel]) -> _Plan:
+    return tuple(
+        (name, field.alias or name, _is_passthrough(field.annotation), field.annotation)
+        for name, field in model_cls.model_fields.items()
+    )
+
+
 def _construct_model(model_cls: type[BaseModel], data: collections.abc.Mapping[Any, Any]) -> Any:
     """Build one model, resolving field aliases and recursing into field types."""
     values: dict[str, Any] = {}
     fields_set: set[str] = set()
     consumed: set[Any] = set()
 
-    for name, field in model_cls.model_fields.items():
-        wire_key = field.alias or name
+    for name, wire_key, passthrough, annotation in _model_plan(model_cls):
         if wire_key in data:
             key = wire_key
         elif name in data:
@@ -153,7 +193,8 @@ def _construct_model(model_cls: type[BaseModel], data: collections.abc.Mapping[A
         else:
             continue
         consumed.add(key)
-        values[name] = construct_type(data[key], field.annotation)
+        raw = data[key]
+        values[name] = raw if passthrough else construct_type(raw, annotation)
         fields_set.add(name)
 
     # Preserve unknown fields as raw extras (extra="allow"); they are trusted

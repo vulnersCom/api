@@ -26,6 +26,22 @@ backward compatibility with the v3 API.
 - A structured exception hierarchy (`VulnersError` → `APIError` → …) and
   `with_raw_response` / `with_streaming_response` accessors.
 - `audit.smart()` — the Smart Audit endpoint (`POST /api/v4/audit/smart`).
+- **HTTP/2 on by default.** `h2` is now a core dependency, so the SDK-owned
+  transport negotiates HTTP/2 out of the box, multiplexing concurrent API calls
+  over one connection. A new `http2` constructor argument (`Vulners` /
+  `AsyncVulners`, default `True`) lets you force HTTP/1.1 with `http2=False` —
+  preferable for a huge single-stream archive download, where HTTP/1.1 avoids
+  h2's flow-control window overhead. Ignored when a custom `http_client` is
+  supplied (set HTTP/2 on that client instead).
+- **Faster, more modern transport by default, no build step.** A plain
+  `pip install vulners` now bundles response compression (`brotli` + `zstandard`,
+  so the client advertises `Accept-Encoding: gzip, deflate, br, zstd` and httpx
+  decompresses transparently), ISA-L-accelerated gzip inflate (`isal`) on the
+  archive hot path, multi-member gzip decoding (no longer truncated at the first
+  member), and multi-member zip streaming (`stream-unzip`) — all as core
+  dependencies with prebuilt wheels for CPython 3.10–3.14. The former `http2`,
+  `stream-zip` extras are removed (their contents are now core); `mcp` and `otel`
+  remain the only extras.
 - License change to **MIT** for 4.0.0.
 
 ### Compatibility

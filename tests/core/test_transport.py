@@ -118,9 +118,31 @@ class TestSsrfNumericHosts:
         ip = _host_as_ip("0")
         assert ip is not None and ip.is_unspecified
 
-    @pytest.mark.parametrize("host", ["0x", "999999999999999999999999999999999999999999"])
-    def test_unparseable_numeric_host_is_not_ip(self, host):
-        # Parses as digits/hex but is not a valid address range -> not a literal.
+    @pytest.mark.parametrize(
+        "host,expected",
+        [
+            ("127.1", "127.0.0.1"),  # dotted short-form (a.d)
+            ("0x7f.0.0.1", "127.0.0.1"),  # per-octet hex
+            ("0177.0.0.1", "127.0.0.1"),  # per-octet octal
+            ("169.254.43518", "169.254.169.254"),  # 3-part form -> cloud metadata
+        ],
+    )
+    def test_shorthand_and_mixed_radix_forms_parse(self, host, expected):
+        # inet_aton accepts these exactly as the OS resolver would; the old int-only
+        # parser missed them, so the guard now classifies them.
+        ip = _host_as_ip(host)
+        assert ip is not None and str(ip) == expected
+
+    @pytest.mark.parametrize("host", ["127.1", "0x7f.0.0.1", "169.254.43518"])
+    def test_shorthand_redirect_is_refused(self, host):
+        # These pass httpx URL validation, so a hostile redirect could carry them
+        # and must be refused (169.254.43518 -> the 169.254.169.254 metadata IP).
+        with pytest.raises(APIConnectionError):
+            _guard_redirect_target(httpx.URL("http://placeholder/").copy_with(host=host))
+
+    @pytest.mark.parametrize("host", ["0x", "1.2.3.4.5", "256.1.1.1", "storage.example"])
+    def test_unparseable_host_is_not_ip(self, host):
+        # Not an IP literal in any radix the resolver honours -> delegated as a name.
         assert _host_as_ip(host) is None
 
 

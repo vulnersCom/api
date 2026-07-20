@@ -36,9 +36,9 @@ async def main() -> None:
 asyncio.run(main())
 ```
 
-!!! tip "Faster decoding"
-    Installing the `vulners[fast]` extra enables a `msgspec` NDJSON fast-path, and
-    `vulners[stream-zip]` enables streaming decode of multi-member zip archives.
+!!! tip "Fast decoding is built in"
+    Archive decode is ISA-L accelerated (`isal`) and multi-member zip streaming
+    (`stream-unzip`) works out of the box — both ship with the core package, no extra needed.
 
 ## Sync only what changed
 

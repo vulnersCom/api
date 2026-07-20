@@ -12,6 +12,7 @@ scripts, never hand-edit the golden files.
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -97,6 +98,16 @@ class TestSurface:
         # running the interpreter the baseline was recorded on. Names/kinds
         # (version-robust) are always checked, on every interpreter.
         check_sigs = current.get("python") == baseline.get("python")
+        # The designated CI job (BC_SIGCHECK_REQUIRED=1, the interpreter matching
+        # the baseline) must actually run the signature comparison — turns red the
+        # moment the baseline Python drifts out of the matrix, so signature-level
+        # BC checking can never silently no-op on every job.
+        if os.environ.get("BC_SIGCHECK_REQUIRED"):
+            assert check_sigs, (
+                f"designated BC signature job runs Python {current.get('python')} "
+                f"but the baseline was recorded on {baseline.get('python')}; "
+                "signature-level BC checking would silently no-op on every job"
+            )
         violations = _surface_violations(baseline, current, check_signatures=check_sigs)
         assert not violations, "v3 public surface broke BC:\n" + "\n".join(violations)
 
@@ -113,6 +124,23 @@ class TestSurface:
         assert baseline["version"] == "3.2.0"
 
 
+def _drop_volatile_headers(call: dict) -> dict:
+    """Strip environment-dependent headers before a byte-for-byte wire compare.
+
+    ``accept-encoding`` is set by httpx from the compression codecs importable in
+    the environment (it advertises ``br``/``zstd`` when brotli/zstandard are
+    installed). Those are v4 *core* dependencies, so the legacy layer now
+    advertises ``gzip, deflate, br, zstd`` where the 3.2.0 baseline — recorded
+    without them — shows ``gzip, deflate``. That delta is a dependency/environment
+    fact, not a request-construction BC change, so it is normalized out here
+    (same class of normalization as the User-Agent version and multipart boundary).
+    """
+    headers = call.get("headers")
+    if isinstance(headers, dict) and "accept-encoding" in headers:
+        call = {**call, "headers": {k: v for k, v in headers.items() if k != "accept-encoding"}}
+    return call
+
+
 @pytest.mark.filterwarnings("ignore::vulners.VulnersDeprecationWarning")
 class TestWire:
     WIRE = json.loads(WIRE_BASELINE.read_text("utf-8"))
@@ -124,4 +152,6 @@ class TestWire:
 
     @pytest.mark.parametrize("name,fn", CALLS, ids=[name for name, _ in CALLS])
     def test_wire_matches_baseline(self, name, fn):
-        assert record_call(fn) == self.WIRE[name], f"{name} wire drifted from the 3.2.0 baseline"
+        assert _drop_volatile_headers(record_call(fn)) == _drop_volatile_headers(
+            self.WIRE[name]
+        ), f"{name} wire drifted from the 3.2.0 baseline"

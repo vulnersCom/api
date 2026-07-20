@@ -14,6 +14,7 @@
 
 from __future__ import annotations
 
+import io
 from collections.abc import AsyncIterator, Callable, Iterator
 from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
@@ -87,7 +88,16 @@ class APIResponse(_BaseResponse, Generic[T]):
             yield self._content[start : start + chunk_size]
 
     def iter_lines(self) -> Iterator[str]:
-        yield from self.text.splitlines()
+        # Decode+split lazily so neither the full decoded str nor a full list of
+        # lines is materialized (bounded by line length); TextIOWrapper's
+        # universal-newline handling covers \n and \r\n.
+        reader = io.TextIOWrapper(
+            io.BytesIO(self._content),
+            encoding=self._response.encoding or "utf-8",
+            errors="replace",
+        )
+        for line in reader:
+            yield line.rstrip("\n")
 
     def __repr__(self) -> str:
         return f"<APIResponse [{self.status_code}]>"

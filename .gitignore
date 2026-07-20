@@ -81,6 +81,8 @@ celerybeat-schedule
 
 # dotenv
 .env
+.env.*
+!.env.example
 
 # virtualenv
 .venv
@@ -116,3 +118,20 @@ dmypy.json
 # PyCharm
 .idea/
 .unasyncd_cache/
+
+# macOS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Editors / temp
+*.swp
+*.swo
+*~

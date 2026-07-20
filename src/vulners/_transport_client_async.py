@@ -53,8 +53,9 @@ class AsyncAPIClient(BaseClient):
             # set-cookie drop and SSRF redirect guard run on a BYO client too.
             _mount_guard(http_client, AsyncVulnersTransport, config.base_url)
         else:
+            # h2 is a core dependency, so http2=True always works; no guard needed.
             transport = AsyncVulnersTransport(
-                httpx.AsyncHTTPTransport(retries=config.connect_retries),
+                httpx.AsyncHTTPTransport(retries=config.connect_retries, http2=config.http2),
                 origin=config.base_url,
             )
             self._client = httpx.AsyncClient(
@@ -119,7 +120,9 @@ class AsyncAPIClient(BaseClient):
                 parsed = self._process_response(spec, response, content)
             except APIStatusError as err:
                 info = ErrorInfo(status_code=err.status_code, error_code=err.error_code)
-                if attempt < retries and _should_retry(info, response.headers):
+                if attempt < retries and _should_retry(
+                    info, response.headers, idempotent=self._idempotent(spec)
+                ):
                     attempt += 1
                     logger.debug(
                         "retrying %s %s after status %s", spec.method, spec.path, err.status_code

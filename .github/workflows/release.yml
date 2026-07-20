@@ -8,7 +8,6 @@ on:
   push:
     tags: ["v[0-9]+.[0-9]+.[0-9]+*"]
 
-# TODO(security-review): pin astral-sh/setup-uv + pypa action to commit SHAs.
 permissions:
   contents: read
 
@@ -17,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
-      - uses: astral-sh/setup-uv@v5
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
         with:
           enable-cache: true
       - name: verify tag matches package version
@@ -46,6 +45,6 @@ jobs:
           name: dist
           path: dist/
       - name: publish to PyPI (Trusted Publishing + PEP 740 attestations)
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@ba38be9e461d3875417946c167d0b5f3d385a247 # v1.14.1
         with:
           attestations: true

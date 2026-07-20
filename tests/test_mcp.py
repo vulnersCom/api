@@ -165,3 +165,67 @@ async def test_smart_audit_passes_through(fake_client):
     result = await tool.fn(software=["nginx 1.18.0"])
     fake_client.audit.smart.assert_awaited_once_with(["nginx 1.18.0"])
     assert result["count"] == 1
+
+
+def test_compact_depth_cap_and_scalar_passthrough():
+    # A value nested beyond _MAX_DEPTH collapses to the ellipsis marker.
+    nested: object = 1
+    for _ in range(server._MAX_DEPTH + 2):
+        nested = [nested]
+    assert "…" in repr(server._compact(nested))
+    # Scalars (non-str/list/dict) pass through unchanged.
+    assert server._compact(42) == 42
+    assert server._compact(None) is None
+
+
+def test_cvss_includes_vector_and_handles_none():
+    class _C:
+        score = 9.8
+        severity = "CRITICAL"
+        vector = "AV:N/AC:L"
+        version = "3.1"
+
+    assert server._cvss(_C()) == {
+        "score": 9.8,
+        "severity": "CRITICAL",
+        "vector": "AV:N/AC:L",
+        "version": "3.1",
+    }
+    assert server._cvss(None) is None
+
+
+async def test_cve_lookup_missing_returns_none(fake_client):
+    fake_client.search.get_bulletin = AsyncMock(return_value=None)
+    tool = await server.mcp.get_tool("cve_lookup")
+    assert await tool.fn(cve="CVE-0000-0000") is None
+
+
+async def test_audit_linux_passes_through(fake_client):
+    fake_client.audit.linux_audit = AsyncMock(
+        return_value=[{"package": "openssl", "vulnerabilities": []}]
+    )
+    tool = await server.mcp.get_tool("audit_linux")
+    result = await tool.fn(os_name="ubuntu", os_version="22.04", packages=["openssl 1.1.1"])
+    fake_client.audit.linux_audit.assert_awaited_once_with(
+        os_name="ubuntu", os_version="22.04", packages=["openssl 1.1.1"]
+    )
+    assert result["result"] == [{"package": "openssl", "vulnerabilities": []}]
+
+
+def test_main_runs_server(monkeypatch):
+    # main() must invoke the server's run() without blocking on stdio.
+    ran = {}
+    monkeypatch.setattr(server.mcp, "run", lambda: ran.setdefault("ran", True))
+    server.main()
+    assert ran["ran"]
+
+
+def test_get_client_builds_async_client(monkeypatch):
+    # _get_client constructs (and memoizes) an AsyncVulners from the env key.
+    from vulners import AsyncVulners
+
+    monkeypatch.setenv("VULNERS_API_KEY", "SYNTHETIC-MCP-KEY")
+    monkeypatch.setattr(server, "_client", None)  # reset the process-wide cache
+    client = server._get_client()
+    assert isinstance(client, AsyncVulners)
+    assert server._get_client() is client  # memoized on the second call

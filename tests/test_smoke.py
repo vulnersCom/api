@@ -24,8 +24,13 @@ REPO_ROOT = Path(vulners.__file__).resolve().parents[2]
 PYPROJECT = REPO_ROOT / "pyproject.toml"
 
 
+try:
+    import tomllib  # stdlib on 3.11+
+except ModuleNotFoundError:  # Python 3.10: no stdlib TOML reader
+    import tomli as tomllib
+
+
 def _load_pyproject():
-    tomllib = pytest.importorskip("tomllib")  # stdlib on 3.11+
     return tomllib.loads(PYPROJECT.read_text(encoding="utf-8"))
 
 

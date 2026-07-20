@@ -7,10 +7,12 @@ declared support range.
 from __future__ import annotations
 
 import ast
-import sys
 from pathlib import Path
 
-import pytest
+try:
+    import tomllib  # stdlib on 3.11+
+except ModuleNotFoundError:  # Python 3.10: no stdlib TOML reader
+    import tomli as tomllib
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PYPROJECT = REPO_ROOT / "pyproject.toml"
@@ -20,7 +22,8 @@ FLOOR = (3, 10)
 
 
 def _python_sources() -> list[Path]:
-    roots = [REPO_ROOT / "vulners", REPO_ROOT / "samples"]
+    # src-layout: the shipped package lives under src/vulners, not REPO_ROOT/vulners.
+    roots = [REPO_ROOT / "src" / "vulners", REPO_ROOT / "samples"]
     files: list[Path] = []
     for root in roots:
         files.extend(sorted(root.rglob("*.py")))
@@ -34,18 +37,21 @@ class TestRuffTarget:
     idioms that break on 3.10; the fix pins target-version to py310.
     """
 
-    @pytest.mark.skipif(sys.version_info < (3, 11), reason="tomllib is only available on 3.11+")
     def test_ruff_target_version_matches_floor(self):
-        import tomllib
-
         data = tomllib.loads(PYPROJECT.read_text(encoding="utf-8"))
         assert data["tool"]["ruff"]["target-version"] == "py310"
 
     def test_all_sources_parse_under_floor(self):
         # Every shipped/sample module must parse as 3.10 syntax, i.e. contain no
         # newer-only syntax the linter (now targeting py310) would flag.
+        files = _python_sources()
+        # Guard against the scan silently matching nothing (e.g. a layout move):
+        # the shipped package must actually be covered.
+        assert any(p.match("src/vulners/*.py") or "src/vulners" in str(p) for p in files), (
+            "src/vulners was not scanned"
+        )
         offenders = []
-        for path in _python_sources():
+        for path in files:
             source = path.read_text(encoding="utf-8")
             try:
                 ast.parse(source, filename=str(path), feature_version=FLOOR)

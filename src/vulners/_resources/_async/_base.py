@@ -64,12 +64,25 @@ class AsyncBaseResource:
 
     @property
     def with_raw_response(self) -> Self:
-        """A view whose methods return an :class:`APIResponse` (status/headers + parse)."""
+        """A view whose methods return an :class:`~vulners._response.APIResponse`.
+
+        Call the same method as on the resource, then read ``.status_code`` /
+        ``.headers`` / ``.content`` and ``.parse()`` for the typed value. (The
+        method annotations still show the parsed return type — the wrapper types
+        are not yet declared; the runtime object is an ``APIResponse``.)
+        """
         return type(self)(self._client, _wrap="raw")
 
     @property
     def with_streaming_response(self) -> Self:
-        """A view whose methods return an :class:`APIResponse` for iterative reads."""
+        """A view whose methods return a streaming-response context manager.
+
+        Each method returns a context manager; enter it (``with ... as response``
+        / ``async with ... as response``) to get a live
+        :class:`~vulners._response.StreamedAPIResponse` and iterate the body off
+        the wire with ``iter_bytes`` / ``iter_lines`` / ``iter_text`` (async:
+        ``aiter_*``) or read it and ``parse()``.
+        """
         return type(self)(self._client, _wrap="stream")
 
     async def _request(

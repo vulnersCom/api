@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Any
 
 from typing_extensions import Self
 
-from ._config import ClientConfig, resolve_config
+from ._config import ClientConfig, _coerce_timeout, resolve_config
 from ._logging import install_key_redaction
 from ._resources._async.archive import AsyncArchive
 from ._resources._async.audit import AsyncAudit
@@ -47,14 +47,23 @@ if TYPE_CHECKING:
 
 
 def _timeout_change(timeout: float | httpx.Timeout | None | NotGiven) -> dict[str, Any]:
-    import httpx as _httpx
-
     if isinstance(timeout, NotGiven):
         return {}
-    if timeout is None:
-        return {"timeout": _httpx.Timeout(None)}
-    resolved = timeout if isinstance(timeout, _httpx.Timeout) else _httpx.Timeout(timeout)
-    return {"timeout": resolved}
+    return {"timeout": _coerce_timeout(timeout)}
+
+
+def _option_changes(
+    timeout: float | httpx.Timeout | None | NotGiven,
+    max_retries: int | NotGiven,
+    max_response_bytes: int | None | NotGiven,
+) -> dict[str, Any]:
+    """Assemble the config-override dict for ``with_options`` (shared sync/async)."""
+    changes: dict[str, Any] = _timeout_change(timeout)
+    if not isinstance(max_retries, NotGiven):
+        changes["max_retries"] = max_retries
+    if not isinstance(max_response_bytes, NotGiven):
+        changes["max_response_bytes"] = max_response_bytes
+    return changes
 
 
 class Vulners:
@@ -68,6 +77,7 @@ class Vulners:
         timeout: float | httpx.Timeout | None = None,
         max_retries: int | None = None,
         max_response_bytes: int | None = None,
+        http2: bool = True,
         http_client: httpx.Client | None = None,
     ) -> None:
         """Create a synchronous Vulners API client.
@@ -91,6 +101,13 @@ class Vulners:
                 unbounded so legitimate multi-gigabyte archive downloads succeed;
                 set it to guard against decompression-bomb amplification when
                 pointing ``base_url`` at an untrusted host.
+            http2: Negotiate HTTP/2 on the SDK-owned transport (default ``True``;
+                ``h2`` is a core dependency, so no extra is needed). HTTP/2
+                multiplexes many concurrent API calls over one connection. Pass
+                ``http2=False`` to force HTTP/1.1 — preferable for a huge
+                single-stream archive download, where HTTP/1.1 avoids h2's
+                flow-control window overhead on one long body. Ignored when you
+                pass your own ``http_client`` (set it on that client instead).
             http_client: Bring your own ``httpx.Client`` (e.g. for custom proxies,
                 transport or connection limits). Its transport is wrapped with the
                 SDK's credential-safety guard so the ``X-Api-Key`` is still
@@ -104,16 +121,19 @@ class Vulners:
             timeout=timeout,
             max_retries=max_retries,
             max_response_bytes=max_response_bytes,
+            http2=http2,
         )
         install_key_redaction(config.api_key.get_secret_value())
         self._api = SyncAPIClient(config, http_client=http_client)
 
     @property
     def config(self) -> ClientConfig:
+        """The resolved, immutable client configuration."""
         return self._api.config
 
     @property
     def base_url(self) -> httpx.URL:
+        """The API base URL requests are sent to."""
         return self._api.config.base_url
 
     @cached_property
@@ -164,11 +184,7 @@ class Vulners:
         max_response_bytes: int | None | NotGiven = not_given,
     ) -> Vulners:
         """A copy of this client sharing the same connection pool, with overrides."""
-        changes: dict[str, Any] = _timeout_change(timeout)
-        if not isinstance(max_retries, NotGiven):
-            changes["max_retries"] = max_retries
-        if not isinstance(max_response_bytes, NotGiven):
-            changes["max_response_bytes"] = max_response_bytes
+        changes = _option_changes(timeout, max_retries, max_response_bytes)
         clone = object.__new__(type(self))
         # The shared httpx client is injected, so the clone never closes it; the
         # parent's pacing buckets are shared so rate-limit pacing is not reset.
@@ -181,9 +197,14 @@ class Vulners:
 
     @property
     def is_closed(self) -> bool:
+        """Whether the underlying connection pool has been closed."""
         return self._api.is_closed
 
     def close(self) -> None:
+        """Close the underlying connection pool.
+
+        A no-op for an ``http_client`` you passed in; prefer the ``with`` context manager.
+        """
         self._api.close()
 
     def __enter__(self) -> Self:
@@ -210,6 +231,7 @@ class AsyncVulners:
         timeout: float | httpx.Timeout | None = None,
         max_retries: int | None = None,
         max_response_bytes: int | None = None,
+        http2: bool = True,
         http_client: httpx.AsyncClient | None = None,
     ) -> None:
         """Create an asynchronous Vulners API client.
@@ -233,6 +255,13 @@ class AsyncVulners:
                 unbounded so legitimate multi-gigabyte archive downloads succeed;
                 set it to guard against decompression-bomb amplification when
                 pointing ``base_url`` at an untrusted host.
+            http2: Negotiate HTTP/2 on the SDK-owned transport (default ``True``;
+                ``h2`` is a core dependency, so no extra is needed). HTTP/2
+                multiplexes many concurrent API calls over one connection. Pass
+                ``http2=False`` to force HTTP/1.1 — preferable for a huge
+                single-stream archive download, where HTTP/1.1 avoids h2's
+                flow-control window overhead on one long body. Ignored when you
+                pass your own ``http_client`` (set it on that client instead).
             http_client: Bring your own ``httpx.AsyncClient`` (e.g. for custom
                 proxies, transport or connection limits). Its transport is wrapped
                 with the SDK's credential-safety guard so the ``X-Api-Key`` is
@@ -246,16 +275,19 @@ class AsyncVulners:
             timeout=timeout,
             max_retries=max_retries,
             max_response_bytes=max_response_bytes,
+            http2=http2,
         )
         install_key_redaction(config.api_key.get_secret_value())
         self._api = AsyncAPIClient(config, http_client=http_client)
 
     @property
     def config(self) -> ClientConfig:
+        """The resolved, immutable client configuration."""
         return self._api.config
 
     @property
     def base_url(self) -> httpx.URL:
+        """The API base URL requests are sent to."""
         return self._api.config.base_url
 
     @cached_property
@@ -306,11 +338,7 @@ class AsyncVulners:
         max_response_bytes: int | None | NotGiven = not_given,
     ) -> AsyncVulners:
         """A copy of this client sharing the same connection pool, with overrides."""
-        changes: dict[str, Any] = _timeout_change(timeout)
-        if not isinstance(max_retries, NotGiven):
-            changes["max_retries"] = max_retries
-        if not isinstance(max_response_bytes, NotGiven):
-            changes["max_response_bytes"] = max_response_bytes
+        changes = _option_changes(timeout, max_retries, max_response_bytes)
         clone = object.__new__(type(self))
         # The shared httpx client is injected, so the clone never closes it; the
         # parent's pacing buckets are shared so rate-limit pacing is not reset.
@@ -323,9 +351,14 @@ class AsyncVulners:
 
     @property
     def is_closed(self) -> bool:
+        """Whether the underlying connection pool has been closed."""
         return self._api.is_closed
 
     async def aclose(self) -> None:
+        """Close the underlying connection pool.
+
+        A no-op for an ``http_client`` you passed in; prefer the ``async with`` context manager.
+        """
         await self._api.aclose()
 
     async def __aenter__(self) -> Self:

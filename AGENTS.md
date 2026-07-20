@@ -44,7 +44,7 @@ Key entry points:
 |---|---|---|
 | `v.search` | search & fetch documents | `query`, `iter_query`, `get_bulletin`, `get_multiple_bulletins` |
 | `v.audit` | vulnerability assessment | `software`, `host`, `linux_audit`, `library_audit`, `sbom_audit`, `cve_audit`, `kb_audit`, `win_audit`, `smart` |
-| `v.archive` | bulk dataset download | `fetch_collection`, `aiter_collection` (stream), `fetch_collection_update` |
+| `v.archive` | bulk dataset download | `fetch_collection`, `iter_collection` (stream), `fetch_collection_update` |
 | `v.misc` | lookups | `search_cpe`, `query_autocomplete`, `get_suggestion` |
 | `v.report`, `v.stix`, `v.subscriptions`, `v.webhooks`, `v.vscanner` | reporting, STIX bundles, alerts, VScanner | — |
 
@@ -52,7 +52,7 @@ Notes for agents:
 
 - **Pagination:** `search.query` returns a `SearchPage`; iterating it auto-paginates up to a
   hard **10,000-document** window. `page.total` is the full match count. For more than 10k
-  documents, use `v.archive.aiter_collection(...)`, not search.
+  documents, use `v.archive.iter_collection(...)` (async: `aiter_collection`), not search.
 - **Errors:** everything raises a subclass of `VulnersError` (`RateLimitError` carries
   `.retry_after`; `APIStatusError` carries `.status_code` / `.error_code` / `.message`). The
   API key is redacted from error payloads.

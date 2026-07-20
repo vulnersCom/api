@@ -13,8 +13,10 @@ from typing import Any
 
 from ._exceptions import APIConnectionError, ErrorInfo, _parse_retry_after
 
-# Statuses that are retryable regardless of method (plus any 5xx).
-_RETRY_STATUSES = frozenset({408, 409, 429})
+# Statuses the server signals it rejected *before* processing the request, so
+# retrying is safe for any method (including non-idempotent POST). 409 and 5xx
+# may have been processed, so they are gated on idempotency by the caller.
+_SAFE_RETRY_STATUSES = frozenset({408, 429})
 
 # Vulners errorCodes returned inside an HTTP 200 that are safe to retry. Curated
 # and empty until the taxonomy is confirmed; extend as retryable codes appear.
@@ -42,19 +44,27 @@ def _header_override(headers: Any) -> bool | None:
     return None
 
 
-def _should_retry(err: ErrorInfo | Exception, headers: Any = None) -> bool:
-    """Whether *err* is retryable in principle (ignores attempt count/idempotency).
+def _should_retry(
+    err: ErrorInfo | Exception, headers: Any = None, *, idempotent: bool = True
+) -> bool:
+    """Whether *err* is retryable (ignores attempt count).
 
-    The caller is responsible for gating read-timeouts to idempotent methods and
-    for never retrying mid-stream.
+    A server ``x-should-retry`` header wins for any method. Otherwise 408/429 are
+    always retryable (the server rejected before processing), while 409 and 5xx —
+    which the server may have processed — are retried only when *idempotent* is
+    true, so a non-idempotent POST is never silently duplicated. The caller is
+    still responsible for never retrying mid-stream.
     """
     override = _header_override(headers)
     if override is not None:
         return override
     if isinstance(err, ErrorInfo):
         status = err.status_code
-        if status is not None and (status in _RETRY_STATUSES or status >= 500):
-            return True
+        if status is not None:
+            if status in _SAFE_RETRY_STATUSES:
+                return True
+            if idempotent and (status == 409 or status >= 500):
+                return True
         return isinstance(err.error_code, int) and err.error_code in RETRYABLE_ERROR_CODES
     # A raw exception: connection failures (incl. timeouts) are retryable.
     return isinstance(err, APIConnectionError)

@@ -21,15 +21,15 @@ This site documents the **v4** client. If you are upgrading, see
 pip install vulners
 ```
 
-Requires **Python 3.10+**. Runtime dependencies are just
-[`httpx`](https://www.python-httpx.org/), [`pydantic`](https://docs.pydantic.dev/) and
-[`orjson`](https://github.com/ijl/orjson). Optional extras:
+Requires **Python 3.10+**. A plain `pip install vulners` ships everything needed for fast,
+modern transport out of the box — [`httpx`](https://www.python-httpx.org/),
+[`pydantic`](https://docs.pydantic.dev/), [`orjson`](https://github.com/ijl/orjson), HTTP/2
+(`h2`, on by default), response compression (`brotli`/`zstandard`), ISA-L-accelerated gzip
+(`isal`) and multi-member zip streaming (`stream-unzip`) — all with prebuilt wheels, so there
+is no build step. Optional extras:
 
 | Extra | Adds |
 |---|---|
-| `vulners[fast]` | `msgspec` bulk NDJSON fast-path decoder |
-| `vulners[stream-zip]` | streaming multi-member zip archive decode |
-| `vulners[http2]` | HTTP/2 transport |
 | `vulners[mcp]` | the [`vulners-mcp`](explanation/../how-to/search-exploits.md) Model Context Protocol server |
 | `vulners[otel]` | opt-in OpenTelemetry tracing |
 

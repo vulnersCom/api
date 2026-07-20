@@ -32,26 +32,41 @@ class _SecretRedactingFilter(logging.Filter):
         self._secret = secret
 
     def filter(self, record: logging.LogRecord) -> bool:
-        if self._secret and isinstance(record.msg, str) and self._secret in record.msg:
-            record.msg = record.msg.replace(self._secret, "[REDACTED]")
+        secret = self._secret
+        if not secret:
+            return True
+        if isinstance(record.msg, str) and secret in record.msg:
+            record.msg = record.msg.replace(secret, "[REDACTED]")
         if record.args:
-            record.args = tuple(
-                a.replace(self._secret, "[REDACTED]")
-                if isinstance(a, str) and self._secret and self._secret in a
-                else a
-                for a in (record.args if isinstance(record.args, tuple) else (record.args,))
-            )
+            args = record.args if isinstance(record.args, tuple) else (record.args,)
+            redacted: list[object] = []
+            for arg in args:
+                # httpx logs the request URL as an ``httpx.URL`` (not a str), and
+                # a webhooks.read GET carries the key as ``?apiKey=``; stringify so
+                # the key is caught before the record is formatted.
+                text = str(arg)
+                redacted.append(text.replace(secret, "[REDACTED]") if secret in text else arg)
+            record.args = tuple(redacted)
         return True
 
 
+# Loggers whose records can carry the API key: the SDK's own, plus ``httpx``
+# (it logs the full request URL — including any ``?apiKey=`` — at INFO).
+_REDACTED_LOGGERS = ("vulners", "httpx")
+
+
 def install_key_redaction(secret: str) -> None:
-    """Ensure the logger masks *secret* in any record it emits."""
+    """Ensure the ``vulners`` and ``httpx`` loggers mask *secret* in any record."""
     if not secret:
         return
-    for existing in logger.filters:
-        if isinstance(existing, _SecretRedactingFilter) and existing._secret == secret:
-            return
-    logger.addFilter(_SecretRedactingFilter(secret))
+    for name in _REDACTED_LOGGERS:
+        target = logging.getLogger(name)
+        if any(
+            isinstance(existing, _SecretRedactingFilter) and existing._secret == secret
+            for existing in target.filters
+        ):
+            continue
+        target.addFilter(_SecretRedactingFilter(secret))
 
 
 __all__ = ["install_key_redaction", "logger"]

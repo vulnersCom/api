@@ -197,12 +197,6 @@ class TestProcessResponse:
         with pytest.raises(APIStatusError):
             c._process_response(spec, r, b"Just a moment")
 
-    def test_ndjson_mode(self):
-        c = _client()
-        spec = RequestSpec("GET", "/x", response_mode="ndjson")
-        r = self._resp(ct="application/x-ndjson", content=b'{"a":1}\n{"b":2}')
-        assert c._process_response(spec, r, b'{"a":1}\n{"b":2}') == [{"a": 1}, {"b": 2}]
-
     def test_json_mode_non_json_2xx_empty_is_none(self):
         c = _client()
         spec = RequestSpec("GET", "/x")
@@ -273,10 +267,6 @@ class TestDecodeBinary:
 
 
 class TestDecodeNdjsonAndCaps:
-    def test_decode_ndjson_skips_blank(self):
-        c = _client()
-        assert c._decode_ndjson(b'{"a":1}\n\n{"b":2}\n') == [{"a": 1}, {"b": 2}]
-
     def test_reject_declared_length(self):
         c = BaseClient(resolve_config(api_key=KEY, max_response_bytes=100))
         c._reject_declared_length(None, 200)  # None -> no-op

@@ -9,6 +9,8 @@ data is synthetic (fake keys/ids); only response shapes mirror the real envelope
 from __future__ import annotations
 
 import gzip
+import io
+import zipfile
 from datetime import datetime, timezone
 
 import httpx
@@ -24,6 +26,16 @@ BASE = "https://vulners.com"
 
 def _v3(payload: object) -> httpx.Response:
     return httpx.Response(200, content=orjson.dumps({"result": "OK", "data": payload}))
+
+
+def _zip_json(payload: object, name: str = "distributive.json") -> httpx.Response:
+    """A single-member zip carrying ``payload`` as JSON — the distributive wire."""
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr(name, orjson.dumps(payload))
+    return httpx.Response(
+        200, content=buf.getvalue(), headers={"content-type": "application/zip"}
+    )
 
 
 def _v4(payload: object) -> httpx.Response:
@@ -230,7 +242,7 @@ class TestArchiveAsyncFull:
     @respx.mock
     async def test_get_distributive_extracts_source(self):
         respx.get(f"{BASE}/api/v3/archive/distributive/").mock(
-            return_value=_v3([{"_source": {"id": "A"}}, {"no_source": 1}])
+            return_value=_zip_json([{"_source": {"id": "A"}}, {"no_source": 1}])
         )
         async with AsyncVulners(KEY) as client:
             out = await client.archive.get_distributive("ubuntu", "22.04")
@@ -239,7 +251,7 @@ class TestArchiveAsyncFull:
     @respx.mock
     async def test_get_distributive_non_list_is_empty(self):
         respx.get(f"{BASE}/api/v3/archive/distributive/").mock(
-            return_value=_v3({"not": "a list"})
+            return_value=_zip_json({"not": "a list"})
         )
         async with AsyncVulners(KEY) as client:
             assert await client.archive.get_distributive("ubuntu", "22.04") == []

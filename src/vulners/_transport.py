@@ -11,6 +11,7 @@ and ``Set-Cookie`` is dropped from every response.
 from __future__ import annotations
 
 import ipaddress
+import socket
 from urllib.parse import parse_qsl, urlencode
 
 import httpx
@@ -61,28 +62,23 @@ def _is_forbidden_ip(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
 
 
 def _host_as_ip(host: str) -> ipaddress.IPv4Address | ipaddress.IPv6Address | None:
-    """Parse a host that is an IP *literal*, including bare-integer encodings.
+    """Parse a host that is an IP *literal*, matching what the OS resolver accepts.
 
-    Covers dotted-quad / IPv6 literals plus the single-integer decimal, hex
-    (``0x…``) and octal (``0…``) forms that the OS resolver accepts — classic
-    SSRF obfuscations of, e.g., 127.0.0.1 as ``2130706433`` / ``0x7f000001``.
-    Returns ``None`` for anything that is not a numeric literal (a real DNS name).
+    Covers dotted-quad and IPv6 literals plus every numeric IPv4 obfuscation the
+    resolver honours via ``inet_aton``: single-integer decimal/hex/octal
+    (``2130706433``, ``0x7f000001``), dotted short-forms (``127.1``) and per-octet
+    hex/octal (``0x7f.0.0.1``, ``169.254.43518`` -> 169.254.169.254). Returns
+    ``None`` for a real DNS name, which is delegated to the resolver unchanged.
     """
     try:
-        return ipaddress.ip_address(host)
+        return ipaddress.ip_address(host)  # canonical IPv4 + every IPv6 literal
     except ValueError:
         pass
-    base: int | None = None
-    if host.isdigit():
-        base = 8 if len(host) > 1 and host[0] == "0" else 10
-    elif host[:2].lower() == "0x":
-        base = 16
-    if base is None:
-        return None
     try:
-        return ipaddress.ip_address(int(host, base))
-    except ValueError:
+        packed = socket.inet_aton(host)  # IPv4 shorthand / mixed-radix, as getaddrinfo
+    except OSError:
         return None
+    return ipaddress.IPv4Address(packed)
 
 
 def _guard_redirect_target(url: httpx.URL) -> None:

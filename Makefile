@@ -1,4 +1,4 @@
-.PHONY: sync format lint typecheck test test-fast bc cov codegen unasync unasync-check check build clean
+.PHONY: sync format lint typecheck test test-fast bc cov cov-mcp docs codegen unasync unasync-check check build clean
 
 # Install the project and the dev dependency group into a uv-managed venv.
 sync:
@@ -45,20 +45,31 @@ cov:
 	uv run coverage erase
 	uv run pytest -n auto $(COV_MODULES) --cov-branch --cov-report=term-missing
 
+# Branch-coverage gate for the MCP server, which lives behind the `mcp` extra
+# (fastmcp) and cannot share the default env, so it is measured on its own.
+cov-mcp:
+	uv run --no-default-groups --extra mcp --with pytest --with pytest-asyncio --with pytest-cov \
+		pytest tests/test_mcp.py --cov=vulners._mcp --cov-branch \
+		--cov-report=term-missing --cov-fail-under=100
+
 # Full-package coverage (v4 core + legacy v3), informational only — not gated.
 cov-all:
 	uv run coverage erase
 	uv run pytest -n auto --cov=vulners --cov-branch --cov-report=term-missing --cov-fail-under=0
 
 # Regenerate the sync mirror (_ratelimit.py + resources/_sync + transport client)
-# from the async source. `--extra fast` pulls the unasyncd build that carries the
-# asyncio->threading Lock transform.
+# from the async source. unasyncd lives in the isolated `codegen` group (it pulls
+# msgspec, kept out of the default dev sync), so run it with just that group.
 unasync:
-	uv run unasyncd
+	uv run --no-default-groups --group codegen unasyncd
 
 # Fail if the committed sync mirror has drifted from the async source.
 unasync-check:
-	uv run unasyncd --check
+	uv run --no-default-groups --group codegen unasyncd --check
+
+# Strict docs build (fails on any warning, incl. unresolved mkdocstrings refs).
+docs:
+	uv run --group docs mkdocs build --strict
 
 # Regenerate all codegen artifacts and fail on drift (CI drift gate).
 codegen:

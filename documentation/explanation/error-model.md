@@ -10,10 +10,10 @@ A failed response is classified in two steps:
 
 1. **Vulners `errorCode`** — when the body carries one, a small curated map picks the class
    (e.g. a "missing/invalid parameter" code → `BadRequestError`).
-2. **HTTP status** — otherwise the status decides: `401 → AuthenticationError`,
-   `403 → PermissionDeniedError`, `404 → NotFoundError`, `409 → ConflictError`,
-   `422 → UnprocessableEntityError`, `429 → RateLimitError`, `5xx → InternalServerError`,
-   other `4xx → BadRequestError`.
+2. **HTTP status** — otherwise the status decides: `400 → BadRequestError`,
+   `401 → AuthenticationError`, `403 → PermissionDeniedError`, `404 → NotFoundError`,
+   `409 → ConflictError`, `422 → UnprocessableEntityError`, `429 → RateLimitError`,
+   `5xx → InternalServerError`, and any other unmapped `4xx → APIStatusError` (the base class).
 
 ## Errors can arrive with HTTP 200
 

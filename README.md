@@ -165,6 +165,11 @@ It exposes concise, typed tools — search bulletins, look up a CVE, find exploi
 software/Linux/hosts — that any MCP-compatible client (Claude, IDE agents, …) can call. See
 [`AGENTS.md`](https://github.com/vulnersCom/api/blob/master/AGENTS.md).
 
+> **Hosted vs. bundled.** For a fully managed, always-on endpoint, use the official hosted
+> server at **<https://mcp.vulners.com/>** — no install required. The `vulners-mcp` shipped
+> in this package is a **minimal, self-hosted** implementation (a core set of tools) for
+> embedding in your own environment.
+
 ---
 
 ## Backward compatibility

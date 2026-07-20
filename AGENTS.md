@@ -64,6 +64,11 @@ Full docs: build the site with `mkdocs build` (source under `documentation/`), o
 
 ### 2. As an MCP server
 
+> The official, fully managed MCP endpoint is hosted at **https://mcp.vulners.com/** (no
+> install, always on). The `vulners-mcp` server described below is a **minimal, self-hosted**
+> build shipped with the SDK — it exposes the core set of tools listed here, for running in
+> your own environment.
+
 The SDK ships a [Model Context Protocol](https://modelcontextprotocol.io) server so an agent
 can call Vulners as tools over stdio:
 

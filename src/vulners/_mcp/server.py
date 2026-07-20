@@ -1,4 +1,8 @@
-"""FastMCP server exposing Vulners intelligence to LLM agents.
+"""Minimal FastMCP server exposing Vulners intelligence to LLM agents.
+
+This is a small, self-hosted server bundled with the SDK, exposing a core set of
+tools. The official, fully managed MCP endpoint is hosted at
+https://mcp.vulners.com/ (no install required).
 
 Run it with the ``vulners-mcp`` console script (installed with the ``mcp``
 extra) or ``python -m vulners._mcp.server``. The API key is read from the

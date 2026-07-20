@@ -8,9 +8,10 @@
 Install with `pip install vulners` (Python 3.10+). Authenticate via the
 `VULNERS_API_KEY` environment variable or `Vulners(api_key="…")`. The v4 clients
 return typed `Bulletin` models and paginate up to a 10,000-document search
-window; the legacy v3 `VulnersApi` remains fully supported. A Model Context
-Protocol server ships in the `mcp` extra (`pip install "vulners[mcp]"`, then
-`vulners-mcp`).
+window; the legacy v3 `VulnersApi` remains fully supported. A minimal, self-hosted
+Model Context Protocol server ships in the `mcp` extra (`pip install
+"vulners[mcp]"`, then `vulners-mcp`); the official managed MCP endpoint is hosted
+at https://mcp.vulners.com/.
 
 ## Docs (source under documentation/)
 

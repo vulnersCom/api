@@ -30,7 +30,7 @@ is no build step. Optional extras:
 
 | Extra | Adds |
 |---|---|
-| `vulners[mcp]` | the `vulners-mcp` Model Context Protocol server |
+| `vulners[mcp]` | a minimal, self-hosted `vulners-mcp` Model Context Protocol server (the official managed one is at [mcp.vulners.com](https://mcp.vulners.com/)) |
 | `vulners[otel]` | opt-in OpenTelemetry tracing |
 
 ## Quickstart

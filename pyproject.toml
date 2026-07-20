@@ -48,7 +48,7 @@ typing-inspection = ">=0.4"
 [tool.poetry.group.dev.dependencies]
 mypy = { version = "^1.15.0", extras = ["faster-cache"] }
 ruff = "^0.11.8"
-pytest = "^8"
+pytest = "^9"
 
 [tool.ruff]
 line-length = 98

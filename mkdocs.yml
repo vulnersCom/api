@@ -89,6 +89,8 @@ plugins:
           - reference/clients.md
           - reference/resources.md
           - reference/models.md
+          - reference/data-models.md
+          - reference/collections.md
           - reference/exceptions.md
         Explanation:
           - explanation/network-and-rate-limits.md
@@ -109,6 +111,8 @@ nav:
       - Clients: reference/clients.md
       - Resources: reference/resources.md
       - Models & pagination: reference/models.md
+      - Data models: reference/data-models.md
+      - Collections reference: reference/collections.md
       - Exceptions: reference/exceptions.md
   - Explanation:
       - Network & rate limits: explanation/network-and-rate-limits.md

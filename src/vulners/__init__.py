@@ -49,17 +49,25 @@ if TYPE_CHECKING:
     from ._exceptions import SearchWindowExceeded as SearchWindowExceeded
     from ._exceptions import UnprocessableEntityError as UnprocessableEntityError
     from ._exceptions import VulnersError as VulnersError
+    from ._models.bulletin import AdvisoryBulletin as AdvisoryBulletin
+    from ._models.bulletin import BugBountyBulletin as BugBountyBulletin
     from ._models.bulletin import Bulletin as Bulletin
     from ._models.bulletin import CveBulletin as CveBulletin
     from ._models.bulletin import Cvss as Cvss
     from ._models.bulletin import Cvss2 as Cvss2
     from ._models.bulletin import Cvss3 as Cvss3
     from ._models.bulletin import Cvss4 as Cvss4
+    from ._models.bulletin import Enchantments as Enchantments
+    from ._models.bulletin import EpssScore as EpssScore
     from ._models.bulletin import ExploitBulletin as ExploitBulletin
     from ._models.bulletin import GenericBulletin as GenericBulletin
     from ._models.bulletin import InfoBulletin as InfoBulletin
+    from ._models.bulletin import LibraryBulletin as LibraryBulletin
+    from ._models.bulletin import MicrosoftBulletin as MicrosoftBulletin
     from ._models.bulletin import ScannerBulletin as ScannerBulletin
     from ._models.bulletin import SoftwareBulletin as SoftwareBulletin
+    from ._models.bulletin import Timestamps as Timestamps
+    from ._models.bulletin import UnixBulletin as UnixBulletin
     from ._pagination import AsyncSearchPage as AsyncSearchPage
     from ._pagination import SearchPage as SearchPage
     from ._response import APIResponse as APIResponse
@@ -100,12 +108,20 @@ _LAZY_ATTRS = {
     "ExploitBulletin": "._models.bulletin",
     "ScannerBulletin": "._models.bulletin",
     "SoftwareBulletin": "._models.bulletin",
+    "UnixBulletin": "._models.bulletin",
     "InfoBulletin": "._models.bulletin",
+    "LibraryBulletin": "._models.bulletin",
+    "MicrosoftBulletin": "._models.bulletin",
+    "BugBountyBulletin": "._models.bulletin",
+    "AdvisoryBulletin": "._models.bulletin",
     "GenericBulletin": "._models.bulletin",
     "Cvss": "._models.bulletin",
     "Cvss2": "._models.bulletin",
     "Cvss3": "._models.bulletin",
     "Cvss4": "._models.bulletin",
+    "Timestamps": "._models.bulletin",
+    "Enchantments": "._models.bulletin",
+    "EpssScore": "._models.bulletin",
     "SearchPage": "._pagination",
     "AsyncSearchPage": "._pagination",
     "APIResponse": "._response",
@@ -146,12 +162,20 @@ __all__ = [  # noqa: RUF022
     "ExploitBulletin",
     "ScannerBulletin",
     "SoftwareBulletin",
+    "UnixBulletin",
     "InfoBulletin",
+    "LibraryBulletin",
+    "MicrosoftBulletin",
+    "BugBountyBulletin",
+    "AdvisoryBulletin",
     "GenericBulletin",
     "Cvss",
     "Cvss2",
     "Cvss3",
     "Cvss4",
+    "Timestamps",
+    "Enchantments",
+    "EpssScore",
     "SearchPage",
     "AsyncSearchPage",
     "APIResponse",

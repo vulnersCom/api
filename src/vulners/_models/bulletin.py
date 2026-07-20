@@ -1,25 +1,37 @@
 """Bulletin response models: a ``bulletinFamily`` discriminated hierarchy.
 
 Construction stays validation-free (see :func:`construct_type`); this module adds
-the family/version *shape* on top. A payload's ``bulletinFamily`` selects a
-concrete subclass through :func:`construct_bulletin`, with :class:`GenericBulletin`
-as the forward-compatible fallback, and a payload's CVSS ``version`` selects the
-matching :class:`Cvss` subclass via the discriminator registry.
+the family/version *shape* on top. A payload's ``type`` selects the most specific
+per-collection model (:mod:`.collections`, generated), falling back to its
+``bulletinFamily`` model here, with :class:`GenericBulletin` as the
+forward-compatible fallback; a payload's CVSS ``version`` selects the matching
+:class:`Cvss` subclass via the discriminator registry.
 
-Scope for 4.0.0 is the handful of families that carry a distinct field set and
-dominate real corpora (CVE/NVD, exploit, scanner, software advisory, info); every
-other family lands in :class:`GenericBulletin`. Widening the hierarchy is a 4.x
-minor, and because construction never validates, an under-typed family is safe.
+The model hierarchy is three levels — **base → family → type**:
+
+* :class:`Bulletin` — the fields common to every document.
+* the family models (:class:`CveBulletin`, :class:`ExploitBulletin`, …) — one per
+  ``bulletinFamily``, extending the base. Every family the API emits is mapped in
+  :data:`_FAMILY_MODELS`.
+* the per-collection models in :mod:`.collections` — one per ``type``, extending
+  its family model with the fields that collection adds.
+
+Field descriptions come from attribute docstrings (see
+:class:`~vulners._models._base.VulnersModel`), authored in
+:mod:`vulners._models._field_descriptions` and kept in sync with live data by the
+``dev-tools/data_models`` toolset. Fields are all optional and every model keeps
+``extra="allow"``, so a document that carries an as-yet-unmodelled field never
+loses data — the field is still accessible, just untyped.
 
 An opt-in *strict* path (:func:`construct_bulletin` with ``strict=True``) runs
 full pydantic validation: it selects the family model from :data:`_FAMILY_MODELS`
-(the single source of truth) and validates through
-:meth:`~pydantic.BaseModel.model_validate` instead of the construct fast path.
+and validates through :meth:`~pydantic.BaseModel.model_validate` instead of the
+construct fast path.
 """
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from typing import Any
 
 from pydantic import Field
@@ -35,8 +47,15 @@ class Cvss(VulnersModel):
     """CVSS score block; the base/fallback across scoring versions."""
 
     version: str | None = None
+    """CVSS specification version, e.g. '3.1'."""
     score: float | None = None
+    """Base score, 0.0-10.0."""
     vector: str | None = None
+    """CVSS vector string."""
+    severity: str | None = None
+    """Qualitative band (LOW/MEDIUM/HIGH/CRITICAL)."""
+    source: str | None = None
+    """Who assigned the score (CNA, NVD, …)."""
 
 
 class Cvss2(Cvss):
@@ -44,15 +63,11 @@ class Cvss2(Cvss):
 
 
 class Cvss3(Cvss):
-    """CVSS v3.x metrics (adds a qualitative severity band)."""
-
-    severity: str | None = None
+    """CVSS v3.x metrics."""
 
 
 class Cvss4(Cvss):
     """CVSS v4.0 metrics."""
-
-    severity: str | None = None
 
 
 # ``version`` picks the concrete model; an absent/unknown version stays ``Cvss``.
@@ -66,85 +81,371 @@ register_discriminator(Cvss, "version", _CVSS_VERSIONS, Cvss)
 
 
 # ---------------------------------------------------------------------------
-# Bulletin base + family hierarchy
+# Nested value objects shared across families
+# ---------------------------------------------------------------------------
+
+
+class Timestamps(VulnersModel):
+    """Lifecycle timestamps Vulners maintains for a document (ISO-8601 strings)."""
+
+    created: str | None = None
+    """When Vulners first ingested the document."""
+    updated: str | None = None
+    """Last update of any kind."""
+    enriched: str | None = None
+    """Last enrichment pass."""
+    reviewed: str | None = None
+    """Last human/automated review."""
+    content_updated: str | None = Field(default=None, alias="contentUpdated")
+    """Last change to the document's content."""
+    metrics_updated: str | None = Field(default=None, alias="metricsUpdated")
+    """Last change to the document's scoring metrics."""
+    web_applicability_updated: str | None = Field(default=None, alias="webApplicabilityUpdated")
+    """Last change to the web-applicability assessment."""
+
+
+class Enchantments(VulnersModel):
+    """Vulners-computed enrichment layer over the raw document."""
+
+    score: Any | None = None
+    """Vulners AI/aggregated score block."""
+    short_description: str | None = None
+    """One-line summary."""
+    tags: list[str] | None = None
+    """Classification tags."""
+    dependencies: Any | None = None
+    """Related-document graph."""
+
+
+class EpssScore(VulnersModel):
+    """One EPSS (Exploit Prediction Scoring System) datapoint."""
+
+    cve: str | None = None
+    """CVE the forecast is for."""
+    date: str | None = None
+    """Date the forecast was computed."""
+    epss: float | None = None
+    """Probability of exploitation in the next 30 days (0.0-1.0)."""
+    percentile: float | None = None
+    """Percentile of this score among all scored CVEs."""
+
+
+# ---------------------------------------------------------------------------
+# Bulletin base — the fields common to every bulletinFamily
 # ---------------------------------------------------------------------------
 
 
 class Bulletin(VulnersModel):
-    """A single Vulners document; base for every ``bulletinFamily``."""
+    """A single Vulners document; base for every ``bulletinFamily``.
 
+    Carries the fields present across all families. Family subclasses add their
+    own; ``extra="allow"`` keeps any unmodelled field accessible.
+    """
+
+    # --- identity ---
     id: str | None = None
-    title: str | None = None
-    description: str | None = None
+    """Unique document identifier (e.g. a CVE id, exploit id or advisory id)."""
     type: str | None = None
+    """Source collection the document comes from (cve, exploitdb, ubuntu, …)."""
     bulletin_family: str | None = Field(default=None, alias="bulletinFamily")
-    cvss: Cvss | None = None
-    published: str | None = None
-    modified: str | None = None
-    last_seen: str | None = Field(default=None, alias="lastseen")
+    """Broad family the document belongs to (cve, exploit, software, …)."""
+    title: str | None = None
+    """Human-readable title of the document."""
+    description: str | None = None
+    """Full text or summary of the vulnerability/advisory."""
+    # --- links ---
     href: str | None = None
+    """Canonical URL of the document at its original source."""
+    vhref: str | None = None
+    """URL of the document on vulners.com."""
     source_href: str | None = Field(default=None, alias="sourceHref")
+    """URL of the raw source object, when it differs from href."""
     source_data: str | None = Field(default=None, alias="sourceData")
+    """Raw, unparsed source body as delivered by the origin."""
+    # --- dates ---
+    published: str | None = None
+    """Original publication timestamp (ISO-8601)."""
+    modified: str | None = None
+    """Last modification timestamp at the source (ISO-8601)."""
+    last_seen: str | None = Field(default=None, alias="lastseen")
+    """Last time Vulners observed/refreshed the document (ISO-8601)."""
+    timestamps: Timestamps | None = None
+    """Vulners lifecycle timestamps (created/updated/enriched/reviewed/…)."""
+    # --- scoring ---
+    cvss: Cvss | None = None
+    """Primary CVSS score block (version, base score, vector, severity, source)."""
+    cvss2: Cvss | None = None
+    """CVSS v2 score block."""
+    cvss3: Cvss | None = None
+    """CVSS v3.x score block."""
+    cvss4: Cvss | None = None
+    """CVSS v4.0 score block."""
+    epss: list[EpssScore] | None = None
+    """EPSS exploitation-probability forecast datapoints (score + percentile)."""
+    metrics: Any | None = None
+    """Raw scoring metrics blob (CNA/ADP/NVD/vendor sub-objects)."""
+    # --- linkage ---
     cvelist: list[str] | None = None
+    """Related CVE identifiers referenced by this document."""
+    references: list[str] | None = None
+    """External reference URLs."""
+    reporter: str | None = None
+    """Person or organization credited with reporting/authoring it."""
+    # --- provenance / enrichment ---
+    source_available: bool | None = Field(default=None, alias="sourceAvailable")
+    """Whether the raw source data is available for this document."""
+    vendor_id: str | None = Field(default=None, alias="vendorId")
+    """Vendor's own identifier for the advisory, when provided."""
+    view_count: int | None = Field(default=None, alias="viewCount")
+    """How many times the document has been viewed on Vulners."""
+    enchantments: Enchantments | None = None
+    """Vulners-computed enrichment layer (AI score, tags, related docs)."""
+    attachments: list[Any] | None = None
+    """Binary/media attachments associated with the document."""
+    immutable_fields: list[str] | None = Field(default=None, alias="immutableFields")
+    """Fields the source marks as immutable."""
 
 
 class GenericBulletin(Bulletin):
     """Fallback for any family without a dedicated model (forward-compat)."""
 
 
+class AdvisoryBulletin(Bulletin):
+    """Vendor/CERT advisory shape (blog, cnnvd, cnvd, crypto, euvd, jvn, ncsc,
+    nozomi, tools) — the base plus the affected-software / CPE fields these
+    advisory sources add."""
+
+    affected_software: list[Any] | None = Field(default=None, alias="affectedSoftware")
+    """Affected software products (name/version/operator)."""
+    cpe_configurations: Any | None = Field(default=None, alias="cpeConfigurations")
+    """CPE applicability configurations (NVD-style match tree)."""
+
+
 class CveBulletin(Bulletin):
     """``bulletinFamily: cve`` (or ``NVD``) — a CVE record and its scoring/enrichment."""
 
-    cvss2: Cvss | None = None
-    cvss3: Cvss | None = None
     cpe: list[str] | None = None
+    """Affected products as CPE 2.2 URIs."""
+    cpe23: list[str] | None = None
+    """Affected products as CPE 2.3 formatted strings."""
     cwe: list[str] | None = None
-    epss: list[Any] | None = None
+    """Associated CWE weakness identifiers."""
+    affected_software: list[Any] | None = Field(default=None, alias="affectedSoftware")
+    """Affected software products (name/version/operator)."""
+    affected_configuration: list[Any] | None = Field(default=None, alias="affectedConfiguration")
+    """Affected configuration entries."""
+    cna_affected: list[Any] | None = Field(default=None, alias="cnaAffected")
+    """Affected products as reported by the CNA (CVE JSON 5.x)."""
+    cpe_configurations: Any | None = Field(default=None, alias="cpeConfigurations")
+    """CPE applicability configurations (NVD-style match tree)."""
+    problem_types: list[Any] | None = Field(default=None, alias="problemTypes")
+    """Structured problem-type/weakness records (CVE JSON 5.x)."""
+    solutions: list[Any] | None = None
+    """Structured remediation entries (CVE JSON 5.x)."""
+    workarounds: list[Any] | None = None
+    """Structured workaround entries when no fix is available."""
+    vuln_status: str | None = Field(default=None, alias="vulnStatus")
+    """NVD analysis status of the CVE (Analyzed, Awaiting Analysis, …)."""
+    web_applicability: Any | None = Field(default=None, alias="webApplicability")
+    """Web-application applicability assessment."""
+    ai_description: str | None = Field(default=None, alias="aiDescription")
+    """AI-generated summary of the vulnerability."""
+    exploits: list[Any] | None = None
+    """Related exploit records."""
 
 
 class ExploitBulletin(Bulletin):
-    """``bulletinFamily: exploit`` — exploit code and its provenance."""
+    """``bulletinFamily: exploit`` — exploit code / PoC and its provenance."""
 
-    reporter: str | None = None
-    references: list[str] | None = None
+    exploit_type: str | None = Field(default=None, alias="exploitType")
+    """Type of exploit (remote, local, webapps, …)."""
+    verified: bool | None = None
+    """Whether the exploit/finding was verified."""
+    has_poc: bool | None = Field(default=None, alias="has_poc")
+    """Whether a proof-of-concept is available."""
+    osvdbidlist: list[Any] | None = None
+    """Legacy OSVDB identifiers."""
+    affected_software: list[Any] | None = Field(default=None, alias="affectedSoftware")
+    """Affected software products (name/version/operator)."""
 
 
 class ScannerBulletin(Bulletin):
-    """``bulletinFamily: scanner`` — a vulnerability-scanner plugin."""
+    """``bulletinFamily: scanner`` — a vulnerability-scanner plugin (Nessus, OpenVAS, …)."""
 
-    reporter: str | None = None
     cpe: list[str] | None = None
+    """Affected products as CPE 2.2 URIs."""
+    plugin_id: str | None = Field(default=None, alias="pluginID")
+    """Scanner plugin identifier (e.g. Nessus plugin id)."""
+    nasl_family: str | None = Field(default=None, alias="naslFamily")
+    """Nessus NASL plugin family."""
+    nessus_severity: str | None = Field(default=None, alias="nessusSeverity")
+    """Severity as rated by the Nessus scanner."""
+    cvss_score_source: str | None = Field(default=None, alias="cvssScoreSource")
+    """Which party/standard the CVSS score was taken from."""
+    exploit_available: bool | None = Field(default=None, alias="exploitAvailable")
+    """Whether a public exploit is available."""
+    solution: str | None = None
+    """Recommended remediation/fix, as text."""
+    affected_software: list[Any] | None = Field(default=None, alias="affectedSoftware")
+    """Affected software products (name/version/operator)."""
 
 
-class SoftwareBulletin(Bulletin):
-    """``bulletinFamily: software`` — an OS/vendor package advisory."""
+class SoftwareBulletin(AdvisoryBulletin):
+    """``bulletinFamily: software`` — an OS/vendor package or product advisory."""
 
     affected_package: list[Any] | None = Field(default=None, alias="affectedPackage")
+    """Affected OS/distribution packages (name, version, OS, arch)."""
+    cwe: list[str] | None = None
+    """Associated CWE weakness identifiers."""
+    severity: str | None = None
+    """Qualitative severity band (LOW/MEDIUM/HIGH/CRITICAL)."""
+    solution: str | None = None
+    """Recommended remediation/fix, as text."""
+
+
+class UnixBulletin(Bulletin):
+    """``bulletinFamily: unix`` — a Linux/Unix distribution package advisory."""
+
+    affected_package: list[Any] | None = Field(default=None, alias="affectedPackage")
+    """Affected OS/distribution packages (name, version, OS, arch)."""
+    affected_libraries: list[Any] | None = Field(default=None, alias="affectedLibraries")
+    """Affected libraries/packages (name, purl, version range)."""
+    affected_versions: Any | None = Field(default=None, alias="affectedVersions")
+    """Affected version ranges."""
+    cwe: list[str] | None = None
+    """Associated CWE weakness identifiers."""
+    fixes: list[Any] | None = None
+    """Fix references (fixed versions / patches)."""
+    bugs: list[Any] | None = None
+    """Linked bug-tracker entries."""
 
 
 class InfoBulletin(Bulletin):
-    """``bulletinFamily: info`` — news, blog and advisory write-ups."""
+    """``bulletinFamily: info`` — threat intel, advisories and news write-ups
+    (CISA KEV, blogs, vendor bulletins, exploitation reports)."""
 
-    reporter: str | None = None
-    references: list[str] | None = None
+    cwe: list[str] | None = None
+    """Associated CWE weakness identifiers."""
+    severity: str | None = None
+    """Qualitative severity band (LOW/MEDIUM/HIGH/CRITICAL)."""
+    tags: list[str] | None = None
+    """Classification tags applied to the document."""
+    wild_exploited: bool | None = Field(default=None, alias="wildExploited")
+    """Whether the vulnerability is exploited in the wild."""
+    known_ransomware_campaign_use: str | None = Field(
+        default=None, alias="knownRansomwareCampaignUse"
+    )
+    """Whether it is known to be used in ransomware campaigns."""
+    affected_software: list[Any] | None = Field(default=None, alias="affectedSoftware")
+    """Affected software products (name/version/operator)."""
 
 
-# ``bulletinFamily`` -> concrete model. Kept to the highest-signal families;
-# everything else is a GenericBulletin. Real CVE documents carry
-# ``bulletinFamily: "cve"``; ``"NVD"`` is the legacy tag for the same record.
+class LibraryBulletin(Bulletin):
+    """``bulletinFamily: library`` — a package-ecosystem advisory (OSV, Snyk)."""
+
+    affected_libraries: list[Any] | None = Field(default=None, alias="affectedLibraries")
+    """Affected libraries/packages (name, purl, version range)."""
+    purls: list[str] | None = None
+    """Affected packages as Package-URL (purl) strings."""
+    osv_affected: list[Any] | None = Field(default=None, alias="osvAffected")
+    """OSV 'affected' ranges."""
+    withdrawn: str | None = None
+    """Withdrawal date if the advisory was retracted."""
+
+
+class MicrosoftBulletin(Bulletin):
+    """``bulletinFamily: microsoft`` — an MSRC/KB/update advisory."""
+
+    kb: str | None = None
+    """Microsoft Knowledge Base article id."""
+    kb_list: list[str] | None = Field(default=None, alias="kbList")
+    """Microsoft KB article ids covered by the update."""
+    ms_severity: str | None = Field(default=None, alias="msseverity")
+    """Microsoft's severity rating for the advisory."""
+    ms_platform: str | None = Field(default=None, alias="msplatform")
+    """Affected Microsoft platform."""
+    superseeds: list[Any] | None = None
+    """Updates this update supersedes."""
+    parentseeds: list[Any] | None = None
+    """Updates that supersede this update."""
+
+
+class BugBountyBulletin(Bulletin):
+    """``bulletinFamily: bugbounty`` — a bug-bounty / disclosure report."""
+
+    bounty: Any | None = None
+    """Bounty amount/details paid for the report."""
+    bounty_state: str | None = Field(default=None, alias="bountyState")
+    """State of the bounty (awarded, pending, …)."""
+    cwe_id: list[str] | None = Field(default=None, alias="cwe_id")
+    """Single associated CWE identifier."""
+    repository: str | None = None
+    """Source code repository associated with the report."""
+
+
+# ``bulletinFamily`` -> concrete model. Every family the API emits is mapped here
+# (verified by dev-tools/data_models/sample_collections.py --verify). ``NVD`` is
+# the legacy tag for a CVE; near-identical advisory families share AdvisoryBulletin.
 _FAMILY_MODELS: dict[Any, type[Bulletin]] = {
     "cve": CveBulletin,
     "NVD": CveBulletin,
     "exploit": ExploitBulletin,
     "scanner": ScannerBulletin,
     "software": SoftwareBulletin,
+    "unix": UnixBulletin,
     "info": InfoBulletin,
+    "library": LibraryBulletin,
+    "microsoft": MicrosoftBulletin,
+    "bugbounty": BugBountyBulletin,
+    "blog": AdvisoryBulletin,
+    "cnnvd": AdvisoryBulletin,
+    "cnvd": AdvisoryBulletin,
+    "crypto": AdvisoryBulletin,
+    "euvd": AdvisoryBulletin,
+    "jvn": AdvisoryBulletin,
+    "ncsc": AdvisoryBulletin,
+    "nozomi": AdvisoryBulletin,
+    "tools": AdvisoryBulletin,
 }
 
 
+# Per-collection (``type``) models live in ``collections.py`` and are built lazily
+# by ``collection_model`` (one per type, on demand, cached). Resolved through this
+# cached function ref so a bulletin construction stays cheap and there's no import
+# cycle (``collections`` imports this module). ``None`` = "not resolved yet".
+def _no_collection_model(_ctype: str) -> type[Bulletin] | None:  # pragma: no cover
+    return None
+
+
+_COLLECTION_MODEL: Callable[[str], type[Bulletin] | None] | None = None
+
+
+def _collection_model(ctype: str) -> type[Bulletin] | None:
+    """Build/return the per-collection model for *ctype* (cached factory), or None."""
+    global _COLLECTION_MODEL
+    if _COLLECTION_MODEL is None:
+        try:
+            from .collections import collection_model
+
+            _COLLECTION_MODEL = collection_model
+        except ImportError:  # pragma: no cover - collections module always present
+            _COLLECTION_MODEL = _no_collection_model
+    return _COLLECTION_MODEL(ctype)
+
+
 def bulletin_class_for(data: Any) -> type[Bulletin]:
-    """Return the model to build for *data*, by its ``bulletinFamily``."""
+    """Return the most specific model to build for *data*.
+
+    A known ``type`` selects the per-collection model; otherwise the
+    ``bulletinFamily`` selects the family model, falling back to
+    :class:`GenericBulletin`.
+    """
     if isinstance(data, Mapping):
+        ctype = data.get("type")
+        if ctype is not None:
+            model = _collection_model(ctype)
+            if model is not None:
+                return model
         return _FAMILY_MODELS.get(data.get("bulletinFamily"), GenericBulletin)
     return GenericBulletin
 
@@ -163,12 +464,13 @@ def _family_tag(value: Any) -> str:
 
 
 def construct_bulletin(data: Any, *, strict: bool = False) -> Bulletin:
-    """Build the family-specific :class:`Bulletin` for *data*.
+    """Build the most specific :class:`Bulletin` for *data*.
 
     ``strict=True`` runs full pydantic validation: it selects the family model
     from :data:`_FAMILY_MODELS` (the single source of truth shared with the
     non-strict path via :func:`_family_tag`) and validates through
-    ``model_validate``. The default construct path never validates.
+    ``model_validate``. The default construct path never validates and prefers
+    the per-collection (``type``) model when one exists.
     """
     if strict:
         model = _FAMILY_MODELS.get(_family_tag(data), GenericBulletin)
@@ -177,17 +479,25 @@ def construct_bulletin(data: Any, *, strict: bool = False) -> Bulletin:
 
 
 __all__ = [
+    "AdvisoryBulletin",
+    "BugBountyBulletin",
     "Bulletin",
     "CveBulletin",
     "Cvss",
     "Cvss2",
     "Cvss3",
     "Cvss4",
+    "Enchantments",
+    "EpssScore",
     "ExploitBulletin",
     "GenericBulletin",
     "InfoBulletin",
+    "LibraryBulletin",
+    "MicrosoftBulletin",
     "ScannerBulletin",
     "SoftwareBulletin",
+    "Timestamps",
+    "UnixBulletin",
     "bulletin_class_for",
     "construct_bulletin",
 ]

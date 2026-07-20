@@ -37,9 +37,16 @@ class VulnersModel(BaseModel):
     ``extra="allow"`` keeps unknown server fields (forward compatibility: a new
     field never breaks an old client); every subclass field is optional so a
     partial ``fields=`` projection constructs cleanly.
+
+    ``use_attribute_docstrings=True`` promotes each field's attribute docstring
+    to its ``description``, so one authored line serves the JSON schema, the docs
+    and IDE hover (Pylance/basedpyright surface attribute docstrings; they do not
+    surface ``Field(description=...)``). Pydantic reads the docstring from source;
+    a model with no source available (never the case for these file-defined
+    models) simply gets no description.
     """
 
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="allow", use_attribute_docstrings=True)
 
 
 class Discriminator:

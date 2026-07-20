@@ -1,0 +1,7 @@
+# Regenerable sampled data — recreate with sample_collections.py (needs an API key).
+# Only schema_snapshot.json (the compact offline --verify baseline) is committed.
+type_schemas.json
+family_schemas.json
+collection_map.json
+collections_list.json
+coverage_report.md

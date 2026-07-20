@@ -22,64 +22,10 @@
         "builtins.list"
       ],
       "members": {
-        "append": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self, object, /)"
-        },
-        "clear": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self, /)"
-        },
-        "copy": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self, /)"
-        },
-        "count": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self, value, /)"
-        },
-        "extend": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self, iterable, /)"
-        },
         "from_dataset": {
-          "kind": "attribute",
-          "type": "classmethod"
-        },
-        "index": {
           "deprecated": false,
           "kind": "method",
-          "signature": "(self, value, start=0, stop=9223372036854775807, /)"
-        },
-        "insert": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self, index, object, /)"
-        },
-        "pop": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self, index=-1, /)"
-        },
-        "remove": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self, value, /)"
-        },
-        "reverse": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self, /)"
-        },
-        "sort": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self, /, *, key=None, reverse=False)"
+          "signature": "(data, total)"
         },
         "total": {
           "kind": "attribute",
@@ -103,22 +49,7 @@
       "bases": [
         "builtins.Exception"
       ],
-      "members": {
-        "add_note": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": null
-        },
-        "args": {
-          "kind": "attribute",
-          "type": "getset_descriptor"
-        },
-        "with_traceback": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": null
-        }
-      }
+      "members": {}
     },
     "vulners.base.VulnersApiProxy": {
       "bases": [
@@ -147,112 +78,20 @@
       "bases": [
         "builtins.DeprecationWarning"
       ],
-      "members": {
-        "add_note": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": null
-        },
-        "args": {
-          "kind": "attribute",
-          "type": "getset_descriptor"
-        },
-        "with_traceback": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": null
-        }
-      }
+      "members": {}
     },
     "vulners.vscanner.ApiObject": {
       "bases": [
         "collections.abc.Mapping",
         "typing.Generic"
       ],
-      "members": {
-        "get": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self, key, default=None)"
-        },
-        "items": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self)"
-        },
-        "keys": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self)"
-        },
-        "values": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self)"
-        }
-      }
+      "members": {}
     },
     "vulners.vscanner.NotificationObj": {
       "bases": [
         "builtins.dict"
       ],
-      "members": {
-        "clear": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": null
-        },
-        "copy": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": null
-        },
-        "fromkeys": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(iterable, value=None, /)"
-        },
-        "get": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self, key, default=None, /)"
-        },
-        "items": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": null
-        },
-        "keys": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": null
-        },
-        "pop": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": null
-        },
-        "popitem": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self, /)"
-        },
-        "setdefault": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self, key, default=None, /)"
-        },
-        "update": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": null
-        },
-        "values": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": null
-        }
-      }
+      "members": {}
     },
     "vulners.vscanner.Project": {
       "bases": [
@@ -269,11 +108,6 @@
           "kind": "method",
           "signature": "(self) -> 'None'"
         },
-        "get": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self, key, default=None)"
-        },
         "get_results": {
           "deprecated": false,
           "kind": "method",
@@ -289,25 +123,10 @@
           "kind": "method",
           "signature": "(self, *args: 'Any', **kwargs: 'Any') -> 'TaskList'"
         },
-        "items": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self)"
-        },
-        "keys": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self)"
-        },
         "update": {
           "deprecated": false,
           "kind": "method",
           "signature": "(self, **kwargs: 'Any') -> 'None'"
-        },
-        "values": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self)"
         }
       }
     },
@@ -315,63 +134,7 @@
       "bases": [
         "builtins.list"
       ],
-      "members": {
-        "append": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self, object, /)"
-        },
-        "clear": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self, /)"
-        },
-        "copy": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self, /)"
-        },
-        "count": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self, value, /)"
-        },
-        "extend": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self, iterable, /)"
-        },
-        "index": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self, value, start=0, stop=9223372036854775807, /)"
-        },
-        "insert": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self, index, object, /)"
-        },
-        "pop": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self, index=-1, /)"
-        },
-        "remove": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self, value, /)"
-        },
-        "reverse": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self, /)"
-        },
-        "sort": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self, /, *, key=None, reverse=False)"
-        }
-      }
+      "members": {}
     },
     "vulners.vscanner.Result": {
       "bases": [
@@ -383,30 +146,10 @@
           "kind": "method",
           "signature": "(self) -> 'None'"
         },
-        "get": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self, key, default=None)"
-        },
         "get_screenshot": {
           "deprecated": false,
           "kind": "method",
           "signature": "(self, port: 'Any', as_base64: 'bool' = False) -> 'bytes | None'"
-        },
-        "items": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self)"
-        },
-        "keys": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self)"
-        },
-        "values": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self)"
         }
       }
     },
@@ -414,63 +157,7 @@
       "bases": [
         "builtins.list"
       ],
-      "members": {
-        "append": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self, object, /)"
-        },
-        "clear": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self, /)"
-        },
-        "copy": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self, /)"
-        },
-        "count": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self, value, /)"
-        },
-        "extend": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self, iterable, /)"
-        },
-        "index": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self, value, start=0, stop=9223372036854775807, /)"
-        },
-        "insert": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self, index, object, /)"
-        },
-        "pop": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self, index=-1, /)"
-        },
-        "remove": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self, value, /)"
-        },
-        "reverse": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self, /)"
-        },
-        "sort": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self, /, *, key=None, reverse=False)"
-        }
-      }
+      "members": {}
     },
     "vulners.vscanner.Task": {
       "bases": [
@@ -482,21 +169,6 @@
           "kind": "method",
           "signature": "(self) -> 'None'"
         },
-        "get": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self, key, default=None)"
-        },
-        "items": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self)"
-        },
-        "keys": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self)"
-        },
         "start_task": {
           "deprecated": false,
           "kind": "method",
@@ -506,11 +178,6 @@
           "deprecated": false,
           "kind": "method",
           "signature": "(self, **kwargs: 'Any') -> 'None'"
-        },
-        "values": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self)"
         }
       }
     },
@@ -518,63 +185,7 @@
       "bases": [
         "builtins.list"
       ],
-      "members": {
-        "append": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self, object, /)"
-        },
-        "clear": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self, /)"
-        },
-        "copy": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self, /)"
-        },
-        "count": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self, value, /)"
-        },
-        "extend": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self, iterable, /)"
-        },
-        "index": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self, value, start=0, stop=9223372036854775807, /)"
-        },
-        "insert": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self, index, object, /)"
-        },
-        "pop": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self, index=-1, /)"
-        },
-        "remove": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self, value, /)"
-        },
-        "reverse": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self, /)"
-        },
-        "sort": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self, /, *, key=None, reverse=False)"
-        }
-      }
+      "members": {}
     },
     "vulners.vscanner.VScannerApi": {
       "bases": [
@@ -995,125 +606,13 @@
       "bases": [
         "builtins.dict"
       ],
-      "members": {
-        "clear": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": null
-        },
-        "copy": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": null
-        },
-        "fromkeys": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(iterable, value=None, /)"
-        },
-        "get": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self, key, default=None, /)"
-        },
-        "items": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": null
-        },
-        "keys": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": null
-        },
-        "pop": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": null
-        },
-        "popitem": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self, /)"
-        },
-        "setdefault": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self, key, default=None, /)"
-        },
-        "update": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": null
-        },
-        "values": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": null
-        }
-      }
+      "members": {}
     },
     "vulners.vulners.audit.WinAuditItem": {
       "bases": [
         "builtins.dict"
       ],
-      "members": {
-        "clear": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": null
-        },
-        "copy": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": null
-        },
-        "fromkeys": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(iterable, value=None, /)"
-        },
-        "get": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self, key, default=None, /)"
-        },
-        "items": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": null
-        },
-        "keys": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": null
-        },
-        "pop": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": null
-        },
-        "popitem": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self, /)"
-        },
-        "setdefault": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": "(self, key, default=None, /)"
-        },
-        "update": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": null
-        },
-        "values": {
-          "deprecated": false,
-          "kind": "method",
-          "signature": null
-        }
-      }
+      "members": {}
     },
     "vulners.vulners.misc.MiscApi": {
       "bases": [
@@ -1611,5 +1110,6 @@
     "VulnersApiError",
     "VulnersDeprecationWarning"
   ],
+  "python": "3.12",
   "version": "3.2.0"
 }

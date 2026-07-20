@@ -54,11 +54,11 @@ cov-all:
 # from the async source. `--extra fast` pulls the unasyncd build that carries the
 # asyncio->threading Lock transform.
 unasync:
-	uv run --extra fast unasyncd
+	uv run unasyncd
 
 # Fail if the committed sync mirror has drifted from the async source.
 unasync-check:
-	uv run --extra fast unasyncd --check
+	uv run unasyncd --check
 
 # Regenerate all codegen artifacts and fail on drift (CI drift gate).
 codegen:

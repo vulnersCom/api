@@ -40,12 +40,18 @@ def _live_snapshot() -> dict:
     return json.loads(proc.stdout)
 
 
-def _surface_violations(baseline: dict, current: dict) -> list[str]:
+def _surface_violations(baseline: dict, current: dict, *, check_signatures: bool) -> list[str]:
     """Backward-compat is *subset* preservation, not equality.
 
-    Every v3 (3.2.0) symbol must still exist with the same signature; v4 may add
-    new public names/classes and may *add* deprecation markers (False->True), but
-    must never remove a symbol, change a signature, or un-deprecate one.
+    Every v3 (3.2.0) symbol must still exist with the same kind; v4 may add new
+    public names/classes and may *add* deprecation markers (False->True), but must
+    never remove a symbol, change a member's kind, or un-deprecate one.
+
+    Signature *strings* are only compared when the running interpreter matches the
+    Python version the baseline was recorded on (``check_signatures``): the repr of
+    typed signatures shifts across Python versions, which is not a BC change of
+    ours. Member names/kinds are version-robust (builtin-inherited members are
+    excluded from the snapshot) and are always checked.
     """
     errs: list[str] = []
     for mod, binfo in baseline["modules"].items():
@@ -76,7 +82,7 @@ def _surface_violations(baseline: dict, current: dict) -> list[str]:
                 errs.append(
                     f"{cls}.{mname} kind changed: {bmem.get('kind')} -> {cmem.get('kind')}"
                 )
-            if bmem.get("signature") != cmem.get("signature"):
+            if check_signatures and bmem.get("signature") != cmem.get("signature"):
                 errs.append(f"{cls}.{mname} signature changed")
             if bmem.get("deprecated") and not cmem.get("deprecated"):
                 errs.append(f"{cls}.{mname} un-deprecated")
@@ -87,7 +93,11 @@ class TestSurface:
     def test_v3_surface_preserved(self):
         baseline = json.loads(SURFACE_BASELINE.read_text("utf-8"))
         current = _live_snapshot()
-        violations = _surface_violations(baseline, current)
+        # Signature reprs are Python-version-specific; only compare them when
+        # running the interpreter the baseline was recorded on. Names/kinds
+        # (version-robust) are always checked, on every interpreter.
+        check_sigs = current.get("python") == baseline.get("python")
+        violations = _surface_violations(baseline, current, check_signatures=check_sigs)
         assert not violations, "v3 public surface broke BC:\n" + "\n".join(violations)
 
     def test_v4_api_added_additively(self):

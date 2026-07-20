@@ -47,8 +47,6 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# Bulk NDJSON fast-path decoder; narrow use (streaming), gated by a benchmark.
-fast = ["msgspec>=0.19,<1"]
 # Streaming multi-member zip archive decode (lazily imported by _streaming).
 stream-zip = ["stream-unzip>=0.0.100,<0.1"]
 # HTTP/2 transport.
@@ -73,20 +71,31 @@ vulners-mcp = "vulners._mcp.server:main"
 # Dev toolchain (PEP 735 dependency groups; installed by `uv sync`).
 # Conservative floors that resolve today; tightened to exact pins at lock time.
 [dependency-groups]
-dev = [
-    "ruff>=0.11.8",
-    "mypy>=1.15",
-    "basedpyright>=1.21",
+# Minimal group to RUN the tests. Deliberately excludes the code-gen tool
+# (unasyncd -> msgspec 0.18.6, which fails to build on 3.13/3.14). The CI test
+# matrix installs only this group, so those interpreters never build msgspec;
+# tests import the already-committed sync mirror and don't need unasyncd.
+test = [
     "pytest>=8.3",
     "pytest-asyncio>=0.24",
     "respx>=0.21",
     "pytest-xdist>=3.6",
     "pytest-cov>=5",
     "coverage>=7",
-    "unasyncd>=0.8.1",
+    "pytest-codspeed>=2.2.1",
     # Runtime optional extra, installed for tests exercising the zip stream path.
     "stream-unzip>=0.0.100,<0.1",
-    "pytest-codspeed>=2.2.1",
+]
+# Lint/typecheck only (no unasyncd -> no msgspec); the CI lint job installs this.
+lint = [
+    "ruff>=0.11.8",
+    "mypy>=1.15",
+    "basedpyright>=1.21",
+]
+dev = [
+    { include-group = "test" },
+    { include-group = "lint" },
+    "unasyncd>=0.8.1",
     # Documentation site: Material theme + mkdocstrings API reference +
     # llms.txt emitter. `mike` versioning is deferred (single-version site for now).
     "mkdocs-material>=9.7.6",
@@ -99,16 +108,7 @@ dev = [
 # the committed uv.lock resolves identically everywhere (a bare `uv sync
 # --locked` in CI has no machine-global cutoff, so without this the lock would
 # be seen as stale). Dev/build tooling only — end users are unaffected.
-exclude-newer = "2026-04-21T00:00:00Z"
-# The [fast] and [mcp] extras carry mutually incompatible msgspec constraints
-# (msgspec>=0.19 for the bulk NDJSON fast-path vs. the pin fastmcp transitively
-# requires). They are never installed together, so declare them conflicting;
-# this lets the universal resolver fork them cleanly instead of failing.
-conflicts = [[{ extra = "fast" }, { extra = "mcp" }]]
-# unasyncd 0.10.x (the pinned build-time sync generator) publishes past the
-# environment's global exclude-newer cutoff; allow it explicitly so `uv run`
-# resolves it stably instead of re-resolving on every invocation.
-exclude-newer-package = { unasyncd = "2026-07-01T00:00:00Z" }
+exclude-newer = "2026-07-19T00:00:00Z"
 
 [tool.unasyncd]
 # Build-time generation of the sync mirror from the async source of truth. Both
@@ -208,7 +208,10 @@ no_implicit_reexport = false
 # default type-check environment (its rich pin conflicts with the dev group's
 # unasyncd). Treat it as untyped so vulners._mcp still type-checks against Any.
 [[tool.mypy.overrides]]
-module = ["fastmcp.*"]
+# Optional, lazily-imported deps without type stubs (installed only with their
+# extra/group). Ignore their missing imports so the lint job (which omits them)
+# stays clean.
+module = ["fastmcp.*", "stream_unzip"]
 ignore_missing_imports = true
 
 [tool.pyright]

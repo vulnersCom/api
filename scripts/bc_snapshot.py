@@ -19,6 +19,7 @@ import importlib
 import inspect
 import json
 import pkgutil
+import sys
 from functools import cached_property
 from typing import Any
 
@@ -52,18 +53,24 @@ def _describe_member(member: Any) -> dict[str, Any]:
     return {"kind": "attribute", "type": type(member).__name__}
 
 
+def _defining_module(cls: type, name: str) -> str:
+    for base in cls.__mro__:
+        if name in base.__dict__:
+            return getattr(base, "__module__", "") or ""
+    return ""
+
+
 def _describe_class(cls: type) -> dict[str, Any]:
     members: dict[str, Any] = {}
-    for name in sorted(vars(cls)):  # own attributes only (declared surface)
+    # Only members DEFINED within the vulners package are part of our surface.
+    # Members inherited from a builtin base (BaseException.add_note, dict.keys on a
+    # TypedDict, object/type methods) are skipped: they appear/disappear and their
+    # signature reprs shift across Python versions, which is not a BC change of
+    # ours. Members from vulners base classes are kept (real inherited surface).
+    for name in sorted(dir(cls)):
         if not _is_public(name):
             continue
-        members[name] = _describe_member(vars(cls)[name])
-    # Public methods inherited from vulners base classes are part of the surface
-    # too; record them (skip anything defined by `object`).
-    for name in sorted(dir(cls)):
-        if not _is_public(name) or name in members:
-            continue
-        if hasattr(object, name):
+        if not _defining_module(cls, name).startswith(PACKAGE):
             continue
         try:
             member = getattr(cls, name)
@@ -107,6 +114,7 @@ def snapshot() -> dict[str, Any]:
 
     return {
         "version": getattr(root, "__version__", None),
+        "python": f"{sys.version_info[0]}.{sys.version_info[1]}",
         "package_all": sorted(root.__all__) if hasattr(root, "__all__") else None,
         "modules": modules,
         "classes": dict(sorted(classes.items())),

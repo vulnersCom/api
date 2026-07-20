@@ -28,7 +28,7 @@ from ._logging import logger
 from ._ratelimit_async import AsyncRateLimitBucket
 from ._response import APIResponse, AsyncStreamedAPIResponse
 from ._retry import _retry_timeout, _should_retry
-from ._streaming import is_zip_media, iter_zip_ndjson, make_ndjson_decoder
+from ._streaming import is_zip_media, iter_zip_json_array, make_array_decoder
 from ._transport import AsyncVulnersTransport
 from ._types import NotGiven, Omit, not_given
 
@@ -178,7 +178,7 @@ class AsyncAPIClient(BaseClient):
         body: Any = None,
         timeout: float | httpx.Timeout | None | NotGiven = not_given,
     ) -> AsyncIterator[Any]:
-        """Lazily yield NDJSON records from a streamed (bulk archive) response."""
+        """Lazily yield the elements of a streamed bulk-archive JSON array."""
         request = self._build_request(spec, params=params, body=body, timeout=timeout)
         bucket = self._bucket_for(self._ratelimit_key(spec))
         await bucket.consume(self._config.max_rate_limit_wait)
@@ -195,18 +195,19 @@ class AsyncAPIClient(BaseClient):
                     buf += chunk
                     if cap is not None:
                         self._guard_cap(len(buf), response.status_code)
-                for record in iter_zip_ndjson(bytes(buf), cap):
+                for record in iter_zip_json_array(bytes(buf), cap):
                     yield record
             else:
-                decoder = make_ndjson_decoder(media, cap)
-                raw = 0
+                # The decoder inflates and parses the JSON array lazily and
+                # enforces the cap on the decompressed byte count.
+                decoder = make_array_decoder(media, cap)
                 async for chunk in response.aiter_bytes():
-                    if cap is not None:
-                        raw += len(chunk)
-                        self._guard_cap(raw, response.status_code)
                     for record in decoder.feed(chunk):
                         yield record
-                for record in decoder.flush():
+                # feed() drains each chunk fully (ijson emits every element at its
+                # closing brace), so flush() is a no-op for the array decoders; the
+                # call is the decoder-protocol contract, kept for a buffering decoder.
+                for record in decoder.flush():  # pragma: no cover
                     yield record
         finally:
             await response.aclose()

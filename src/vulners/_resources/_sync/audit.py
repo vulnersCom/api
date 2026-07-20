@@ -106,10 +106,10 @@ class Audit(_base.BaseResource):
 
     def os_audit(
         self,
-        *,
         os: str,
         version: str,
         packages: Sequence[str],
+        *,
         timeout: float | httpx.Timeout | NotGiven = not_given,
     ) -> dict[str, Any]:
         """Audit an OS package list (legacy v3 endpoint; prefer :meth:`linux_audit`).
@@ -124,10 +124,10 @@ class Audit(_base.BaseResource):
 
     def linux_audit(
         self,
-        *,
         os_name: str,
         os_version: str,
         packages: Sequence[str],
+        *,
         os_arch: str | None = None,
         include_unofficial: bool = False,
         include_candidates: bool = False,
@@ -161,8 +161,8 @@ class Audit(_base.BaseResource):
 
     def library_audit(
         self,
-        *,
         packages: Sequence[str],
+        *,
         include_unofficial: bool = False,
         include_candidates: bool = False,
         include_any_version: bool = False,
@@ -223,9 +223,9 @@ class Audit(_base.BaseResource):
 
     def kb_audit(
         self,
-        *,
         os: str,
         kb_list: Sequence[str],
+        *,
         timeout: float | httpx.Timeout | NotGiven = not_given,
     ) -> dict[str, Any]:
         """Audit a Windows host by its installed KB list.
@@ -239,11 +239,11 @@ class Audit(_base.BaseResource):
 
     def win_audit(
         self,
-        *,
         os: str,
         os_version: str,
         kb_list: Sequence[str],
         software: Sequence[WinAuditItem],
+        *,
         platform: str | NotGiven = not_given,
         timeout: float | httpx.Timeout | NotGiven = not_given,
     ) -> dict[str, Any]:

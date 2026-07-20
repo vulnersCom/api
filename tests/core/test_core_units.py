@@ -64,12 +64,11 @@ from vulners._retry import (
     _should_retry,
 )
 from vulners._streaming import (
-    GzipNdjsonDecoder,
-    PlainNdjsonDecoder,
-    _LineBuffer,
+    GzipJsonArrayDecoder,
+    PlainJsonArrayDecoder,
     is_zip_media,
-    iter_zip_ndjson,
-    make_ndjson_decoder,
+    iter_zip_json_array,
+    make_array_decoder,
 )
 from vulners._types import NotGiven, Omit, not_given, omit
 
@@ -465,58 +464,59 @@ class TestStreamedResponses:
 
 
 class TestStreamingDecoders:
-    def test_line_buffer_flush(self):
-        buf = _LineBuffer()
-        assert buf.push(b"a\nb\n") == [b"a", b"b"]
-        assert buf.push(b"partial") == []
-        assert buf.flush() == [b"partial"]
-        assert buf.flush() == []  # empty now
+    @staticmethod
+    def _arr(*records: object) -> bytes:
+        # Real archive shape: a pretty-printed JSON array, one element per line.
+        return b"[\n" + b",\n".join(orjson.dumps(r) for r in records) + b"\n]"
 
-    def test_plain_decoder_blank_lines_and_flush(self):
-        d = PlainNdjsonDecoder()
-        out = list(d.feed(b'{"a":1}\n\n{"b":2}'))  # last line has no newline yet
-        assert out == [{"a": 1}]
-        assert list(d.flush()) == [{"b": 2}]
+    def test_plain_decoder_feed_and_flush(self):
+        d = PlainJsonArrayDecoder()
+        arr = self._arr({"a": 1}, {"b": 2})
+        # split mid-array: the first feed yields the first element and leaves a
+        # partial second element buffered inside the push parser.
+        out = list(d.feed(arr[:12])) + list(d.feed(arr[12:]))
+        out += list(d.flush())
+        assert out == [{"a": 1}, {"b": 2}]
 
     def test_plain_decoder_cap(self):
-        d = PlainNdjsonDecoder(cap=3)
+        d = PlainJsonArrayDecoder(cap=3)
         with pytest.raises(APIResponseValidationError):
-            list(d.feed(b'{"a":1}\n'))
+            list(d.feed(self._arr({"a": 1})))
 
     def test_gzip_decoder_no_cap(self):
-        d = GzipNdjsonDecoder()
-        out = list(d.feed(gzip.compress(b'{"a":1}\n{"b":2}\n')))
+        d = GzipJsonArrayDecoder()
+        out = list(d.feed(gzip.compress(self._arr({"a": 1}, {"b": 2}))))
         out += list(d.flush())
         assert out == [{"a": 1}, {"b": 2}]
 
     def test_gzip_decoder_capped_ok_and_over(self):
-        payload = gzip.compress(b'{"a":1}\n' * 3)
-        d_ok = GzipNdjsonDecoder(cap=10_000)
+        payload = gzip.compress(self._arr({"a": 1}, {"a": 1}, {"a": 1}))
+        d_ok = GzipJsonArrayDecoder(cap=10_000)
         assert list(d_ok.feed(payload)) + list(d_ok.flush()) == [{"a": 1}] * 3
-        d_over = GzipNdjsonDecoder(cap=4)
+        d_over = GzipJsonArrayDecoder(cap=4)
         with pytest.raises(APIResponseValidationError):
             list(d_over.feed(payload))
 
     def test_make_decoder_and_is_zip(self):
-        assert isinstance(make_ndjson_decoder("application/gzip", None), GzipNdjsonDecoder)
-        assert isinstance(make_ndjson_decoder("application/x-ndjson", None), PlainNdjsonDecoder)
+        assert isinstance(make_array_decoder("application/gzip", None), GzipJsonArrayDecoder)
+        assert isinstance(make_array_decoder("application/json", None), PlainJsonArrayDecoder)
         assert is_zip_media("application/zip") is True
         assert is_zip_media("application/json") is False
 
     def _zip(self, data: bytes) -> bytes:
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
-            z.writestr("c.ndjson", data)
+            z.writestr("cve.json", data)
         return buf.getvalue()
 
-    def test_iter_zip_ndjson_with_trailing_line(self):
-        body = self._zip(b'{"a":1}\n{"b":2}')  # no trailing newline -> flush path
-        assert list(iter_zip_ndjson(body)) == [{"a": 1}, {"b": 2}]
+    def test_iter_zip_json_array(self):
+        body = self._zip(self._arr({"a": 1}, {"b": 2}))
+        assert list(iter_zip_json_array(body)) == [{"a": 1}, {"b": 2}]
 
-    def test_iter_zip_ndjson_cap(self):
-        body = self._zip(b'{"a":1}\n' * 100)
+    def test_iter_zip_json_array_cap(self):
+        body = self._zip(self._arr(*([{"a": 1}] * 100)))
         with pytest.raises(APIResponseValidationError):
-            list(iter_zip_ndjson(body, cap=5))
+            list(iter_zip_json_array(body, cap=5))
 
 
 # ---------------------------------------------------------------------------

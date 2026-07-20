@@ -33,7 +33,11 @@ from vulners._resources._async.archive import _distributive as async_distributiv
 from vulners._resources._sync.archive import _decode_archive as sync_decode_archive
 from vulners._resources._sync.archive import _distributive as sync_distributive
 from vulners._retry import _retry_after_seconds, _should_retry
-from vulners._streaming import GzipNdjsonDecoder, PlainNdjsonDecoder, iter_zip_ndjson
+from vulners._streaming import (
+    GzipJsonArrayDecoder,
+    PlainJsonArrayDecoder,
+    iter_zip_json_array,
+)
 
 KEY = "SYNTHETIC-TEST-KEY"
 BASE = "https://vulners.com"
@@ -212,68 +216,68 @@ class TestClientOptions:
 # ---------------------------------------------------------------------------
 
 
-class TestStreamingEmptyLines:
-    def test_plain_flush_blank_final_line(self):
-        d = PlainNdjsonDecoder()
-        list(d.feed(b'{"a":1}\n'))
-        list(d.feed(b"   "))  # whitespace-only tail, no newline -> flush parses to blank
+class TestStreamingGzipBranches:
+    @staticmethod
+    def _arr(*records: object) -> bytes:
+        return b"[\n" + b",\n".join(orjson.dumps(r) for r in records) + b"\n]"
+
+    def test_plain_flush_after_complete_array(self):
+        # A complete array in one feed drains every element; flush then closes the
+        # push parser and drains nothing (the empty-target drain branch).
+        d = PlainJsonArrayDecoder()
+        out = list(d.feed(self._arr({"a": 1})))
         assert list(d.flush()) == []
+        assert out == [{"a": 1}]
 
-    def test_gzip_blank_line_and_large_tail(self):
-        # Blank line inside the stream (_EMPTY skipped) + a payload big enough that
-        # a single feed leaves an unconsumed_tail under the cap loop.
-        raw = b'{"a":1}\n\n' + (b'{"x":1}\n' * 40000)
-        d = GzipNdjsonDecoder(cap=100_000_000)
-        out = list(d.feed(gzip.compress(raw)))
+    def test_gzip_large_tail_cap_loop(self):
+        # A payload big enough that a single feed leaves an unconsumed_tail under
+        # the bounded-inflate cap loop, exercising the eof-False continue path.
+        records = [{"x": 1}] * 40000
+        d = GzipJsonArrayDecoder(cap=100_000_000)
+        out = list(d.feed(gzip.compress(self._arr(*records))))
         out += list(d.flush())
-        assert out[0] == {"a": 1}
-        assert len(out) == 40001
+        assert out[0] == {"x": 1}
+        assert len(out) == 40000
 
-    def test_gzip_flush_trailing_partial_line(self):
-        d = GzipNdjsonDecoder()
-        out = list(d.feed(gzip.compress(b'{"a":1}\n{"b":2}')))  # no trailing newline
+    def test_gzip_flush_emits_final_element(self):
+        d = GzipJsonArrayDecoder()
+        out = list(d.feed(gzip.compress(self._arr({"a": 1}, {"b": 2}))))
         out += list(d.flush())
         assert out == [{"a": 1}, {"b": 2}]
 
-    def test_gzip_flush_blank_trailing_partial_line(self):
-        # A whitespace-only final line with no newline: flush parses it to blank -> skipped.
-        d = GzipNdjsonDecoder()
-        out = list(d.feed(gzip.compress(b'{"a":1}\n  ')))
-        out += list(d.flush())
-        assert out == [{"a": 1}]
-
-    def test_zip_skips_blank_lines(self):
+    def test_zip_single_member_array(self):
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
-            # blank line mid-stream, plus a whitespace-only final line (no newline)
-            # so the flush path also parses a blank line and skips it.
-            z.writestr("c.ndjson", b'{"a":1}\n\n{"b":2}\n  ')
-        assert list(iter_zip_ndjson(buf.getvalue())) == [{"a": 1}, {"b": 2}]
+            z.writestr("cve.json", self._arr({"a": 1}, {"b": 2}))
+        assert list(iter_zip_json_array(buf.getvalue())) == [{"a": 1}, {"b": 2}]
 
     def test_gzip_feed_empty_chunk(self):
         # An empty chunk exits the feed loop immediately (natural while exit).
-        d = GzipNdjsonDecoder()
+        d = GzipJsonArrayDecoder()
         assert list(d.feed(b"")) == []
 
     def test_gzip_multi_member_stream(self):
-        # Two concatenated gzip members are decoded in full (not truncated at #1).
-        d = GzipNdjsonDecoder()
-        body = gzip.compress(b'{"a":1}\n') + gzip.compress(b'{"b":2}\n')
+        # Two concatenated gzip members whose decompressed halves join into one
+        # JSON array — decoded in full (not truncated at member #1).
+        raw = self._arr({"a": 1}, {"b": 2})
+        body = gzip.compress(raw[: len(raw) // 2]) + gzip.compress(raw[len(raw) // 2 :])
+        d = GzipJsonArrayDecoder()
         out = list(d.feed(body)) + list(d.flush())
         assert out == [{"a": 1}, {"b": 2}]
 
     def test_gzip_trailing_padding_after_member_ignored(self):
         # Non-gzip trailing bytes after a complete member are ignored (not a member).
-        d = GzipNdjsonDecoder()
-        body = gzip.compress(b'{"a":1}\n') + b"\x00\x00padding"
+        body = gzip.compress(self._arr({"a": 1})) + b"\x00\x00padding"
+        d = GzipJsonArrayDecoder()
         out = list(d.feed(body)) + list(d.flush())
         assert out == [{"a": 1}]
 
     def test_gzip_member_spanning_chunks(self):
         # A member fed in two halves: the first leaves the decoder mid-member with
-        # an empty unconsumed_tail (uncapped) -> the else/return path.
-        raw = gzip.compress(b'{"a":1}\n{"b":2}\n')
-        d = GzipNdjsonDecoder()
+        # an empty unconsumed_tail (uncapped) -> the else/return path, and the push
+        # parser's target stays empty on that feed (the empty-drain branch).
+        raw = gzip.compress(self._arr({"a": 1}, {"b": 2}))
+        d = GzipJsonArrayDecoder()
         out = list(d.feed(raw[: len(raw) // 2]))
         out += list(d.feed(raw[len(raw) // 2 :]))
         out += list(d.flush())

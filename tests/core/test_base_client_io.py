@@ -54,22 +54,16 @@ def _gzip(payload: object) -> httpx.Response:
     )
 
 
-def _gzip_ndjson(records: list[object]) -> httpx.Response:
-    body = b"\n".join(orjson.dumps(r) for r in records) + b"\n"
-    return httpx.Response(
-        200,
-        content=gzip.compress(body),
-        headers={"content-type": "application/x-gzip-compressed"},
-    )
+def _json_array(records: list[object]) -> bytes:
+    return b"[\n" + b",\n".join(orjson.dumps(r) for r in records) + b"\n]"
 
 
-def _zip_ndjson(records: list[object]) -> httpx.Response:
-    body = b"\n".join(orjson.dumps(r) for r in records) + b"\n"
+def _zip_array(records: list[object]) -> httpx.Response:
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
-        z.writestr("c.ndjson", body)
+        z.writestr("cve.json", _json_array(records))
     return httpx.Response(
-        200, content=buf.getvalue(), headers={"content-type": "application/zip"}
+        200, content=buf.getvalue(), headers={"content-type": "application/x-zip-compressed"}
     )
 
 
@@ -272,7 +266,7 @@ class TestClientContextManagers:
 class TestStreamRecordsBranches:
     @respx.mock
     def test_sync_zip_with_cap(self):
-        respx.get(COLLECTION).mock(return_value=_zip_ndjson([{"id": "Z1"}, {"id": "Z2"}]))
+        respx.get(COLLECTION).mock(return_value=_zip_array([{"id": "Z1"}, {"id": "Z2"}]))
         with Vulners(KEY, max_response_bytes=10_000_000) as client:
             assert list(client.archive.iter_collection("cve")) == [{"id": "Z1"}, {"id": "Z2"}]
 
@@ -280,24 +274,26 @@ class TestStreamRecordsBranches:
     def test_sync_cap_aborts_zip(self):
         # Sync mirror of test_async_cap_aborts_zip: an over-limit zip collection
         # aborts the sync stream end-to-end.
-        respx.get(COLLECTION).mock(return_value=_zip_ndjson([{"id": "X"}] * 500))
+        respx.get(COLLECTION).mock(return_value=_zip_array([{"id": "X"}] * 500))
         with Vulners(KEY, max_response_bytes=50) as client:
             with pytest.raises(APIResponseValidationError):
                 list(client.archive.iter_collection("cve"))
 
     @respx.mock
     async def test_async_zip_with_cap(self):
-        respx.get(COLLECTION).mock(return_value=_zip_ndjson([{"id": "Z1"}]))
+        respx.get(COLLECTION).mock(return_value=_zip_array([{"id": "Z1"}]))
         async with AsyncVulners(KEY, max_response_bytes=10_000_000) as client:
             out = [r async for r in client.archive.aiter_collection("cve")]
         assert out == [{"id": "Z1"}]
 
     @respx.mock
-    async def test_async_plain_ndjson_flush(self):
-        body = b'{"id": "A"}\n{"id": "B"}'  # no trailing newline -> flush yields last
+    async def test_async_plain_json_array(self):
+        # An uncompressed JSON array (application/json) streams and flushes via the
+        # non-zip (plain) decoder path.
+        body = b'[\n{"id": "A"},\n{"id": "B"}\n]'
         respx.get(COLLECTION).mock(
             return_value=httpx.Response(
-                200, content=body, headers={"content-type": "application/x-ndjson"}
+                200, content=body, headers={"content-type": "application/json"}
             )
         )
         async with AsyncVulners(KEY) as client:
@@ -317,7 +313,7 @@ class TestStreamRecordsBranches:
 
     @respx.mock
     async def test_async_cap_aborts_zip(self):
-        respx.get(COLLECTION).mock(return_value=_zip_ndjson([{"id": "X"}] * 500))
+        respx.get(COLLECTION).mock(return_value=_zip_array([{"id": "X"}] * 500))
         async with AsyncVulners(KEY, max_response_bytes=50) as client:
             with pytest.raises(APIResponseValidationError):
                 _ = [r async for r in client.archive.aiter_collection("cve")]

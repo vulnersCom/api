@@ -93,7 +93,7 @@ class GenericBulletin(Bulletin):
 
 
 class CveBulletin(Bulletin):
-    """``bulletinFamily: NVD`` — a CVE record and its scoring/enrichment."""
+    """``bulletinFamily: cve`` (or ``NVD``) — a CVE record and its scoring/enrichment."""
 
     cvss2: Cvss | None = None
     cvss3: Cvss | None = None
@@ -129,9 +129,11 @@ class InfoBulletin(Bulletin):
     references: list[str] | None = None
 
 
-# ``bulletinFamily`` -> concrete model. Kept to the 5 highest-signal families;
-# everything else is a GenericBulletin.
+# ``bulletinFamily`` -> concrete model. Kept to the highest-signal families;
+# everything else is a GenericBulletin. Real CVE documents carry
+# ``bulletinFamily: "cve"``; ``"NVD"`` is the legacy tag for the same record.
 _FAMILY_MODELS: dict[Any, type[Bulletin]] = {
+    "cve": CveBulletin,
     "NVD": CveBulletin,
     "exploit": ExploitBulletin,
     "scanner": ScannerBulletin,

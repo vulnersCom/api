@@ -9,6 +9,7 @@ Vulners, AsyncVulners`` in downstream code.
 from __future__ import annotations
 
 import contextlib
+from collections.abc import Mapping
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
@@ -176,6 +177,54 @@ class Vulners:
     def vscanner(self) -> Vscanner:
         return Vscanner(self._api)
 
+    # -- escape hatches ----------------------------------------------------
+    # Thin, untyped access to any API path (e.g. a legacy v3 endpoint without a
+    # dedicated method). These route through the same core pipeline as the typed
+    # resources — credential-safety transport, retries and rate-limit pacing —
+    # and return the parsed response body.
+
+    def get(
+        self,
+        path: str,
+        *,
+        params: Mapping[str, Any] | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> Any:
+        """GET an arbitrary API ``path``; ``params`` become the query string."""
+        return self._api.get(path, params=params, timeout=timeout)
+
+    def post(
+        self,
+        path: str,
+        *,
+        json: Any = None,
+        params: Mapping[str, Any] | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> Any:
+        """POST ``json`` to an arbitrary API ``path``; ``params`` add query args."""
+        return self._api.post(path, body=json, params=params, timeout=timeout)
+
+    def put(
+        self,
+        path: str,
+        *,
+        json: Any = None,
+        params: Mapping[str, Any] | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> Any:
+        """PUT ``json`` to an arbitrary API ``path``; ``params`` add query args."""
+        return self._api.put(path, body=json, params=params, timeout=timeout)
+
+    def delete(
+        self,
+        path: str,
+        *,
+        params: Mapping[str, Any] | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> Any:
+        """DELETE an arbitrary API ``path``; ``params`` become the query string."""
+        return self._api.delete(path, params=params, timeout=timeout)
+
     def with_options(
         self,
         *,
@@ -329,6 +378,54 @@ class AsyncVulners:
     @cached_property
     def vscanner(self) -> AsyncVscanner:
         return AsyncVscanner(self._api)
+
+    # -- escape hatches ----------------------------------------------------
+    # Thin, untyped access to any API path (e.g. a legacy v3 endpoint without a
+    # dedicated method). These route through the same core pipeline as the typed
+    # resources — credential-safety transport, retries and rate-limit pacing —
+    # and return the parsed response body.
+
+    async def get(
+        self,
+        path: str,
+        *,
+        params: Mapping[str, Any] | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> Any:
+        """GET an arbitrary API ``path``; ``params`` become the query string."""
+        return await self._api.get(path, params=params, timeout=timeout)
+
+    async def post(
+        self,
+        path: str,
+        *,
+        json: Any = None,
+        params: Mapping[str, Any] | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> Any:
+        """POST ``json`` to an arbitrary API ``path``; ``params`` add query args."""
+        return await self._api.post(path, body=json, params=params, timeout=timeout)
+
+    async def put(
+        self,
+        path: str,
+        *,
+        json: Any = None,
+        params: Mapping[str, Any] | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> Any:
+        """PUT ``json`` to an arbitrary API ``path``; ``params`` add query args."""
+        return await self._api.put(path, body=json, params=params, timeout=timeout)
+
+    async def delete(
+        self,
+        path: str,
+        *,
+        params: Mapping[str, Any] | None = None,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    ) -> Any:
+        """DELETE an arbitrary API ``path``; ``params`` become the query string."""
+        return await self._api.delete(path, params=params, timeout=timeout)
 
     def with_options(
         self,

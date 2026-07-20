@@ -74,3 +74,11 @@ def live_api(live_config):
     api = vulners.VulnersApi(key, server_url=server_url)
     yield api
     api._client.close()
+
+
+@pytest.fixture
+def live_v4(live_config):
+    key, server_url = live_config
+    client = vulners.Vulners(api_key=key, base_url=server_url)
+    yield client
+    client.close()

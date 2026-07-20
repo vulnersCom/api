@@ -1,4 +1,4 @@
-"""Lazy NDJSON archive streaming, gzip/zip decode, cap, and stream responses."""
+"""Lazy JSON-array archive streaming, gzip/zip decode, cap, and stream responses."""
 
 from __future__ import annotations
 
@@ -18,41 +18,45 @@ from vulners._exceptions import APIResponseValidationError
 KEY = "SYNTHETIC-TEST-KEY"
 BASE = "https://vulners.com"
 COLLECTION = f"{BASE}/api/v4/archive/collection"
+GET_COLLECTION = f"{BASE}/api/v3/archive/collection/"
 LUCENE = f"{BASE}/api/v3/search/lucene/"
 
 
-def _ndjson(records: list[object]) -> bytes:
-    return b"\n".join(orjson.dumps(r) for r in records) + b"\n"
+def _json_array(records: list[object]) -> bytes:
+    # Real archive shape: a single pretty-printed JSON array, one element per line.
+    if not records:
+        return b"[]"
+    return b"[\n" + b",\n".join(orjson.dumps(r) for r in records) + b"\n]"
 
 
-def _gzip_ndjson(records: list[object]) -> httpx.Response:
+def _gzip_array(records: list[object]) -> httpx.Response:
     return httpx.Response(
         200,
-        content=gzip.compress(_ndjson(records)),
+        content=gzip.compress(_json_array(records)),
         headers={"content-type": "application/x-gzip-compressed"},
     )
 
 
-def _zip_ndjson(records: list[object]) -> httpx.Response:
+def _zip_array(records: list[object], name: str = "cve.json") -> httpx.Response:
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as archive:
-        archive.writestr("collection.ndjson", _ndjson(records))
+        archive.writestr(name, _json_array(records))
     return httpx.Response(
-        200, content=buf.getvalue(), headers={"content-type": "application/zip"}
+        200, content=buf.getvalue(), headers={"content-type": "application/x-zip-compressed"}
     )
 
 
-def _plain_ndjson(records: list[object]) -> httpx.Response:
+def _plain_array(records: list[object]) -> httpx.Response:
     return httpx.Response(
-        200, content=_ndjson(records), headers={"content-type": "application/x-ndjson"}
+        200, content=_json_array(records), headers={"content-type": "application/json"}
     )
 
 
 class TestIterCollectionSync:
     @respx.mock
-    def test_gzip_ndjson_records(self):
+    def test_gzip_array_records(self):
         records = [{"id": "CVE-1"}, {"id": "CVE-2"}, {"id": "CVE-3"}]
-        route = respx.get(COLLECTION).mock(return_value=_gzip_ndjson(records))
+        route = respx.get(COLLECTION).mock(return_value=_gzip_array(records))
         with Vulners(KEY) as client:
             out = list(client.archive.iter_collection("cve"))
         assert out == records
@@ -60,7 +64,7 @@ class TestIterCollectionSync:
 
     @respx.mock
     def test_is_lazy_generator(self):
-        route = respx.get(COLLECTION).mock(return_value=_gzip_ndjson([{"id": "A"}, {"id": "B"}]))
+        route = respx.get(COLLECTION).mock(return_value=_gzip_array([{"id": "A"}, {"id": "B"}]))
         with Vulners(KEY) as client:
             gen = client.archive.iter_collection("cve")
             assert inspect.isgenerator(gen)
@@ -70,40 +74,26 @@ class TestIterCollectionSync:
             assert route.call_count == 1
 
     @respx.mock
-    def test_plain_ndjson_records(self):
+    def test_plain_array_records(self):
+        # An uncompressed JSON array (application/json) streams through too.
         records = [{"id": "X"}, {"id": "Y"}]
-        respx.get(COLLECTION).mock(return_value=_plain_ndjson(records))
+        respx.get(COLLECTION).mock(return_value=_plain_array(records))
         with Vulners(KEY) as client:
             assert list(client.archive.iter_collection("cve")) == records
 
     @respx.mock
-    def test_zip_ndjson_records(self):
+    def test_zip_array_records(self):
+        # v3-shaped wire: application/x-zip-compressed with a single inner cve.json.
         records = [{"id": "Z1"}, {"id": "Z2"}]
-        respx.get(COLLECTION).mock(return_value=_zip_ndjson(records))
+        respx.get(COLLECTION).mock(return_value=_zip_array(records))
         with Vulners(KEY) as client:
             assert list(client.archive.iter_collection("cve")) == records
-
-    @respx.mock
-    def test_ndjson_without_trailing_newline_flushes_last_record(self):
-        # No trailing newline: the decoder buffers the last record and emits it
-        # from flush() (exercises the sync stream_records flush branch).
-        body = b'{"id": "rec-1"}\n{"id": "rec-2"}'
-        respx.get(COLLECTION).mock(
-            return_value=httpx.Response(
-                200, content=body, headers={"content-type": "application/x-ndjson"}
-            )
-        )
-        with Vulners(KEY) as client:
-            assert list(client.archive.iter_collection("cve")) == [
-                {"id": "rec-1"},
-                {"id": "rec-2"},
-            ]
 
     @respx.mock
     def test_max_response_bytes_aborts_decompression_bomb(self):
         # Highly compressible: small on the wire, large once inflated.
         records = [{"id": "CVE-1"}] * 2000
-        respx.get(COLLECTION).mock(return_value=_gzip_ndjson(records))
+        respx.get(COLLECTION).mock(return_value=_gzip_array(records))
         with Vulners(KEY, max_response_bytes=500) as client:
             with pytest.raises(APIResponseValidationError):
                 list(client.archive.iter_collection("cve"))
@@ -121,19 +111,36 @@ class TestIterCollectionSync:
         assert exc.value.__class__.__name__ == "PermissionDeniedError"
 
 
+class TestBufferedGetCollection:
+    @respx.mock
+    def test_get_collection_zip_returns_parsed_array(self):
+        # Buffered v3 path over x-zip-compressed: whole archive decoded to the array.
+        records = [{"id": "CVE-1"}, {"id": "CVE-2"}]
+        respx.get(GET_COLLECTION).mock(return_value=_zip_array(records))
+        with Vulners(KEY) as client:
+            assert client.archive.get_collection("cve") == records
+
+    @respx.mock
+    def test_get_collection_gzip_returns_parsed_array(self):
+        records = [{"id": "CVE-1"}]
+        respx.get(GET_COLLECTION).mock(return_value=_gzip_array(records))
+        with Vulners(KEY) as client:
+            assert client.archive.get_collection("cve") == records
+
+
 class TestIterCollectionAsync:
     @respx.mock
-    async def test_gzip_ndjson_records(self):
+    async def test_gzip_array_records(self):
         records = [{"id": "CVE-1"}, {"id": "CVE-2"}]
-        respx.get(COLLECTION).mock(return_value=_gzip_ndjson(records))
+        respx.get(COLLECTION).mock(return_value=_gzip_array(records))
         async with AsyncVulners(KEY) as client:
             out = [r async for r in client.archive.aiter_collection("cve")]
         assert out == records
 
     @respx.mock
-    async def test_zip_ndjson_records(self):
+    async def test_zip_array_records(self):
         records = [{"id": "Z1"}, {"id": "Z2"}]
-        respx.get(COLLECTION).mock(return_value=_zip_ndjson(records))
+        respx.get(COLLECTION).mock(return_value=_zip_array(records))
         async with AsyncVulners(KEY) as client:
             out = [r async for r in client.archive.aiter_collection("cve")]
         assert out == records
@@ -141,7 +148,7 @@ class TestIterCollectionAsync:
     @respx.mock
     async def test_max_response_bytes_aborts(self):
         records = [{"id": "CVE-1"}] * 2000
-        respx.get(COLLECTION).mock(return_value=_gzip_ndjson(records))
+        respx.get(COLLECTION).mock(return_value=_gzip_array(records))
         async with AsyncVulners(KEY, max_response_bytes=500) as client:
             with pytest.raises(APIResponseValidationError):
                 _ = [r async for r in client.archive.aiter_collection("cve")]
@@ -151,9 +158,9 @@ class TestStreamRedirect:
     @respx.mock
     def test_follows_302_to_storage_and_strips_key(self):
         records = [{"id": "CVE-1"}]
-        gcs = "https://storage.googleapis.com/vulners/cve.ndjson.gz?sig=abc"
+        gcs = "https://storage.googleapis.com/vulners/cve.json.gz?sig=abc"
         respx.get(COLLECTION).mock(return_value=httpx.Response(302, headers={"location": gcs}))
-        gcs_route = respx.get(gcs).mock(return_value=_gzip_ndjson(records))
+        gcs_route = respx.get(gcs).mock(return_value=_gzip_array(records))
         with Vulners(KEY) as client:
             out = list(client.archive.iter_collection("cve"))
         assert out == records
@@ -164,9 +171,9 @@ class TestStreamRedirect:
     async def test_async_follows_302_to_storage_and_strips_key(self):
         # Async mirror: the 302-to-storage cross-origin key strip end-to-end.
         records = [{"id": "CVE-1"}, {"id": "CVE-2"}]
-        gcs = "https://storage.googleapis.com/vulners/cve.ndjson.gz?sig=abc"
+        gcs = "https://storage.googleapis.com/vulners/cve.json.gz?sig=abc"
         respx.get(COLLECTION).mock(return_value=httpx.Response(302, headers={"location": gcs}))
-        gcs_route = respx.get(gcs).mock(return_value=_gzip_ndjson(records))
+        gcs_route = respx.get(gcs).mock(return_value=_gzip_array(records))
         async with AsyncVulners(KEY) as client:
             out = [r async for r in client.archive.aiter_collection("cve")]
         assert out == records

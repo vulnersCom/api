@@ -29,7 +29,7 @@ from vulners._config import resolve_config
 from vulners._exceptions import _extract_error
 from vulners._models._base import construct_type
 from vulners._models.bulletin import Bulletin, bulletin_class_for
-from vulners._streaming import PlainNdjsonDecoder
+from vulners._streaming import PlainJsonArrayDecoder
 
 pytestmark = pytest.mark.benchmark
 
@@ -61,11 +61,12 @@ _ERROR_ENVELOPE: dict[str, Any] = {
     "data": {"error": "Wrong parameter value for 'query'", "errorCode": 104},
 }
 
-_NDJSON_CHUNK: bytes = (
-    b"\n".join(
+_JSON_ARRAY_CHUNK: bytes = (
+    b"[\n"
+    + b",\n".join(
         b'{"id": "CVE-2099-%04d", "cvss": {"score": 7.5}, "type": "cve"}' % n for n in range(50)
     )
-    + b"\n"
+    + b"\n]"
 )
 
 
@@ -106,10 +107,10 @@ def test_extract_error(benchmark: Any) -> None:
     assert info.error_code == 104
 
 
-def test_ndjson_line_decode(benchmark: Any) -> None:
+def test_json_array_decode(benchmark: Any) -> None:
     def run() -> int:
-        decoder = PlainNdjsonDecoder()
-        count = sum(1 for _ in decoder.feed(_NDJSON_CHUNK))
+        decoder = PlainJsonArrayDecoder()
+        count = sum(1 for _ in decoder.feed(_JSON_ARRAY_CHUNK))
         count += sum(1 for _ in decoder.flush())
         return count
 

@@ -57,6 +57,11 @@ dependencies = [
     # ISA-L accelerated gzip inflate on the multi-GB archive hot path (drop-in
     # zlib/gzip replacement). Ships cp310–cp314 wheels.
     "isal>=1.7",
+    # Streaming JSON-array parser for the bulk archive path (a collection is one
+    # big JSON array): yields elements without buffering the whole array. Pure
+    # Python with optional C backends; the pure-Python backend needs no wheel, so
+    # `pip install vulners` / `uv sync` never builds from source on any 3.10–3.14.
+    "ijson>=3.2,<4",
 ]
 
 [project.optional-dependencies]
@@ -231,7 +236,7 @@ no_implicit_reexport = false
 # Optional, lazily-imported deps without type stubs (installed only with their
 # extra/group). Ignore their missing imports so the lint job (which omits them)
 # stays clean.
-module = ["fastmcp.*", "stream_unzip"]
+module = ["fastmcp.*", "stream_unzip", "ijson"]
 ignore_missing_imports = true
 
 [tool.pyright]
@@ -243,6 +248,12 @@ typeCheckingMode = "standard"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+# Any warning is an error: a DeprecationWarning from our code (src/vulners) or the
+# suite fails the run. Tests that intentionally exercise the deprecated v3 shims
+# opt back in locally with `pytest.warns(...)` / `@pytest.mark.filterwarnings`,
+# never by weakening this global gate. Third-party warnings we cannot control are
+# narrowed here one-by-one (prefer none).
+filterwarnings = ["error"]
 # Exclude the pytest-codspeed micro-benchmarks from the default run: they live
 # under tests/benchmarks and are only meant to run under `pytest --codspeed`.
 # The default suite (incl. `pytest -n auto`) deselects them via this marker;

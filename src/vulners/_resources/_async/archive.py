@@ -3,8 +3,8 @@
 Bulk collection / distributive / getsploit downloads. These endpoints return
 whole compressed archives; the ``fetch_*``/``get_*`` methods match the v3
 behaviour of buffering and decoding the whole body, while :meth:`aiter_collection`
-streams NDJSON records lazily. Large collections can be gigabytes, so they use
-the archive timeout profile.
+streams the elements of the (gzip/zip-compressed) JSON array lazily. Large
+collections can be gigabytes, so they use the archive timeout profile.
 """
 
 from __future__ import annotations
@@ -67,9 +67,9 @@ _GETSPLOIT = RequestSpec(
 def _decode_archive(value: Any) -> Any:
     """Return the archive payload parsed as JSON when possible, else raw bytes.
 
-    The body arrives gzip/zip-compressed and is decoded to bytes by the core;
-    small collections are a single JSON document, so parse them. NDJSON / binary
-    bodies pass through as bytes; use :meth:`aiter_collection` for lazy per-record
+    The body arrives gzip/zip-compressed and is decoded to bytes by the core, then
+    parsed as JSON (a collection is a single JSON array). Non-JSON / binary bodies
+    pass through as bytes; use :meth:`aiter_collection` for lazy, per-element
     streaming of large collections.
     """
     if isinstance(value, (bytes, bytearray)):
@@ -113,12 +113,12 @@ class AsyncArchive(_base.AsyncBaseResource):
         *,
         timeout: float | httpx.Timeout | NotGiven = not_given,
     ) -> AsyncIterator[dict[str, Any]]:
-        """Stream a collection archive as NDJSON records, one at a time.
+        """Stream a collection archive element by element (a JSON array).
 
         Unlike :meth:`fetch_collection` (which buffers and decodes the whole
-        archive), this follows the archive redirect to storage and yields each
-        parsed record lazily, so a multi-gigabyte collection never has to be held
-        in memory. Records that are not JSON objects are yielded as-is.
+        archive), this follows the archive redirect to storage, decompresses the
+        body as a stream and yields each array element lazily, so a multi-gigabyte
+        collection never has to be held in memory. Each element is a ``dict``.
         """
         async for record in self._client.stream_records(
             _STREAM_COLLECTION, params={"type": type}, timeout=timeout

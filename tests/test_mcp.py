@@ -109,8 +109,18 @@ async def test_search_exploits_restricts_to_exploit_family(fake_client):
     await tool.fn(query="CVE-2023-20198", limit=5)
 
     args, _ = fake_client.search.query.call_args
-    assert "bulletinFamily:exploit" in args[0]
-    assert "CVE-2023-20198" in args[0]
+    # A bare CVE id is phrase-quoted (the SDK's shared exploit-query builder),
+    # so Lucene matches it as one token instead of tokenizing it.
+    assert args[0] == 'bulletinFamily:exploit AND ("CVE-2023-20198")'
+
+
+async def test_search_exploits_leaves_plain_query_unquoted(fake_client):
+    fake_client.search.query = AsyncMock(return_value=_FakePage([], total=0))
+    tool = await server.mcp.get_tool("search_exploits")
+    await tool.fn(query="wordpress")
+
+    args, _ = fake_client.search.query.call_args
+    assert args[0] == "bulletinFamily:exploit AND (wordpress)"
 
 
 async def test_cve_lookup_enriches_cve_fields(fake_client):

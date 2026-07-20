@@ -349,6 +349,17 @@ class TestArchiveCasters:
     def test_distributive_non_json_bytes_is_empty(self, dist):
         assert dist(b"not-json-bytes") == []
 
+    @pytest.mark.parametrize("decode", [async_decode_archive, sync_decode_archive])
+    def test_decode_archive_bigint_and_infinity(self, decode):
+        # The lenient decoder accepts the >64-bit-int / Infinity edges that
+        # orjson rejects, so such archive payloads still parse.
+        import json
+
+        payload = json.dumps([{"big": 2**80, "inf": float("inf")}]).encode()
+        out = decode(payload)
+        assert out[0]["big"] == 2**80
+        assert out[0]["inf"] == float("inf")
+
 
 # ---------------------------------------------------------------------------
 # model + exception branch tails
@@ -446,7 +457,7 @@ class TestResourceOptionalTails:
             return_value=_v3({})
         )
         async with AsyncVulners(KEY) as client:
-            await client.subscriptions.edit("s1", format="json")
+            await client.subscriptions_email.edit("s1", format="json")
         assert "active" not in orjson.loads(route.calls.last.request.content)
 
     @respx.mock
@@ -455,7 +466,7 @@ class TestResourceOptionalTails:
             return_value=_v3({})
         )
         with Vulners(KEY) as client:
-            client.subscriptions.edit("s1", format="json", crontab="* * * * *")
+            client.subscriptions_email.edit("s1", format="json", crontab="* * * * *")
         assert "active" not in orjson.loads(route.calls.last.request.content)
 
     @respx.mock

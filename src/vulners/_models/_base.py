@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import collections.abc
 from functools import cache
-from typing import Any, Union, get_args, get_origin
+from typing import Any, ClassVar, Union, get_args, get_origin
 
 from pydantic import BaseModel, ConfigDict
 
@@ -51,7 +51,30 @@ class VulnersModel(BaseModel):
     keeps its data on either path.
     """
 
-    model_config = ConfigDict(extra="allow", use_attribute_docstrings=True, validate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(
+        extra="allow", use_attribute_docstrings=True, validate_by_name=True
+    )
+
+    def has(self, field: str) -> bool:
+        """Whether the server actually sent *field* — distinguishing "not
+        requested / absent" from "present (even as ``null``)".
+
+        Accepts the python name or the wire alias. Extras count too (they are
+        added to ``model_fields_set`` on construction). A server field literally
+        named ``has`` cannot shadow this method: pydantic stores extras in
+        ``__pydantic_extra__`` and attribute lookup finds the method first (the
+        value stays reachable via ``model_extra["has"]``).
+        """
+        if field in self.model_fields_set:
+            return True
+        info = type(self).model_fields.get(field)
+        if info is not None:
+            return False  # a known python name, just not sent under any spelling
+        # Maybe *field* is a wire alias: map it to the python name.
+        for name, fi in type(self).model_fields.items():
+            if fi.alias == field:
+                return name in self.model_fields_set
+        return False
 
 
 class Discriminator:

@@ -26,12 +26,26 @@ _SUGGEST = RequestSpec(
 _BURP_RULES = RequestSpec("GET", "/api/v3/burp/rules/", body_mode="query", unwrap=("data",))
 
 
-def _autocomplete(value: Any) -> list[str]:
+def _autocomplete(value: Any) -> list[str | list[str]]:
+    """Normalize autocomplete suggestions, preserving every completion.
+
+    Observed element shapes: a bare string, a ``[completion, score]`` pair, or a
+    list of several string completions. The string members of a list element are
+    the completions (a trailing score is dropped); one completion collapses to
+    its string, several are kept whole — flattening a multi-completion element
+    would silently discard alternatives.
+    """
     suggestions = value.get("suggestions", []) if isinstance(value, dict) else []
-    out: list[str] = []
+    out: list[str | list[str]] = []
     for item in suggestions:
-        # Each suggestion arrives as ``[completion, ...]``; take the completion.
-        out.append(str(item[0]) if isinstance(item, (list, tuple)) and item else str(item))
+        if isinstance(item, (list, tuple)):
+            completions = [x for x in item if isinstance(x, str)]
+            if not completions and item:
+                completions = [str(item[0])]
+            if completions:
+                out.append(completions[0] if len(completions) == 1 else completions)
+        else:
+            out.append(str(item))
     return out
 
 
@@ -63,8 +77,12 @@ class Misc(_base.BaseResource):
         query: str,
         *,
         timeout: float | httpx.Timeout | NotGiven = not_given,
-    ) -> list[str]:
-        """Return possible completions for a partial Lucene query."""
+    ) -> list[str | list[str]]:
+        """Return possible completions for a partial Lucene query.
+
+        Most suggestions are strings; the server occasionally returns a group of
+        related completions, which arrives as a ``list[str]`` element.
+        """
         return self._request(
             _AUTOCOMPLETE, cast=_autocomplete, body={"query": query}, timeout=timeout
         )

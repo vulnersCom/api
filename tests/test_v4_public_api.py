@@ -73,10 +73,17 @@ class TestExceptionHierarchy:
             RateLimitError,
             VulnersError,
         )
+        from vulners.base import VulnersApiError
 
         assert issubclass(APIError, VulnersError)
         assert issubclass(APIStatusError, APIError)
-        assert issubclass(APIConnectionError, APIError)
+        # Server-reported errors stay catchable by legacy v3 handlers.
+        assert issubclass(APIError, VulnersApiError)
+        # Transport-side failures are siblings of APIError (v3 surfaced those as
+        # raw httpx errors, never VulnersApiError) — deliberately NOT APIError.
+        assert issubclass(APIConnectionError, VulnersError)
+        assert not issubclass(APIConnectionError, APIError)
+        assert not issubclass(APIConnectionError, VulnersApiError)
         for cls in (AuthenticationError, NotFoundError, RateLimitError):
             assert issubclass(cls, APIStatusError)
 
@@ -107,3 +114,44 @@ class TestPublicClientWorks:
         finally:
             client.close()
         assert client.is_closed is True
+
+
+class TestRootModuleSurface:
+    def test_dir_lists_lazy_and_eager_names(self):
+        import vulners
+
+        names = dir(vulners)
+        for expected in (
+            "Vulners",
+            "AsyncVulners",
+            "VulnersApi",
+            "ValidationError",
+            "__version__",
+        ):
+            assert expected in names
+
+    def test_plan_alias_exports_resolve(self):
+        import vulners
+
+        assert vulners.ValidationError is vulners.UnprocessableEntityError
+        assert vulners.ServerError is vulners.InternalServerError
+
+    def test_legacy_type_reexports(self):
+        from vulners import (
+            DEFAULT_BULLETIN_FIELDS,
+            DEFAULT_FIELDS,
+            AuditFields,
+            BulletinField,
+            NotificationObj,
+        )
+
+        assert isinstance(DEFAULT_FIELDS, tuple) and DEFAULT_FIELDS
+        assert isinstance(DEFAULT_BULLETIN_FIELDS, list) and DEFAULT_BULLETIN_FIELDS
+        assert AuditFields is not None and BulletinField is not None
+        assert NotificationObj is not None
+
+    def test_version_is_static(self):
+        import vulners
+        from vulners._version import __version__ as static_version
+
+        assert vulners.__version__ == static_version

@@ -50,9 +50,29 @@ jobs:
         run: uv run --no-default-groups --group lint mypy
       - name: basedpyright type check
         run: uv run --no-default-groups --group lint basedpyright src
-      - name: basedpyright verifytypes (non-blocking; legacy v3 layer has known gaps)
-        run: uv run --no-default-groups --group lint basedpyright --verifytypes vulners --ignoreexternal
-        continue-on-error: true
+      # Ratchet gate on public-API type completeness. Current score is 63.9%:
+      # the gaps are the legacy v3 layer (vulners.vulners.*, base.py,
+      # vscanner.py) plus the VulnersModel.model_config annotation cascading
+      # through _models. Raise the floor toward 1.0 as those close; never lower.
+      - name: basedpyright verifytypes (ratchet floor 0.672)
+        run: |
+          uv run --no-default-groups --group lint basedpyright --verifytypes vulners --ignoreexternal --outputjson > verifytypes.json || true
+          jq '.typeCompleteness.completenessScore' verifytypes.json
+          jq -e '.typeCompleteness.completenessScore >= 0.672' verifytypes.json > /dev/null
+
+  unasync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: install (locked, codegen group only)
+        # unasyncd -> msgspec 0.18.6, which ships cp310-cp312 wheels only, so
+        # this job is pinned to 3.12 (matches the Makefile unasync-check note).
+        run: uv sync --locked --no-default-groups --group codegen --python 3.12
+      - name: unasyncd --check (committed sync mirror must match async source)
+        run: uv run --no-default-groups --group codegen --python 3.12 unasyncd --check
 
   package:
     runs-on: ubuntu-latest
@@ -80,19 +100,13 @@ jobs:
           enable-cache: true
       - name: install (locked, test group only)
         run: uv sync --locked --no-default-groups --group test --python 3.12
-      # The 100% floor comes from [tool.coverage.report] fail_under; this scopes
-      # measurement to the v4 core modules (the legacy v3 layer is out of gate).
-      - name: branch-coverage gate (v4 core must stay at 100%)
+      # The 100% floor comes from [tool.coverage.report] fail_under. Scope is
+      # config-driven ([tool.coverage.run] source + omit): the whole package
+      # minus the legacy v3 layer, so any NEW module is gated by default.
+      - name: branch-coverage gate (whole package minus legacy v3, at 100%)
         run: >
           uv run --no-default-groups --group test --python 3.12
-          pytest -n auto
-          --cov=vulners._base_client --cov=vulners._client --cov=vulners._config
-          --cov=vulners._exceptions --cov=vulners._logging --cov=vulners._models
-          --cov=vulners._pagination --cov=vulners._ratelimit --cov=vulners._ratelimit_async
-          --cov=vulners._resources --cov=vulners._response --cov=vulners._retry
-          --cov=vulners._streaming --cov=vulners._transport
-          --cov=vulners._transport_client_async --cov=vulners._transport_client_sync
-          --cov=vulners._types --cov-branch --cov-report=term-missing
+          pytest -n auto --cov
 
   mcp:
     runs-on: ubuntu-latest

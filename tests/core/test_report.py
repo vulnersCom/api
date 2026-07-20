@@ -61,3 +61,45 @@ class TestReportAsync:
         respx.post(URL).mock(return_value=_report([{"id": 2}]))
         async with AsyncVulners(KEY) as client:
             assert await client.report.vulns_list() == [{"id": 2}]
+
+
+class TestReportVulnInfoAndAlias:
+    @respx.mock
+    def test_vuln_info_wire(self):
+        route = respx.post(URL).mock(return_value=_report([{"id": 3}]))
+        with Vulners(KEY) as client:
+            out = client.report.vuln_info(
+                "10.0.0.1", "CVE-2021-44228", limit=5, offset=1, filter={"OS": "x"}, sort="-s"
+            )
+        assert out == [{"id": 3}]
+        assert orjson.loads(route.calls.last.request.content) == {
+            "reporttype": "vulninfo",
+            "ipaddress": "10.0.0.1",
+            "bulletinID": "CVE-2021-44228",
+            "skip": 1,
+            "size": 5,
+            "filter": {"OS": "x"},
+            "sort": "-s",
+        }
+
+    @respx.mock
+    def test_vuln_info_defaults_via_reports_alias(self):
+        route = respx.post(URL).mock(return_value=_report([]))
+        with Vulners(KEY) as client:
+            assert client.reports is client.report
+            client.reports.vuln_info("10.0.0.1", "CVE-2021-44228")
+        body = orjson.loads(route.calls.last.request.content)
+        assert body["filter"] == {}
+        assert body["size"] == 30
+
+    @respx.mock
+    async def test_vuln_info_async_and_alias(self):
+        route = respx.post(URL).mock(return_value=_report([{"id": 4}]))
+        async with AsyncVulners(KEY) as client:
+            assert client.reports is client.report
+            out = await client.reports.vuln_info("10.0.0.2", "CVE-2020-1")
+        assert out == [{"id": 4}]
+        body = orjson.loads(route.calls.last.request.content)
+        assert body["reporttype"] == "vulninfo"
+        assert body["ipaddress"] == "10.0.0.2"
+        assert body["bulletinID"] == "CVE-2020-1"

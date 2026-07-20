@@ -29,21 +29,12 @@ bc:
 	uv run pytest tests/bc -n auto
 
 # Branch-coverage gate for the NEW v4 core (must stay at 100%; enforced by
-# fail_under=100 in [tool.coverage.report]). The legacy v3 layer (base.py /
-# vscanner.py / vulners/**) is covered by the v3 suite separately and is out of
-# this gate's scope, so it is not listed among the measured modules below.
-COV_MODULES = \
-	--cov=vulners._base_client --cov=vulners._client --cov=vulners._config \
-	--cov=vulners._exceptions --cov=vulners._logging \
-	--cov=vulners._models --cov=vulners._pagination --cov=vulners._ratelimit \
-	--cov=vulners._ratelimit_async --cov=vulners._resources --cov=vulners._response \
-	--cov=vulners._retry --cov=vulners._streaming --cov=vulners._transport \
-	--cov=vulners._transport_client_async --cov=vulners._transport_client_sync \
-	--cov=vulners._types
-
+# fail_under=100 in [tool.coverage.report]). Scope is config-driven: bare --cov
+# measures the whole package per [tool.coverage.run] (source + omit), so any new
+# module is inside the gate by default; only the legacy v3 layer is omitted.
 cov:
 	uv run coverage erase
-	uv run pytest -n auto $(COV_MODULES) --cov-branch --cov-report=term-missing
+	uv run pytest -n auto --cov
 
 # Branch-coverage gate for the MCP server, which lives behind the `mcp` extra
 # (fastmcp) and cannot share the default env, so it is measured on its own.
@@ -52,10 +43,11 @@ cov-mcp:
 		pytest tests/test_mcp.py --cov=vulners._mcp --cov-branch \
 		--cov-report=term-missing --cov-fail-under=100
 
-# Full-package coverage (v4 core + legacy v3), informational only — not gated.
+# Same scope as `cov` ([tool.coverage.run] omits the legacy v3 layer), but
+# informational only — not gated. Kept as the no-fail variant of the report.
 cov-all:
 	uv run coverage erase
-	uv run pytest -n auto --cov=vulners --cov-branch --cov-report=term-missing --cov-fail-under=0
+	uv run pytest -n auto --cov --cov-fail-under=0
 
 # Regenerate the sync mirror (_ratelimit.py + resources/_sync + transport client)
 # from the async source. unasyncd lives in the isolated `codegen` group (it pulls

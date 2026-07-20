@@ -23,7 +23,7 @@ class TestSubscriptionsWire:
             return_value=_v3({"subscriptions": [{"id": "s1"}]})
         )
         with Vulners(KEY) as client:
-            out = client.subscriptions.list()
+            out = client.subscriptions_email.list()
         assert out == [{"id": "s1"}]
         assert "apiKey" not in route.calls.last.request.url.params
 
@@ -31,7 +31,7 @@ class TestSubscriptionsWire:
     def test_add_echoes_key_in_body(self):
         route = respx.post(f"{BASE}/addEmailSubscription/").mock(return_value=_v3({"id": "s1"}))
         with Vulners(KEY) as client:
-            client.subscriptions.add(query="ssh", email="a@b.c", crontab="0 0 * * *")
+            client.subscriptions_email.add(query="ssh", email="a@b.c", crontab="0 0 * * *")
         assert orjson.loads(route.calls.last.request.content) == {
             "query": "ssh",
             "email": "a@b.c",
@@ -45,7 +45,7 @@ class TestSubscriptionsWire:
     def test_edit_sends_only_given_optionals(self):
         route = respx.post(f"{BASE}/editEmailSubscription/").mock(return_value=_v3({}))
         with Vulners(KEY) as client:
-            client.subscriptions.edit("s1", active="yes")
+            client.subscriptions_email.edit("s1", active="yes")
         assert orjson.loads(route.calls.last.request.content) == {
             "subscriptionid": "s1",
             "active": "yes",
@@ -56,7 +56,7 @@ class TestSubscriptionsWire:
     def test_delete_wire(self):
         route = respx.post(f"{BASE}/removeEmailSubscription/").mock(return_value=_v3({}))
         with Vulners(KEY) as client:
-            client.subscriptions.delete("s1")
+            client.subscriptions_email.delete("s1")
         assert orjson.loads(route.calls.last.request.content) == {
             "subscriptionid": "s1",
             "apiKey": KEY,
@@ -68,4 +68,4 @@ class TestSubscriptionsAsync:
     async def test_list_async(self):
         respx.get(f"{BASE}/listEmailSubscriptions/").mock(return_value=_v3({"subscriptions": []}))
         async with AsyncVulners(KEY) as client:
-            assert await client.subscriptions.list() == []
+            assert await client.subscriptions_email.list() == []

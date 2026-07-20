@@ -5,7 +5,10 @@ Ported from ``vulners.base.VulnersApiTransport`` and provided in both a sync
 the policy itself is sans-IO module-level helpers shared by both. On any
 cross-origin hop the ``X-Api-Key`` header, a body-carried key and a query key are
 all stripped, a redirect to a private/internal address is refused (SSRF guard),
-and ``Set-Cookie`` is dropped from every response.
+and ``Set-Cookie`` is dropped from every response. When mounted over a
+caller-supplied client (``sdk_only=True``) the policy applies only to requests
+the SDK itself built (tagged via the ``vulners_sdk`` request extension); the
+application's own traffic passes through unchanged.
 """
 
 from __future__ import annotations
@@ -143,14 +146,31 @@ def _strip_set_cookie(response: httpx.Response) -> None:
         del response.headers["set-cookie"]
 
 
+def _passes_unguarded(request: httpx.Request, sdk_only: bool) -> bool:
+    # A guard mounted on a shared (bring-your-own) client is scoped to
+    # SDK-originated requests: the SDK tags them via the ``vulners_sdk`` request
+    # extension (set in ``_build_request``; httpx preserves extensions across
+    # redirect hops). The application's own traffic — including any credentials
+    # or cookies it carries — passes through completely untouched.
+    return sdk_only and not request.extensions.get("vulners_sdk")
+
+
 class VulnersTransport(httpx.BaseTransport):
     """Sync transport wrapper enforcing the credential-safety policy."""
 
-    def __init__(self, transport: httpx.BaseTransport, origin: httpx.URL | None = None) -> None:
+    def __init__(
+        self,
+        transport: httpx.BaseTransport,
+        origin: httpx.URL | None = None,
+        sdk_only: bool = False,
+    ) -> None:
         self._transport = transport
         self._origin = origin
+        self._sdk_only = sdk_only
 
     def handle_request(self, request: httpx.Request) -> httpx.Response:
+        if _passes_unguarded(request, self._sdk_only):
+            return self._transport.handle_request(request)
         _apply_request_guards(request, self._origin)
         response = self._transport.handle_request(request)
         _strip_set_cookie(response)
@@ -166,12 +186,18 @@ class AsyncVulnersTransport(httpx.AsyncBaseTransport):
     """Async transport wrapper enforcing the credential-safety policy."""
 
     def __init__(
-        self, transport: httpx.AsyncBaseTransport, origin: httpx.URL | None = None
+        self,
+        transport: httpx.AsyncBaseTransport,
+        origin: httpx.URL | None = None,
+        sdk_only: bool = False,
     ) -> None:
         self._transport = transport
         self._origin = origin
+        self._sdk_only = sdk_only
 
     async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
+        if _passes_unguarded(request, self._sdk_only):
+            return await self._transport.handle_async_request(request)
         _apply_request_guards(request, self._origin)
         response = await self._transport.handle_async_request(request)
         _strip_set_cookie(response)

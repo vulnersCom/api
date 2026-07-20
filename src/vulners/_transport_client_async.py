@@ -28,7 +28,12 @@ from ._logging import logger
 from ._ratelimit_async import AsyncRateLimitBucket
 from ._response import APIResponse, AsyncStreamedAPIResponse
 from ._retry import _retry_timeout, _should_retry
-from ._streaming import is_zip_media, iter_zip_json_array, make_array_decoder
+from ._streaming import (
+    is_zip_media,
+    iter_zip_json_array,
+    make_array_decoder,
+    normalize_archive_record,
+)
 from ._transport import AsyncVulnersTransport
 from ._types import NotGiven, Omit, not_given
 
@@ -54,8 +59,17 @@ class AsyncAPIClient(BaseClient):
             _mount_guard(http_client, AsyncVulnersTransport, config.base_url)
         else:
             # h2 is a core dependency, so http2=True always works; no guard needed.
+            # proxy/verify/trust_env ride on the inner transport: httpx ignores
+            # client-level verify once an explicit transport is passed, and a
+            # client-level proxy would mount an unguarded transport over ours.
             transport = AsyncVulnersTransport(
-                httpx.AsyncHTTPTransport(retries=config.connect_retries, http2=config.http2),
+                httpx.AsyncHTTPTransport(
+                    retries=config.connect_retries,
+                    http2=config.http2,
+                    proxy=config.proxy,
+                    verify=config.verify,
+                    trust_env=config.trust_env,
+                ),
                 origin=config.base_url,
             )
             self._client = httpx.AsyncClient(
@@ -64,6 +78,11 @@ class AsyncAPIClient(BaseClient):
                 timeout=config.timeout,
                 limits=config.limits,
                 follow_redirects=config.follow_redirects,
+                trust_env=config.trust_env,
+                event_hooks={
+                    "request": list(config.before_request),
+                    "response": list(config.after_response),
+                },
             )
             self._owns_client = True
 
@@ -92,6 +111,13 @@ class AsyncAPIClient(BaseClient):
             await response.aclose()
         return response, bytes(buf)
 
+    async def _emit_error(self, error: Exception) -> None:
+        # on_error hooks observe the final failure of the request loop (after
+        # retries are exhausted); an exception raised by a hook propagates to
+        # the caller in place of the original error.
+        for hook in self._config.on_error:
+            await hook(error)
+
     async def _send_with_retries(
         self, spec: RequestSpec, request: httpx.Request, retries: int
     ) -> tuple[httpx.Response, bytes, Any]:
@@ -107,6 +133,7 @@ class AsyncAPIClient(BaseClient):
                     attempt += 1
                     await self._sleep(_retry_timeout(attempt))
                     continue
+                await self._emit_error(error)
                 raise error from exc
             except httpx.TransportError as exc:
                 error = APIConnectionError(f"Connection error: {exc}")
@@ -114,6 +141,7 @@ class AsyncAPIClient(BaseClient):
                     attempt += 1
                     await self._sleep(_retry_timeout(attempt))
                     continue
+                await self._emit_error(error)
                 raise error from exc
             self._update_bucket_from_headers(bucket, response)
             try:
@@ -129,6 +157,7 @@ class AsyncAPIClient(BaseClient):
                     )
                     await self._sleep(_retry_timeout(attempt, response.headers))
                     continue
+                await self._emit_error(err)
                 raise
             return response, content, parsed
 
@@ -196,19 +225,19 @@ class AsyncAPIClient(BaseClient):
                     if cap is not None:
                         self._guard_cap(len(buf), response.status_code)
                 for record in iter_zip_json_array(bytes(buf), cap):
-                    yield record
+                    yield normalize_archive_record(record)
             else:
                 # The decoder inflates and parses the JSON array lazily and
                 # enforces the cap on the decompressed byte count.
                 decoder = make_array_decoder(media, cap)
                 async for chunk in response.aiter_bytes():
                     for record in decoder.feed(chunk):
-                        yield record
+                        yield normalize_archive_record(record)
                 # feed() drains each chunk fully (ijson emits every element at its
                 # closing brace), so flush() is a no-op for the array decoders; the
                 # call is the decoder-protocol contract, kept for a buffering decoder.
                 for record in decoder.flush():  # pragma: no cover
-                    yield record
+                    yield normalize_archive_record(record)
         finally:
             await response.aclose()
 

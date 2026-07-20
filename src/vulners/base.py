@@ -726,6 +726,11 @@ class VulnersDeprecationWarning(DeprecationWarning):
     """
 
 
+# Stable URL of the v3 -> v4 migration guide, appended to every deprecation
+# notice so the reader always has one click to the upgrade instructions.
+MIGRATION_GUIDE_URL = "https://vulnersCom.github.io/api/explanation/migration/"
+
+
 def deprecation_warning(text: str) -> None:
     # Intended to be called from the body of a deprecated wrapper (a @deprecated
     # shim or an endpoint(deprecated=...) function). Both call paths are the same
@@ -733,7 +738,7 @@ def deprecation_warning(text: str) -> None:
     # instead of this module.
     text = textwrap.indent(text, "[!] ")
     warnings.warn(
-        f"\n[!] DEPRECATION WARNING\n{text}",
+        f"\n[!] DEPRECATION WARNING\n{text}\n[!] Migration guide: {MIGRATION_GUIDE_URL}",
         VulnersDeprecationWarning,
         stacklevel=3,
     )

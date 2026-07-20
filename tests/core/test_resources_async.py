@@ -307,12 +307,13 @@ class TestMiscAsyncFull:
 
     @respx.mock
     async def test_autocomplete_scalar_suggestion(self):
-        # A suggestion that is not a list still stringifies (the else branch).
+        # A bare-string suggestion passes through; an empty-list one carries no
+        # completion and is dropped (previously it stringified to a junk "[]").
         respx.post(f"{BASE}/api/v3/search/autocomplete/").mock(
             return_value=_v3({"suggestions": ["plain", []]})
         )
         async with AsyncVulners(KEY) as client:
-            assert await client.misc.query_autocomplete("ss") == ["plain", "[]"]
+            assert await client.misc.query_autocomplete("ss") == ["plain"]
 
 
 # ---------------------------------------------------------------------------
@@ -383,7 +384,7 @@ class TestSubscriptionsAsyncFull:
             return_value=_v3({"subscriptions": [{"id": "s1"}]})
         )
         async with AsyncVulners(KEY) as client:
-            assert await client.subscriptions.list() == [{"id": "s1"}]
+            assert await client.subscriptions_email.list() == [{"id": "s1"}]
 
     @respx.mock
     async def test_add(self):
@@ -391,7 +392,7 @@ class TestSubscriptionsAsyncFull:
             return_value=_v3({"id": "s1"})
         )
         async with AsyncVulners(KEY) as client:
-            await client.subscriptions.add(query="ssh", email="a@b.c", crontab="0 0 * * *")
+            await client.subscriptions_email.add(query="ssh", email="a@b.c", crontab="0 0 * * *")
         assert orjson.loads(route.calls.last.request.content) == {
             "query": "ssh",
             "email": "a@b.c",
@@ -406,10 +407,10 @@ class TestSubscriptionsAsyncFull:
         edit = respx.post(f"{self.BASE}/editEmailSubscription/").mock(return_value=_v3({}))
         dele = respx.post(f"{self.BASE}/removeEmailSubscription/").mock(return_value=_v3({}))
         async with AsyncVulners(KEY) as client:
-            await client.subscriptions.edit(
+            await client.subscriptions_email.edit(
                 "s1", format="json", crontab="* * * * *", active="yes"
             )
-            await client.subscriptions.delete("s1")
+            await client.subscriptions_email.delete("s1")
         ebody = orjson.loads(edit.calls.last.request.content)
         assert ebody["format"] == "json"
         assert ebody["active"] == "yes"
@@ -432,10 +433,10 @@ class TestSubscriptionsV4AsyncFull:
         respx.get(f"{self.BASE}/list/").mock(return_value=_v4([{"id": "s1"}]))
         route = respx.get(f"{self.BASE}/get/").mock(return_value=_v4({"id": "s1"}))
         async with AsyncVulners(KEY) as client:
-            assert await client.subscriptions_v4.get_list() == [{"id": "s1"}]
-            await client.subscriptions_v4.get("s2")
+            assert await client.subscriptions.get_list() == [{"id": "s1"}]
+            await client.subscriptions.get("s2")
             with pytest.raises(TypeError):
-                await client.subscriptions_v4.get()
+                await client.subscriptions.get()
         assert route.calls.last.request.url.params["subscription_id"] == "s2"
 
     @respx.mock
@@ -443,7 +444,7 @@ class TestSubscriptionsV4AsyncFull:
         upd = respx.put(f"{self.BASE}/update/").mock(return_value=_v4({"id": "s1"}))
         dele = respx.delete(f"{self.BASE}/delete/").mock(return_value=_v4({"ok": True}))
         async with AsyncVulners(KEY) as client:
-            await client.subscriptions_v4.update(
+            await client.subscriptions.update(
                 "s1",
                 name="n",
                 query={"type": "software"},
@@ -452,7 +453,7 @@ class TestSubscriptionsV4AsyncFull:
                 bulletin_fields=["title"],
                 is_active=False,
             )
-            await client.subscriptions_v4.delete("s1")
+            await client.subscriptions.delete("s1")
         body = orjson.loads(upd.calls.last.request.content)
         assert body["id"] == "s1"
         assert body["licenseId"] == "lic-1"
@@ -702,8 +703,8 @@ class TestAsyncOmitAndEdgeBranches:
             return_value=_v3({})
         )
         async with AsyncVulners(KEY) as client:
-            await client.subscriptions.add(query="ssh", email="a@b.c")
-            await client.subscriptions.edit("s1", active="yes")
+            await client.subscriptions_email.add(query="ssh", email="a@b.c")
+            await client.subscriptions_email.edit("s1", active="yes")
         assert "crontab" not in orjson.loads(add.calls.last.request.content)
         ebody = orjson.loads(edit.calls.last.request.content)
         assert "format" not in ebody and "crontab" not in ebody
@@ -726,3 +727,86 @@ class TestAsyncOmitAndEdgeBranches:
         async with AsyncVulners(KEY) as client:
             with pytest.raises(ValueError):
                 await client.vscanner.projects.results.screenshot(deep)
+
+
+# ---------------------------------------------------------------------------
+# search additions (exploits / collections / verb-unified delegates)
+# ---------------------------------------------------------------------------
+
+
+class TestSearchAdditionsAsync:
+    LUCENE = f"{BASE}/api/v3/search/lucene/"
+
+    @respx.mock
+    async def test_exploits_quotes_bare_cve(self):
+        route = respx.post(self.LUCENE).mock(return_value=_v3({"search": [], "total": 0}))
+        async with AsyncVulners(KEY) as client:
+            await client.search.exploits("CVE-2021-44228")
+            sent = orjson.loads(route.calls.last.request.content)["query"]
+            assert sent == 'bulletinFamily:exploit AND ("CVE-2021-44228")'
+            await client.search.exploits("wordpress", lucene=True)
+            sent = orjson.loads(route.calls.last.request.content)["query"]
+            assert sent == "bulletinFamily:exploit AND (wordpress)"
+
+    @respx.mock
+    async def test_collections_and_delegates(self):
+        respx.get(f"{BASE}/api/v4/search/collections").mock(return_value=_v4([{"type": "cve"}]))
+        auto = respx.post(f"{BASE}/api/v3/search/autocomplete/").mock(
+            return_value=_v3({"suggestions": ["type:cve"]})
+        )
+        suggest = respx.post(f"{BASE}/api/v3/search/suggest/").mock(
+            return_value=_v3({"suggest": ["cve"]})
+        )
+        cpe = respx.get(f"{BASE}/api/v4/search/cpe").mock(return_value=_v4([{"cpe": "x"}]))
+        respx.get(f"{BASE}/api/v3/burp/rules/").mock(return_value=_v3({"rules": []}))
+        async with AsyncVulners(KEY) as client:
+            assert await client.search.collections() == [{"type": "cve"}]
+            assert await client.search.autocomplete("type") == ["type:cve"]
+            assert await client.search.suggest("type") == ["cve"]
+            assert await client.search.cpe("nginx", vendor="f5") == [{"cpe": "x"}]
+            assert await client.search.web_vulns() == {"rules": []}
+        assert orjson.loads(auto.calls.last.request.content) == {"query": "type"}
+        assert orjson.loads(suggest.calls.last.request.content)["fieldName"] == "type"
+        assert cpe.calls.last.request.url.params["vendor"] == "f5"
+
+    @respx.mock
+    async def test_subscriptions_get_by_subscription_id_keyword(self):
+        route = respx.get(f"{BASE}/api/v4/subscriptions/get/").mock(
+            return_value=_v4({"id": "s1"})
+        )
+        async with AsyncVulners(KEY) as client:
+            await client.subscriptions.get(subscription_id="s7")
+        assert route.calls.last.request.url.params["subscription_id"] == "s7"
+
+
+class TestArchiveFamilyAsync:
+    @respx.mock
+    async def test_state_endpoints(self):
+        cstate = respx.get(f"{BASE}/api/v4/archive/collection-state").mock(
+            return_value=_v4({"cursor": "2026-01-01T00:00:00Z"})
+        )
+        fstate = respx.get(f"{BASE}/api/v4/archive/family-state").mock(
+            return_value=_v4({"total_docs": 5})
+        )
+        async with AsyncVulners(KEY) as client:
+            assert await client.archive.collection_state("cve") == {
+                "cursor": "2026-01-01T00:00:00Z"
+            }
+            assert await client.archive.family_state("exploit") == {"total_docs": 5}
+        assert cstate.calls.last.request.url.params["type"] == "cve"
+        assert fstate.calls.last.request.url.params["name"] == "exploit"
+
+    @respx.mock
+    async def test_family_and_family_update(self):
+        fam = respx.get(f"{BASE}/api/v4/archive/family").mock(
+            return_value=_gzip_json([{"id": "EDB-1"}])
+        )
+        upd = respx.get(f"{BASE}/api/v4/archive/family-update").mock(return_value=_gzip_json([]))
+        after = datetime(2026, 1, 2, 3, 4, 5, tzinfo=timezone.utc)
+        async with AsyncVulners(KEY) as client:
+            assert await client.archive.family("exploit") == [{"id": "EDB-1"}]
+            await client.archive.family_update("exploit", after)
+        assert fam.calls.last.request.url.params["name"] == "exploit"
+        params = upd.calls.last.request.url.params
+        assert params["name"] == "exploit"
+        assert params["after"] == after.isoformat()

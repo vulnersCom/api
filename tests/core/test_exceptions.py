@@ -144,3 +144,100 @@ class TestRedaction:
     def test_payload_without_secret_is_unchanged(self):
         payload = {"error": "boom", "errorCode": 104}
         assert _redact_secret(payload) == payload
+
+
+class TestLegacyCoHierarchy:
+    """Server-reported v4 errors stay catchable by v3-era handlers (and only they)."""
+
+    def test_api_error_is_caught_as_vulners_api_error(self):
+        from vulners._exceptions import APIError, NotFoundError
+        from vulners.base import VulnersApiError
+
+        for exc in (APIError("boom"), NotFoundError("gone", status_code=404)):
+            with pytest.raises(VulnersApiError):
+                raise exc
+
+    def test_transport_errors_are_not_vulners_api_error(self):
+        from vulners._exceptions import (
+            APIConnectionError,
+            APIResponseValidationError,
+            APITimeoutError,
+        )
+        from vulners.base import VulnersApiError
+
+        for exc in (
+            APIConnectionError(),
+            APITimeoutError(),
+            APIResponseValidationError("bad", status_code=200, data="x"),
+        ):
+            assert not isinstance(exc, VulnersApiError)
+
+    def test_v3_attribute_spellings(self):
+        from vulners._exceptions import APIError
+
+        err = APIError("boom", status_code=500, data={"error": "x"})
+        assert err.http_status == 500
+        assert err.body == {"error": "x"}
+
+    def test_plan_name_aliases(self):
+        from vulners._exceptions import (
+            InternalServerError,
+            ServerError,
+            UnprocessableEntityError,
+            ValidationError,
+        )
+
+        assert ValidationError is UnprocessableEntityError
+        assert ServerError is InternalServerError
+
+
+class TestErrorInfoEnrichment:
+    def test_request_id_from_headers(self):
+        import httpx
+
+        from vulners._exceptions import _extract_error, _make_error
+
+        info = _extract_error(
+            500,
+            httpx.Headers({"X-Request-Id": "req-42"}),
+            {"result": "error", "data": {"error": "boom", "errorCode": 1}},
+        )
+        assert info is not None and info.request_id == "req-42"
+        assert _make_error(info).request_id == "req-42"
+
+    def test_validation_errors_structured_without_input_echo(self):
+        import httpx
+
+        from vulners._exceptions import _extract_error, _make_error
+
+        body = {
+            "errors": [
+                {"type": "missing", "loc": ["body", "query"], "msg": "req", "input": {"k": "S"}},
+                "not-a-dict",
+            ]
+        }
+        info = _extract_error(400, httpx.Headers(), body, secret="S")
+        assert info is not None
+        assert info.validation_errors == (
+            {"type": "missing", "loc": ["body", "query"], "msg": "req"},
+        )
+        err = _make_error(info)
+        assert err.validation_errors == [
+            {"type": "missing", "loc": ["body", "query"], "msg": "req"}
+        ]
+
+    def test_validation_items_absent_for_v3_envelope(self):
+        import httpx
+
+        from vulners._exceptions import _extract_error
+
+        info = _extract_error(
+            200, httpx.Headers(), {"result": "error", "data": {"error": "e", "errorCode": 104}}
+        )
+        assert info is not None and info.validation_errors == ()
+
+    def test_validation_items_non_dict_body(self):
+        from vulners._exceptions import _validation_items
+
+        assert _validation_items("nope", None) == ()
+        assert _validation_items({"errors": "not-a-list"}, None) == ()

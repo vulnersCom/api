@@ -137,11 +137,13 @@ class TestMiscSyncBranches:
 
     @respx.mock
     def test_autocomplete_scalar_and_empty(self):
+        # A bare-string suggestion passes through; an empty-list one carries no
+        # completion and is dropped (previously it stringified to a junk "[]").
         respx.post(f"{BASE}/api/v3/search/autocomplete/").mock(
             return_value=_v3({"suggestions": ["plain", []]})
         )
         with Vulners(KEY) as client:
-            assert client.misc.query_autocomplete("s") == ["plain", "[]"]
+            assert client.misc.query_autocomplete("s") == ["plain"]
 
 
 class TestStixSyncBranches:
@@ -160,8 +162,8 @@ class TestSubscriptionsSyncBranches:
         add = respx.post(f"{self.SUBS}/addEmailSubscription/").mock(return_value=_v3({}))
         edit = respx.post(f"{self.SUBS}/editEmailSubscription/").mock(return_value=_v3({}))
         with Vulners(KEY) as client:
-            client.subscriptions.add(query="ssh", email="a@b.c")
-            client.subscriptions.edit("s1", format="json", crontab="* * * * *", active="no")
+            client.subscriptions_email.add(query="ssh", email="a@b.c")
+            client.subscriptions_email.edit("s1", format="json", crontab="* * * * *", active="no")
         assert "crontab" not in orjson.loads(add.calls.last.request.content)
         ebody = orjson.loads(edit.calls.last.request.content)
         assert ebody["format"] == "json" and ebody["crontab"] == "* * * * *"

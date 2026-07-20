@@ -10,9 +10,8 @@ from __future__ import annotations
 from typing import Any
 
 import httpx
-import orjson
 
-from ..._base_client import RequestSpec
+from ..._base_client import RequestSpec, _json_loads_lenient
 from ..._types import NotGiven, not_given
 from . import _base
 
@@ -21,10 +20,11 @@ _BUNDLE = RequestSpec("GET", "/api/v4/stix/bundle", body_mode="query", unwrap=("
 
 def _parse_bundle(value: Any) -> Any:
     # The server occasionally double-encodes: result arrives as a JSON string.
+    # The lenient decoder covers the NaN/Infinity/big-int edges CVE data carries.
     if isinstance(value, (str, bytes, bytearray)):
         try:
-            return orjson.loads(value)
-        except orjson.JSONDecodeError:
+            return _json_loads_lenient(value)
+        except ValueError:
             return value
     return value
 
@@ -49,6 +49,16 @@ class AsyncStix(_base.AsyncBaseResource):
         if opencti_id is not None:
             body["opencti_id"] = opencti_id
         return await self._request(_BUNDLE, cast=_parse_bundle, body=body, timeout=timeout)
+
+    async def bundle(
+        self,
+        id: str,
+        *,
+        opencti_id: str | None = None,
+        timeout: float | httpx.Timeout | NotGiven = not_given,
+    ) -> Any:
+        """Alias of :meth:`make_bundle_by_id` (the short primary name)."""
+        return await self.make_bundle_by_id(id, opencti_id=opencti_id, timeout=timeout)
 
 
 __all__ = ["AsyncStix"]

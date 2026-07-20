@@ -152,9 +152,15 @@ class TestVersion:
 
             import vulners
 
+            # The legacy module keeps its metadata-derived fallback...
             assert vulners.base.__version__ == "unknown", vulners.base.__version__
-            assert vulners.__version__ == "unknown", vulners.__version__
-            # User-Agent must still build with the fallback version.
+            # ...but the package root reports the STATIC version: a frozen /
+            # vendored deployment must state the shipped code's version, not
+            # "unknown" (single source: _version.py, CI-checked vs pyproject).
+            from vulners._version import __version__ as static_version
+
+            assert vulners.__version__ == static_version, vulners.__version__
+            # Legacy User-Agent still builds with the legacy fallback version.
             api = vulners.VulnersApi("SYNTHETIC-KEY")
             assert api._client.headers["user-agent"] == "Vulners Python API unknown"
             api._client.close()

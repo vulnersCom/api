@@ -52,11 +52,13 @@ dependencies = [
     # transparently only when these decoders are importable, so they are core
     # (an extra would be opt-in and never help the default `pip install vulners`).
     # Both ship cp310–cp314 wheels, so `pip install vulners` never builds from source.
-    "brotli>=1.1",
-    "zstandard>=0.22",
+    # Upper-capped at the next major so a wheel/ABI-breaking release can't be
+    # pulled in silently; bump the cap deliberately when validated.
+    "brotli>=1.1,<2",
+    "zstandard>=0.22,<1",
     # ISA-L accelerated gzip inflate on the multi-GB archive hot path (drop-in
     # zlib/gzip replacement). Ships cp310–cp314 wheels.
-    "isal>=1.7",
+    "isal>=1.7,<2",
     # Streaming JSON-array parser for the bulk archive path (a collection is one
     # big JSON array): yields elements without buffering the whole array. Pure
     # Python with optional C backends; the pure-Python backend needs no wheel, so
@@ -66,7 +68,7 @@ dependencies = [
 
 [project.optional-dependencies]
 # Agentic layer: ships a Model Context Protocol server (vulners-mcp).
-mcp = ["fastmcp>=2.0"]
+mcp = ["fastmcp>=2.0,<4"]
 # Opt-in OpenTelemetry tracing.
 otel = ["opentelemetry-api>=1.20"]
 
@@ -195,8 +197,8 @@ AsyncAPIClient = "vulners._transport_client_sync.SyncAPIClient"
 
 [build-system]
 # uv_build backend (src-layout auto-detected: src/vulners). Floor aligned to the
-# locally installed uv (0.11.26); target floor is >=0.11.29 — bumped at lock.
-requires = ["uv_build>=0.11.26,<0.12"]
+# locally installed uv (0.11.29).
+requires = ["uv_build>=0.11.29,<0.12"]
 build-backend = "uv_build"
 
 [tool.ruff]
@@ -229,9 +231,6 @@ warn_unused_ignores = true
 warn_unused_configs = true
 no_implicit_reexport = false
 
-# fastmcp ships only with the optional `mcp` extra and cannot be installed in the
-# default type-check environment (its rich pin conflicts with the dev group's
-# unasyncd). Treat it as untyped so vulners._mcp still type-checks against Any.
 [[tool.mypy.overrides]]
 # Optional, lazily-imported deps without type stubs (installed only with their
 # extra/group). Ignore their missing imports so the lint job (which omits them)
@@ -269,6 +268,15 @@ branch = true
 source = ["vulners"]
 parallel = true
 concurrency = ["thread", "multiprocessing"]
+# Config-driven gate scope: measure the WHOLE package and subtract only what is
+# gated elsewhere, so any new module lands inside the 100% gate by default
+# (listing modules with --cov flags erodes silently as modules are added).
+omit = [
+    # Legacy v3 layer: exercised by the v3 suite separately, outside this gate.
+    "*/vulners/base.py",
+    "*/vulners/vscanner.py",
+    "*/vulners/vulners/*",
+]
 
 [tool.coverage.report]
 show_missing = true

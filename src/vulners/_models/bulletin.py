@@ -479,13 +479,16 @@ register_discriminator(
 def construct_bulletin(data: Any, *, strict: bool = False) -> Bulletin:
     """Build the most specific :class:`Bulletin` for *data*.
 
-    ``strict=True`` runs full pydantic validation: it selects the family model
-    via :func:`_family_model` (the same helper the non-strict path uses) and
-    validates through ``model_validate``. The default construct path never
-    validates and prefers the per-collection (``type``) model when one exists.
+    ``strict=True`` runs full pydantic validation through ``model_validate``
+    against the SAME class the fast path would construct (per-collection model
+    first, then family, then :class:`GenericBulletin`) — so class identity never
+    depends on which path built the object. A non-mapping input (e.g. an already
+    constructed model) validates against its family model, read from its
+    ``bulletin_family`` attribute. The default construct path never validates.
     """
     if strict:
-        return _family_model(data).model_validate(data)
+        cls = bulletin_class_for(data) if isinstance(data, Mapping) else _family_model(data)
+        return cls.model_validate(data)
     return construct_type(data, Bulletin)
 
 

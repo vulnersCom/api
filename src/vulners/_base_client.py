@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import dataclasses
 import io
+import json
 import math
 import zipfile
 from collections.abc import Callable, Mapping
@@ -70,16 +71,37 @@ def _mount_guard(client: Any, transport_cls: Any, origin: httpx.URL) -> None:
     origin, so the cross-origin ``X-Api-Key`` strip, ``Set-Cookie`` drop and SSRF
     redirect guard run even when the caller supplies their own client.
 
+    The guard is scoped to SDK-originated requests only (``sdk_only=True``): the
+    SDK tags its requests via the ``vulners_sdk`` request extension (set in
+    ``_build_request`` and preserved by httpx across redirect hops), so the
+    application's own traffic through a shared client passes through untouched.
+
     Idempotent: a client already guarded (e.g. reused by ``with_options`` or
     shared across clients) is left as-is rather than double-wrapped.
     """
     if isinstance(client._transport, transport_cls):
         return
-    client._transport = transport_cls(client._transport, origin=origin)
+    client._transport = transport_cls(client._transport, origin=origin, sdk_only=True)
     client._mounts = {
-        pattern: (transport_cls(mount, origin=origin) if mount is not None else mount)
+        pattern: (
+            transport_cls(mount, origin=origin, sdk_only=True) if mount is not None else mount
+        )
         for pattern, mount in client._mounts.items()
     }
+
+
+def _json_loads_lenient(data: bytes | bytearray | str) -> Any:
+    """Decode JSON with orjson, falling back to the stdlib decoder on its edges.
+
+    orjson rejects ``NaN``/``Infinity`` literals and integers outside the 64-bit
+    range, all of which occur in real-world CVE data; the stdlib decoder accepts
+    them, so it backstops the fast path. Genuinely invalid JSON raises the
+    stdlib error — a ``ValueError``, like ``orjson.JSONDecodeError``.
+    """
+    try:
+        return orjson.loads(data)
+    except orjson.JSONDecodeError:
+        return json.loads(data)
 
 
 def _call_blocking(func: Callable[..., Any], *args: Any) -> Any:
@@ -174,7 +196,14 @@ class BaseClient:
             content = body.encode("utf-8") if isinstance(body, str) else bytes(body)
             req_headers["Content-Type"] = "text/plain; charset=utf-8"
 
-        extensions = {"timeout": self._resolve_timeout(spec, timeout).as_dict()}
+        extensions: dict[str, Any] = {
+            "timeout": self._resolve_timeout(spec, timeout).as_dict(),
+            # Tag the request as SDK-originated so a guard transport mounted on
+            # a shared (bring-your-own) client applies the credential/SSRF
+            # policy only to the SDK's own traffic. httpx carries extensions
+            # across redirect hops, so the tag survives redirects.
+            "vulners_sdk": True,
+        }
         return httpx.Request(
             spec.method,
             url,
@@ -186,13 +215,11 @@ class BaseClient:
 
     @staticmethod
     def _encode_json(body: Any) -> bytes:
-        # orjson only encodes 64-bit-range ints; fall back to httpx's stdlib json
+        # orjson only encodes 64-bit-range ints; fall back to the stdlib json
         # encoder for anything it cannot handle, matching v3 behaviour.
         try:
             return orjson.dumps(body)
         except TypeError:
-            import json
-
             return json.dumps(body).encode("utf-8")
 
     # -- request policy ----------------------------------------------------
@@ -238,8 +265,8 @@ class BaseClient:
             parsed: Any = None
             if content:
                 try:
-                    parsed = orjson.loads(content)
-                except orjson.JSONDecodeError as exc:
+                    parsed = _json_loads_lenient(content)
+                except ValueError as exc:  # both decoders rejected the body
                     snippet = content[:1024].decode(errors="replace")
                     if status >= 400:
                         info = _extract_error(status, response.headers, snippet, secret=secret)
@@ -270,8 +297,8 @@ class BaseClient:
         if not content:
             return None
         try:
-            return self._unwrap(spec, orjson.loads(content))
-        except orjson.JSONDecodeError as exc:
+            return self._unwrap(spec, _json_loads_lenient(content))
+        except ValueError as exc:  # both decoders rejected the body
             raise APIResponseValidationError(
                 "expected a JSON response body but got a non-JSON payload",
                 status_code=status,
@@ -398,8 +425,8 @@ class BaseClient:
         parsed: Any
         if media == "application/json" and content:
             try:
-                parsed = orjson.loads(content)
-            except orjson.JSONDecodeError:
+                parsed = _json_loads_lenient(content)
+            except ValueError:
                 parsed = content[:1024].decode(errors="replace")
         else:
             parsed = content[:1024].decode(errors="replace")

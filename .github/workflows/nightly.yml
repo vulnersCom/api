@@ -1,0 +1,74 @@
+name: nightly
+
+# Scheduled runs execute from the repository's default branch; until this file
+# lands there, trigger it manually on the branch via workflow_dispatch.
+on:
+  schedule:
+    - cron: "0 3 * * *" # 03:00 UTC daily
+  workflow_dispatch:
+
+jobs:
+  # Full test matrix, mirroring ci.yml's test job.
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: install (locked, test group only)
+        run: uv sync --locked --no-default-groups --group test --python ${{ matrix.python-version }}
+      - name: import smoke
+        run: uv run --no-default-groups --group test --python ${{ matrix.python-version }} python -c "import vulners; print(vulners.__version__)"
+      - name: run tests (parallel; live-marked tests skip without an API key)
+        env:
+          BC_SIGCHECK_REQUIRED: ${{ matrix.python-version == '3.12' && '1' || '' }}
+        run: uv run --no-default-groups --group test --python ${{ matrix.python-version }} pytest -n auto
+
+  # Early-warning probe: resolve the newest (including pre-release) versions of
+  # the dependency universe instead of the committed lock, then run the suite.
+  # A red run here flags an incoming break before it reaches users; it blocks
+  # nothing (nightly only).
+  prerelease-deps:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: resolve newest deps incl. pre-releases (overrides the lock)
+        # --exclude-newer "now" overrides the reproducibility cutoff pinned in
+        # [tool.uv] exclude-newer, so the probe really sees today's releases.
+        run: >
+          uv sync --upgrade --prerelease=allow
+          --exclude-newer "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          --no-default-groups --group test --python 3.12
+      - name: show resolved versions
+        run: uv pip list
+      - name: run tests against upgraded deps
+        run: uv run --no-sync --no-default-groups --group test --python 3.12 pytest -n auto
+
+  # Live smokes against the real API, gated on the VULNERS_API_KEY secret
+  # (forks and repos without the secret skip every step; secrets are not
+  # readable in a job-level `if`, hence the per-step env gate).
+  live-smoke:
+    runs-on: ubuntu-latest
+    env:
+      VULNERS_API_KEY: ${{ secrets.VULNERS_API_KEY }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        if: env.VULNERS_API_KEY != ''
+      - uses: astral-sh/setup-uv@v5
+        if: env.VULNERS_API_KEY != ''
+        with:
+          enable-cache: true
+      - name: install (locked, test group only)
+        if: env.VULNERS_API_KEY != ''
+        run: uv sync --locked --no-default-groups --group test --python 3.12
+      - name: live smokes
+        if: env.VULNERS_API_KEY != ''
+        run: uv run --no-default-groups --group test --python 3.12 pytest tests/live -q

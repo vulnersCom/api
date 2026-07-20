@@ -153,6 +153,25 @@ def is_zip_media(media: str) -> bool:
     return media in _ZIP_MEDIA
 
 
+def normalize_archive_record(record: Any) -> Any:
+    """Unwrap the Elasticsearch-hit envelope some archive records carry.
+
+    Some archive exports stream raw ES hits — ``{"_index": ..., "_id": ...,
+    "_source": {...}}``, every key underscore-prefixed with the document itself
+    under ``"_source"`` — instead of bare documents. Return the inner document
+    for that shape; any other record (including a document that merely contains
+    a ``_source`` field among regular keys) passes through unchanged, so the
+    heuristic can only unwrap, never corrupt.
+    """
+    if (
+        isinstance(record, dict)
+        and isinstance(record.get("_source"), dict)
+        and all(key.startswith("_") for key in record)
+    ):
+        return record["_source"]
+    return record
+
+
 def _import_stream_unzip() -> Any:
     try:
         from stream_unzip import stream_unzip
@@ -199,4 +218,5 @@ __all__ = [
     "is_zip_media",
     "iter_zip_json_array",
     "make_array_decoder",
+    "normalize_archive_record",
 ]

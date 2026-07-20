@@ -55,3 +55,26 @@ def test_optional_none_stays_none():
 def test_non_mapping_for_model_passes_through():
     # Defensive: a scalar where a model was expected is returned unchanged.
     assert construct_type("scalar", Bulletin) == "scalar"
+
+
+class TestHasHelper:
+    def test_has_by_python_name_and_alias(self):
+        b = construct_type({"id": "x", "bulletinFamily": "cve"}, Bulletin)
+        assert b.has("id")
+        assert b.has("bulletin_family")
+        assert b.has("bulletinFamily")  # wire alias resolves too
+
+    def test_absent_field_is_false_even_though_attribute_is_none(self):
+        b = construct_type({"id": "x"}, Bulletin)
+        assert b.title is None and not b.has("title")
+        assert not b.has("lastseen") and not b.has("unknownField")
+
+    def test_extras_count_as_sent(self):
+        b = construct_type({"id": "x", "brandNew": 1}, Bulletin)
+        assert b.has("brandNew")
+
+    def test_server_field_named_has_does_not_shadow_method(self):
+        b = construct_type({"id": "x", "has": ["something"]}, Bulletin)
+        assert callable(b.has)  # the method wins attribute lookup
+        assert b.has("has")  # and the extra is still reported as sent
+        assert b.model_extra["has"] == ["something"]

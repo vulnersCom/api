@@ -10,7 +10,9 @@ from __future__ import annotations
 
 import dataclasses
 import os
-from typing import Literal
+import ssl
+from collections.abc import Callable
+from typing import Any, Literal
 
 import httpx
 from pydantic import SecretStr
@@ -58,6 +60,21 @@ class ClientConfig:
     # Pass http2=False for huge single-stream archive downloads, where HTTP/1.1
     # avoids h2's fixed flow-control window overhead on one long body.
     http2: bool = True
+    # Convenience transport settings for the SDK-owned client. They cannot be
+    # combined with a bring-your-own http_client (the client constructor rejects
+    # that mix), because httpx ignores client-level verify/proxy once an explicit
+    # transport is passed — so these ride on the SDK's inner transport instead.
+    proxy: str | httpx.Proxy | None = None
+    verify: bool | str | ssl.SSLContext = True
+    trust_env: bool = True
+    # Observation hooks. before_request/after_response are wired as httpx
+    # event_hooks on the SDK-owned client; on_error fires in the request loop
+    # when a request finally fails (after retries are exhausted). The client
+    # constructors normalize user input into these tuples (the async client
+    # adapts sync callables to async ones).
+    before_request: tuple[Callable[..., Any], ...] = ()
+    after_response: tuple[Callable[..., Any], ...] = ()
+    on_error: tuple[Callable[..., Any], ...] = ()
 
     def timeout_for(self, profile: TimeoutProfile) -> httpx.Timeout:
         return self.archive_timeout if profile == "archive" else self.timeout
@@ -102,6 +119,12 @@ def resolve_config(
     max_retries: int | None = None,
     max_response_bytes: int | None = None,
     http2: bool = True,
+    proxy: str | httpx.Proxy | None = None,
+    verify: bool | str | ssl.SSLContext = True,
+    trust_env: bool = True,
+    before_request: tuple[Callable[..., Any], ...] = (),
+    after_response: tuple[Callable[..., Any], ...] = (),
+    on_error: tuple[Callable[..., Any], ...] = (),
 ) -> ClientConfig:
     """Resolve constructor arguments and environment into a :class:`ClientConfig`."""
     key = _coerce_key(api_key)
@@ -122,6 +145,12 @@ def resolve_config(
         user_agent=f"Vulners Python API {version}",
         max_response_bytes=max_response_bytes,
         http2=http2,
+        proxy=proxy,
+        verify=verify,
+        trust_env=trust_env,
+        before_request=before_request,
+        after_response=after_response,
+        on_error=on_error,
     )
     changes: dict[str, object] = {}
     if timeout is not None:

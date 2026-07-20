@@ -33,13 +33,17 @@ class TestMiscWire:
         assert params["size"] == "10"
 
     @respx.mock
-    def test_query_autocomplete_flattens(self):
+    def test_query_autocomplete_normalizes_shapes(self):
+        # Observed wire shapes: [completion, score] pairs, bare strings, and
+        # multi-completion lists — the last must survive whole (not flatten).
         respx.post(f"{BASE}/api/v3/search/autocomplete/").mock(
-            return_value=_v3({"suggestions": [["ssh", 1], ["sshd", 2]]})
+            return_value=_v3(
+                {"suggestions": [["ssh", 1], "sshd", ["ssh-agent", "ssh-add"], [42]]}
+            )
         )
         with Vulners(KEY) as client:
             out = client.misc.query_autocomplete("ss")
-        assert out == ["ssh", "sshd"]
+        assert out == ["ssh", "sshd", ["ssh-agent", "ssh-add"], "42"]
 
     @respx.mock
     def test_get_suggestion_wire_and_unwrap(self):
@@ -65,8 +69,9 @@ class TestMiscWire:
 class TestMiscAsync:
     @respx.mock
     async def test_autocomplete_async(self):
+        # [completion, score] pair and a no-string element ([42] -> "42").
         respx.post(f"{BASE}/api/v3/search/autocomplete/").mock(
-            return_value=_v3({"suggestions": [["ssh", 1]]})
+            return_value=_v3({"suggestions": [["ssh", 1], [42]]})
         )
         async with AsyncVulners(KEY) as client:
-            assert await client.misc.query_autocomplete("ss") == ["ssh"]
+            assert await client.misc.query_autocomplete("ss") == ["ssh", "42"]

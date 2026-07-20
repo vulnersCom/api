@@ -3016,19 +3016,19 @@ test = [
 
 [package.metadata]
 requires-dist = [
-    { name = "brotli", specifier = ">=1.1" },
-    { name = "fastmcp", marker = "extra == 'mcp'", specifier = ">=2.0" },
+    { name = "brotli", specifier = ">=1.1,<2" },
+    { name = "fastmcp", marker = "extra == 'mcp'", specifier = ">=2.0,<4" },
     { name = "h2", specifier = ">=4,<5" },
     { name = "httpx", specifier = ">=0.28,<1" },
     { name = "ijson", specifier = ">=3.2,<4" },
-    { name = "isal", specifier = ">=1.7" },
+    { name = "isal", specifier = ">=1.7,<2" },
     { name = "opentelemetry-api", marker = "extra == 'otel'", specifier = ">=1.20" },
     { name = "orjson", specifier = ">=3.11,<4" },
     { name = "pydantic", specifier = ">=2.11,<3" },
     { name = "stream-unzip", specifier = ">=0.0.100,<0.1" },
     { name = "typing-extensions", specifier = ">=4.12" },
     { name = "typing-inspection", specifier = ">=0.4" },
-    { name = "zstandard", specifier = ">=0.22" },
+    { name = "zstandard", specifier = ">=0.22,<1" },
 ]
 provides-extras = ["mcp", "otel"]
 

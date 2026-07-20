@@ -9,8 +9,9 @@ built through :func:`construct_bulletin`, so each row is the family-specific
 
 from __future__ import annotations
 
+import re
 from collections.abc import AsyncIterator, Sequence
-from typing import Any
+from typing import Any, Literal
 
 import httpx
 
@@ -20,12 +21,52 @@ from ..._models.bulletin import Bulletin, construct_bulletin
 from ..._pagination import SEARCH_WINDOW, AsyncSearchPage
 from ..._types import NotGiven, not_given
 from . import _base
+from .misc import _AUTOCOMPLETE, _BURP_RULES, _SEARCH_CPE, _SUGGEST, _autocomplete
 
 _SEARCH_SPEC = RequestSpec(
     "POST", "/api/v3/search/lucene/", body_mode="json", unwrap=("data",), idempotent=True
 )
 _LOOKUP_SPEC = RequestSpec(
     "POST", "/api/v3/search/id/", body_mode="json", unwrap=("data",), idempotent=True
+)
+_COLLECTIONS_SPEC = RequestSpec("GET", "/api/v4/search/collections", unwrap=("result",))
+
+# A bare CVE id used as a search query must be phrase-quoted, or Lucene
+# tokenizes it ("CVE", "2021", "44228") and matches far too much.
+_BARE_CVE_RE = re.compile(r"^CVE-\d{4}-\d+$", re.IGNORECASE)
+
+
+def exploit_search_query(query: str, *, lucene: bool = False) -> str:
+    """Build the exploit-family Lucene query for a user query.
+
+    A bare CVE id is phrase-quoted so it matches as one token; when ``lucene``
+    is true the query is taken as raw Lucene and only wrapped with the
+    ``bulletinFamily:exploit`` filter.
+    """
+    query = query.strip()
+    if not lucene and _BARE_CVE_RE.match(query):
+        query = f'"{query}"'
+    return f"bulletinFamily:exploit AND ({query})"
+
+
+# Compact default projection sent when ``fields`` is omitted: the proven v3
+# default field set minus the heavy document fields. ``sourceData`` and
+# ``description`` can dominate response size on large result pages, so they are
+# opt-in — pass ``fields=["*"]`` for whole documents, or name fields explicitly.
+DEFAULT_SEARCH_FIELDS: tuple[str, ...] = (
+    "id",
+    "title",
+    "type",
+    "bulletinFamily",
+    "cvss",
+    "published",
+    "modified",
+    "lastseen",
+    "href",
+    "sourceHref",
+    "cvelist",
+    "vulnStatus",
+    "assigned",
 )
 
 
@@ -47,8 +88,11 @@ class AsyncSearch(_base.AsyncBaseResource):
             query: A Vulners Lucene query (see https://vulners.com/help).
             limit: Maximum number of documents to return in this page.
             offset: Number of documents to skip.
-            fields: Restrict the returned fields; the server default is used when
-                omitted.
+            fields: Restrict the returned fields. When omitted, the compact
+                :data:`DEFAULT_SEARCH_FIELDS` projection is requested; the heavy
+                document fields (``sourceData``, ``description``) are opt-in —
+                pass ``fields=["*"]`` for whole documents or list fields
+                explicitly.
 
         Returns:
             A cursor-aware :class:`AsyncSearchPage` of :class:`Bulletin`;
@@ -66,7 +110,7 @@ class AsyncSearch(_base.AsyncBaseResource):
             )
         size = min(limit, SEARCH_WINDOW - offset)
         body: dict[str, Any] = {"query": query, "size": size, "skip": offset}
-        self._set(body, "fields", fields, list)
+        body["fields"] = list(DEFAULT_SEARCH_FIELDS if isinstance(fields, NotGiven) else fields)
 
         async def _fetch(next_offset: int, next_size: int) -> AsyncSearchPage[Bulletin]:
             return await self.query(
@@ -98,7 +142,10 @@ class AsyncSearch(_base.AsyncBaseResource):
         """Iterate every matching :class:`Bulletin`, auto-paginating.
 
         Fetches pages of ``page_size`` documents and yields their rows lazily,
-        stopping at the 10000-document search window.
+        stopping at the 10000-document search window. When ``fields`` is
+        omitted, the compact :data:`DEFAULT_SEARCH_FIELDS` projection is used
+        (heavy fields like ``sourceData``/``description`` are opt-in via
+        ``fields=["*"]`` or an explicit list).
         """
         page = await self.query(query, limit=page_size, offset=0, fields=fields, timeout=timeout)
         while True:
@@ -170,5 +217,127 @@ class AsyncSearch(_base.AsyncBaseResource):
 
         return await self._request(_LOOKUP_SPEC, cast=_cast, body=body)
 
+    async def exploits(
+        self,
+        query: str,
+        *,
+        lucene: bool = False,
+        limit: int = 20,
+        offset: int = 0,
+        fields: Sequence[str] | NotGiven = not_given,
+        timeout: float | httpx.Timeout | NotGiven = not_given,
+    ) -> AsyncSearchPage[Bulletin]:
+        """Search for public exploits matching a query.
 
-__all__ = ["AsyncSearch"]
+        Restricts a Lucene search to the ``exploit`` bulletin family. A bare
+        CVE id (e.g. ``CVE-2021-44228``) is phrase-quoted automatically so it
+        matches as a single token.
+
+        Args:
+            query: A CVE id, product name, or Lucene fragment.
+            lucene: Treat ``query`` as raw Lucene: no CVE auto-quoting, only
+                the exploit-family filter is applied around it.
+            limit: Maximum number of documents to return in this page.
+            offset: Number of documents to skip.
+            fields: Restrict the returned fields, as in :meth:`query`.
+
+        Returns:
+            A cursor-aware :class:`AsyncSearchPage` of :class:`Bulletin`.
+
+        Raises:
+            SearchWindowExceeded: ``offset`` is at or beyond the 10000-document
+                window.
+        """
+        return await self.query(
+            exploit_search_query(query, lucene=lucene),
+            limit=limit,
+            offset=offset,
+            fields=fields,
+            timeout=timeout,
+        )
+
+    async def collections(
+        self,
+        *,
+        timeout: float | httpx.Timeout | NotGiven = not_given,
+    ) -> Any:
+        """List every collection available in Vulners.
+
+        Returns:
+            A list of collection descriptors, each with ``type``, ``count``,
+            ``description`` and ``last_updated``, sorted by count descending.
+        """
+        return await self._request(_COLLECTIONS_SPEC, timeout=timeout)
+
+    # -- verb-unified lookups ----------------------------------------------
+    # The same endpoints as the ``misc`` resource methods (specs and response
+    # handling are shared with that module); surfaced here so every search-ish
+    # call is reachable from ``client.search``.
+
+    async def autocomplete(
+        self,
+        query: str,
+        *,
+        timeout: float | httpx.Timeout | NotGiven = not_given,
+    ) -> list[str | list[str]]:
+        """Return possible completions for a partial Lucene query.
+
+        Same endpoint as :meth:`AsyncMisc.query_autocomplete`.
+        """
+        return await self._request(
+            _AUTOCOMPLETE, cast=_autocomplete, body={"query": query}, timeout=timeout
+        )
+
+    async def suggest(
+        self,
+        field_name: str,
+        *,
+        type: Literal["distinct"] = "distinct",
+        timeout: float | httpx.Timeout | NotGiven = not_given,
+    ) -> Any:
+        """Return distinct value suggestions for a document field.
+
+        Same endpoint as :meth:`AsyncMisc.get_suggestion`.
+
+        Args:
+            field_name: The document field to suggest values for.
+            type: Suggestion type; only ``"distinct"`` is supported.
+        """
+        body = {"fieldName": field_name, "type": type}
+        return await self._request(_SUGGEST, body=body, timeout=timeout)
+
+    async def cpe(
+        self,
+        product: str,
+        *,
+        vendor: str | NotGiven = not_given,
+        size: int | NotGiven = not_given,
+        timeout: float | httpx.Timeout | NotGiven = not_given,
+    ) -> Any:
+        """Search for CPE strings matching a product (and optional vendor).
+
+        Same endpoint as :meth:`AsyncMisc.search_cpe`.
+
+        Args:
+            product: Product string to search a CPE for.
+            vendor: Optional vendor to narrow the match.
+            size: Maximum number of results (0..10000, ``0`` means all).
+        """
+        body: dict[str, Any] = {"product": product}
+        self._set(body, "vendor", vendor)
+        self._set(body, "size", size)
+        return await self._request(_SEARCH_CPE, body=body, timeout=timeout)
+
+    async def web_vulns(
+        self,
+        *,
+        timeout: float | httpx.Timeout | NotGiven = not_given,
+    ) -> Any:
+        """Return the Vulners web-application (burp) detection rule set.
+
+        Same endpoint as :meth:`AsyncMisc.get_web_application_rules`.
+        """
+        return await self._request(_BURP_RULES, timeout=timeout)
+
+
+__all__ = ["DEFAULT_SEARCH_FIELDS", "AsyncSearch", "exploit_search_query"]

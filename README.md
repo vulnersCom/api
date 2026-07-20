@@ -12,7 +12,7 @@ your own pipelines — all from a few lines of typed, async-ready Python.
 [![Python versions](https://img.shields.io/pypi/pyversions/vulners)](https://pypi.org/project/vulners/)
 [![Downloads](https://img.shields.io/pypi/dm/vulners?color=blue)](https://pypi.org/project/vulners/)
 [![CI](https://github.com/vulnersCom/api/actions/workflows/ci.yml/badge.svg)](https://github.com/vulnersCom/api/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/vulnersCom/api/blob/master/LICENSE)
 [![Typed](https://img.shields.io/badge/typing-PEP%20561-brightgreen)](https://peps.python.org/pep-0561/)
 
 [**Documentation**](https://docs.vulners.com/docs/) ·
@@ -99,7 +99,8 @@ asyncio.run(main())
 
 ## Usage examples
 
-Runnable scripts for every task live under [`samples/`](samples/) — a **v4** set and a matching
+Runnable scripts for every task live under
+[`samples/`](https://github.com/vulnersCom/api/tree/master/samples) — a **v4** set and a matching
 **v3 (legacy)** set, side by side.
 
 ### Find public exploits for a CVE
@@ -162,7 +163,7 @@ VULNERS_API_KEY=... vulners-mcp        # run the MCP server
 
 It exposes concise, typed tools — search bulletins, look up a CVE, find exploits, and audit
 software/Linux/hosts — that any MCP-compatible client (Claude, IDE agents, …) can call. See
-[`AGENTS.md`](AGENTS.md).
+[`AGENTS.md`](https://github.com/vulnersCom/api/blob/master/AGENTS.md).
 
 ---
 
@@ -178,7 +179,7 @@ cve = api.search.get_bulletin("CVE-2021-44228")         # returns a dict, as it 
 ```
 
 New code should prefer the `Vulners` / `AsyncVulners` clients above. Migrate at your own pace — see
-the [migration guide](documentation/explanation/migration.md).
+the [migration guide](https://vulnersCom.github.io/api/explanation/migration/).
 
 ---
 
@@ -203,9 +204,9 @@ messages and object reprs.
 | 🔌 API reference | https://docs.vulners.com/docs/api/ |
 | 🧪 Interactive API (Swagger) | https://docs.vulners.com/docs/api/swagger/ |
 | 🔑 Authentication / API keys | https://docs.vulners.com/docs/quickstart/authentication/ |
-| 💡 Examples | [`samples/`](samples/) |
-| 🤝 Contributing | [CONTRIBUTING.md](CONTRIBUTING.md) |
-| 🔒 Security policy | [SECURITY.md](SECURITY.md) |
+| 💡 Examples | [`samples/`](https://github.com/vulnersCom/api/tree/master/samples) |
+| 🤝 Contributing | [CONTRIBUTING.md](https://github.com/vulnersCom/api/blob/master/CONTRIBUTING.md) |
+| 🔒 Security policy | [SECURITY.md](https://github.com/vulnersCom/api/blob/master/SECURITY.md) |
 
 ---
 
@@ -227,20 +228,23 @@ uv sync
 make check   # lint + typecheck + tests
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow.
+See [CONTRIBUTING.md](https://github.com/vulnersCom/api/blob/master/CONTRIBUTING.md) for the
+full workflow.
 
 ---
 
 ## Security
 
-Found a security issue in the SDK? Please report it privately — see [SECURITY.md](SECURITY.md). Do
-not open a public issue for vulnerabilities.
+Found a security issue in the SDK? Please report it privately — see
+[SECURITY.md](https://github.com/vulnersCom/api/blob/master/SECURITY.md). Do not open a public
+issue for vulnerabilities.
 
 ---
 
 ## License
 
-Distributed under the **MIT License**. See [LICENSE](LICENSE).
+Distributed under the **MIT License**. See
+[LICENSE](https://github.com/vulnersCom/api/blob/master/LICENSE).
 
 ---
 

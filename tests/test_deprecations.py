@@ -72,7 +72,10 @@ class TestEndpointDeprecatedParam:
         with pytest.warns(DeprecationWarning) as record:
             proxy.fetch()
         messages = [str(w.message) for w in record]
-        assert messages == ["\n[!] DEPRECATION WARNING\n[!] _SyntheticApi.fetch() is deprecated."]
+        assert messages == [
+            "\n[!] DEPRECATION WARNING\n[!] _SyntheticApi.fetch() is deprecated."
+            "\n[!] Migration guide: https://vulnersCom.github.io/api/explanation/migration/"
+        ]
         # the request itself still goes out
         assert server.last.url.path == "/synthetic/deprecated/"
 

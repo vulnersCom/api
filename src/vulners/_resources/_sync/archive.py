@@ -11,14 +11,16 @@ collections can be gigabytes, so they use the archive timeout profile.
 
 from __future__ import annotations
 
+import os
 from collections.abc import Iterator
 from datetime import datetime
-from typing import Any
+from typing import Any, BinaryIO
 
 import httpx
-import orjson
 
-from ..._base_client import RequestSpec
+import vulners._base_client
+
+from ..._base_client import RequestSpec, _json_loads_lenient
 from ..._types import NotGiven, not_given
 from . import _base
 
@@ -36,12 +38,53 @@ _STREAM_COLLECTION = RequestSpec(
     response_mode="stream",
     timeout_profile="archive",
 )
+_STREAM_COLLECTION_UPDATE = RequestSpec(
+    "GET",
+    "/api/v4/archive/collection-update",
+    body_mode="query",
+    response_mode="stream",
+    timeout_profile="archive",
+)
 _FETCH_COLLECTION_UPDATE = RequestSpec(
     "GET",
     "/api/v4/archive/collection-update",
     body_mode="query",
     response_mode="bytes",
     timeout_profile="archive",
+)
+_COLLECTION_STATE = RequestSpec(
+    "GET", "/api/v4/archive/collection-state", body_mode="query", unwrap=("result",)
+)
+_FETCH_FAMILY = RequestSpec(
+    "GET",
+    "/api/v4/archive/family",
+    body_mode="query",
+    response_mode="bytes",
+    timeout_profile="archive",
+)
+_STREAM_FAMILY = RequestSpec(
+    "GET",
+    "/api/v4/archive/family",
+    body_mode="query",
+    response_mode="stream",
+    timeout_profile="archive",
+)
+_FETCH_FAMILY_UPDATE = RequestSpec(
+    "GET",
+    "/api/v4/archive/family-update",
+    body_mode="query",
+    response_mode="bytes",
+    timeout_profile="archive",
+)
+_STREAM_FAMILY_UPDATE = RequestSpec(
+    "GET",
+    "/api/v4/archive/family-update",
+    body_mode="query",
+    response_mode="stream",
+    timeout_profile="archive",
+)
+_FAMILY_STATE = RequestSpec(
+    "GET", "/api/v4/archive/family-state", body_mode="query", unwrap=("result",)
 )
 _GET_COLLECTION = RequestSpec(
     "GET",
@@ -70,14 +113,15 @@ def _decode_archive(value: Any) -> Any:
     """Return the archive payload parsed as JSON when possible, else raw bytes.
 
     The body arrives gzip/zip-compressed and is decoded to bytes by the core, then
-    parsed as JSON (a collection is a single JSON array). Non-JSON / binary bodies
-    pass through as bytes; use :meth:`iter_collection` for lazy, per-element
-    streaming of large collections.
+    parsed as JSON (a collection is a single JSON array; the lenient decoder
+    accepts the NaN/Infinity/big-int edges CVE data can carry). Non-JSON / binary
+    bodies pass through as bytes; use :meth:`iter_collection` for lazy,
+    per-element streaming of large collections.
     """
     if isinstance(value, (bytes, bytearray)):
         try:
-            return orjson.loads(value)
-        except orjson.JSONDecodeError:
+            return _json_loads_lenient(value)
+        except ValueError:
             return bytes(value)
     return value
 
@@ -87,12 +131,18 @@ def _distributive(value: Any) -> list[Any]:
     # of {"_source": ...} objects; the core decodes the zip to those member bytes.
     if isinstance(value, (bytes, bytearray)):
         try:
-            value = orjson.loads(value)
-        except orjson.JSONDecodeError:
+            value = _json_loads_lenient(value)
+        except ValueError:
             return []
     if not isinstance(value, list):
         return []
     return [item["_source"] for item in value if isinstance(item, dict) and "_source" in item]
+
+
+def _open_binary_write(path: str) -> BinaryIO:
+    # Module-level helper so the blocking open can be pushed off the event loop
+    # (the async source wraps it in a thread; the sync mirror calls it inline).
+    return open(path, "wb")
 
 
 class Archive(_base.BaseResource):
@@ -120,12 +170,55 @@ class Archive(_base.BaseResource):
         Unlike :meth:`fetch_collection` (which buffers and decodes the whole
         archive), this follows the archive redirect to storage, decompresses the
         body as a stream and yields each array element lazily, so a multi-gigabyte
-        collection never has to be held in memory. Each element is a ``dict``.
+        collection never has to be held in memory. Each element is a ``dict``;
+        records delivered as raw Elasticsearch hits are normalized to their
+        ``"_source"`` document.
         """
         for record in self._client.stream_records(
             _STREAM_COLLECTION, params={"type": type}, timeout=timeout
         ):
             yield record
+
+    def download_collection(
+        self,
+        collection: str,
+        path: str | os.PathLike[str],
+        *,
+        update_from: datetime | None = None,
+        timeout: float | httpx.Timeout | NotGiven = not_given,
+    ) -> int:
+        """Stream a collection archive straight to ``path``; return bytes written.
+
+        The raw (still-compressed) archive bytes are written to ``path`` chunk by
+        chunk — nothing is buffered in memory and nothing is decompressed — so a
+        multi-gigabyte collection downloads in constant memory. Pass
+        ``update_from`` to fetch only the entries changed after that moment (the
+        collection-update endpoint) instead of the whole collection.
+
+        Args:
+            collection: The collection type to download (e.g. ``"cve"``).
+            path: Destination file path; an existing file is overwritten.
+            update_from: When given, download the collection update since this
+                moment instead of the full archive.
+
+        Returns:
+            The number of bytes written to ``path``.
+        """
+        spec = _STREAM_COLLECTION
+        params: dict[str, Any] = {"type": collection}
+        if update_from is not None:
+            spec = _STREAM_COLLECTION_UPDATE
+            params["after"] = update_from.isoformat()
+        written = 0
+        with self._client.stream_response(spec, params=params, timeout=timeout) as resp:
+            handle = vulners._base_client._call_blocking(_open_binary_write, os.fspath(path))
+            try:
+                for chunk in resp.iter_bytes():
+                    vulners._base_client._call_blocking(handle.write, chunk)
+                    written += len(chunk)
+            finally:
+                vulners._base_client._call_blocking(handle.close)
+        return written
 
     def fetch_collection_update(
         self,
@@ -139,6 +232,90 @@ class Archive(_base.BaseResource):
         return self._request(
             _FETCH_COLLECTION_UPDATE, cast=_decode_archive, body=body, timeout=timeout
         )
+
+    def collection_state(
+        self,
+        type: str,
+        *,
+        timeout: float | httpx.Timeout | NotGiven = not_given,
+    ) -> Any:
+        """Read the sync cursor and counters for a collection.
+
+        Returns:
+            A dict with ``cursor`` (feed it back as ``after`` to the
+            collection-update download), ``upload_time``, ``write_time`` and
+            ``total_docs``.
+        """
+        return self._request(_COLLECTION_STATE, body={"type": type}, timeout=timeout)
+
+    def family(
+        self,
+        name: str,
+        *,
+        timeout: float | httpx.Timeout | NotGiven = not_given,
+    ) -> Any:
+        """Download an entire collection-family archive by ``name``.
+
+        Same shape as :meth:`fetch_collection`, keyed by a family name (e.g.
+        ``"exploit"``, ``"unix"``, ``"software"``) instead of a single
+        collection type.
+        """
+        return self._request(
+            _FETCH_FAMILY, cast=_decode_archive, body={"name": name}, timeout=timeout
+        )
+
+    def family_update(
+        self,
+        name: str,
+        after: datetime,
+        *,
+        timeout: float | httpx.Timeout | NotGiven = not_given,
+    ) -> Any:
+        """Download only the family entries changed after ``after`` (max 25h ago)."""
+        body = {"name": name, "after": after.isoformat()}
+        return self._request(
+            _FETCH_FAMILY_UPDATE, cast=_decode_archive, body=body, timeout=timeout
+        )
+
+    def family_state(
+        self,
+        name: str,
+        *,
+        timeout: float | httpx.Timeout | NotGiven = not_given,
+    ) -> Any:
+        """Read the sync cursor and counters for a collection family.
+
+        Returns:
+            A dict with ``cursor`` (feed it back as ``after`` to
+            :meth:`family_update`), ``upload_time``, ``write_time`` and
+            ``total_docs``.
+        """
+        return self._request(_FAMILY_STATE, body={"name": name}, timeout=timeout)
+
+    # Deliberately not ``aiter``-prefixed: the method name is shared with the
+    # generated sync mirror, where it is a plain generator.
+    def iter_family(
+        self,
+        name: str,
+        *,
+        update_from: datetime | None = None,
+        timeout: float | httpx.Timeout | NotGiven = not_given,
+    ) -> Iterator[dict[str, Any]]:
+        """Stream a family archive element by element, like :meth:`iter_collection`.
+
+        Follows the archive redirect to storage, decompresses the body as a
+        stream and yields each element lazily, so a multi-gigabyte family
+        archive never has to be held in memory. Pass ``update_from`` to stream
+        only the entries changed after that moment (must be at most 25 hours
+        ago) instead of the whole family.
+        """
+        spec = _STREAM_FAMILY
+        params: dict[str, Any] = {"name": name}
+        if update_from is not None:
+            spec = _STREAM_FAMILY_UPDATE
+            params["after"] = update_from.isoformat()
+        for record in self._client.stream_records(spec, params=params, timeout=timeout):
+            yield record
 
     def get_collection(
         self,

@@ -29,6 +29,7 @@ from pydantic import BaseModel
 
 from .._client import AsyncVulners
 from .._models.bulletin import Bulletin
+from .._resources._async.search import exploit_search_query
 
 mcp: FastMCP[Any] = FastMCP(
     name="vulners",
@@ -187,7 +188,9 @@ async def search_exploits(query: str, limit: int = 10) -> dict[str, Any]:
         ``{total, returned, exploits, note}`` — compact exploit summaries.
     """
     limit = max(1, min(limit, 100))
-    page = await _get_client().search.query(f"bulletinFamily:exploit AND ({query})", limit=limit)
+    # Shares the SDK's exploit-query builder, so a bare CVE id is phrase-quoted
+    # instead of being tokenized by Lucene into far-too-broad terms.
+    page = await _get_client().search.query(exploit_search_query(query), limit=limit)
     return {
         "total": page.total,
         "returned": len(page.data),

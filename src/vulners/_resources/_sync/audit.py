@@ -10,8 +10,10 @@ keyword-only signature and the v3/v4 response envelope unwrapped.
 from __future__ import annotations
 
 import os
+import stat
 from collections.abc import Sequence
-from typing import Any, Literal
+from functools import cached_property
+from typing import IO, Any, Literal
 
 import httpx
 
@@ -25,7 +27,24 @@ from . import _base
 
 def _read_file_bytes(path: str) -> bytes:
     with open(path, "rb") as handle:
+        # Validate the descriptor actually opened, not the path examined
+        # earlier: between any prior check and this open the path could be
+        # swapped for a device, FIFO or directory, so rejecting a non-regular
+        # target closes that TOCTOU window (CWE-367). A regular file (including
+        # a symlink to one) has S_ISREG set and is uploaded exactly as before.
+        if not stat.S_ISREG(os.fstat(handle.fileno()).st_mode):
+            raise ValueError("upload path is not a regular file")
         return handle.read()
+
+
+def _read_package_manifest(file: str | os.PathLike[str] | IO[bytes] | IO[str] | bytes) -> bytes:
+    """Coerce a package-audit input (path / open file / raw bytes) to bytes."""
+    if isinstance(file, bytes):
+        return file
+    if isinstance(file, (str, os.PathLike)):
+        return _read_file_bytes(os.fspath(file))
+    data = file.read()
+    return data.encode("utf-8") if isinstance(data, str) else bytes(data)
 
 
 # v4 audit endpoints answer with ``{"result": <payload>}``; v3 ones with the
@@ -41,13 +60,249 @@ _CVES = RequestSpec("POST", "/api/v4/audit/cves", body_mode="json", unwrap=("res
 _KB = RequestSpec("POST", "/api/v3/audit/kb/", body_mode="json", unwrap=("data",))
 _WINAUDIT = RequestSpec("POST", "/api/v3/audit/winaudit/", body_mode="json", unwrap=("data",))
 _SMART = RequestSpec("POST", "/api/v4/audit/smart", body_mode="json", unwrap=("result",))
+_SUPPORTED_OS = RequestSpec(
+    "GET", "/api/v3/audit/getSupportedOS/", body_mode="query", unwrap=("data", "supportedOS")
+)
 
 _SMART_MAX_ITEMS = 500
 _SMART_MAX_LEN = 512
 
+PackageEcosystem = Literal["maven", "pip", "poetry", "uv", "npm", "golang"]
+
+# The package-audit endpoints take the raw manifest as a text/plain body.
+_PACKAGE_SPECS: dict[str, RequestSpec] = {
+    ecosystem: RequestSpec(
+        "POST", f"/api/v4/audit/package/{ecosystem}", body_mode="text", unwrap=("result",)
+    )
+    for ecosystem in ("maven", "pip", "poetry", "uv", "npm", "golang")
+}
+
+
+# Deliberately not Async-prefixed: the class name is shared with the generated
+# sync mirror (the namespace is reached through ``client.audit.packages``, so
+# the module path — _async vs _sync — is what distinguishes the two).
+class AuditPackages(_base.BaseResource):
+    """Audit raw package-manager manifests (``client.audit.packages``).
+
+    Each method posts the manifest text as-is and returns the audit result
+    (an ``issues`` list, one entry per vulnerable package). The ``include_*``
+    filters are sent only when given, so the server defaults apply otherwise.
+    """
+
+    def _audit(
+        self,
+        spec: RequestSpec,
+        file: str | os.PathLike[str] | IO[bytes] | IO[str] | bytes,
+        include_any_version: bool | NotGiven,
+        include_candidates: bool | NotGiven,
+        include_unofficial: bool | NotGiven,
+        include_transitives: bool | NotGiven,
+        timeout: float | httpx.Timeout | NotGiven,
+    ) -> dict[str, Any]:
+        content = vulners._base_client._call_blocking(_read_package_manifest, file)
+        params: dict[str, Any] = {}
+        self._set(params, "includeAnyVersion", include_any_version)
+        self._set(params, "includeCandidates", include_candidates)
+        self._set(params, "includeUnofficial", include_unofficial)
+        self._set(params, "includeTransitives", include_transitives)
+        return self._request(spec, body=content, params=params, timeout=timeout)
+
+    def maven(
+        self,
+        file: str | os.PathLike[str] | IO[bytes] | IO[str] | bytes,
+        *,
+        include_any_version: bool | NotGiven = not_given,
+        include_candidates: bool | NotGiven = not_given,
+        include_unofficial: bool | NotGiven = not_given,
+        include_transitives: bool | NotGiven = not_given,
+        timeout: float | httpx.Timeout | NotGiven = not_given,
+    ) -> dict[str, Any]:
+        """Audit ``mvn dependency:list`` output.
+
+        Args:
+            file: The manifest — a file path, an open file object, or the raw
+                bytes of the ``mvn dependency:list`` output.
+            include_any_version: Include advisories matching the package name
+                regardless of version (server default: on).
+            include_candidates: Include candidate advisories awaiting vendor
+                confirmation (server default: off).
+            include_unofficial: Include advisories from unofficial feeds
+                (server default: off).
+            include_transitives: Include transitively-introduced packages
+                (server default: off).
+        """
+        return self._audit(
+            _PACKAGE_SPECS["maven"],
+            file,
+            include_any_version,
+            include_candidates,
+            include_unofficial,
+            include_transitives,
+            timeout,
+        )
+
+    def pip(
+        self,
+        file: str | os.PathLike[str] | IO[bytes] | IO[str] | bytes,
+        *,
+        include_any_version: bool | NotGiven = not_given,
+        include_candidates: bool | NotGiven = not_given,
+        include_unofficial: bool | NotGiven = not_given,
+        include_transitives: bool | NotGiven = not_given,
+        timeout: float | httpx.Timeout | NotGiven = not_given,
+    ) -> dict[str, Any]:
+        """Audit ``pip freeze`` output; arguments as in :meth:`maven`."""
+        return self._audit(
+            _PACKAGE_SPECS["pip"],
+            file,
+            include_any_version,
+            include_candidates,
+            include_unofficial,
+            include_transitives,
+            timeout,
+        )
+
+    def poetry(
+        self,
+        file: str | os.PathLike[str] | IO[bytes] | IO[str] | bytes,
+        *,
+        include_any_version: bool | NotGiven = not_given,
+        include_candidates: bool | NotGiven = not_given,
+        include_unofficial: bool | NotGiven = not_given,
+        include_transitives: bool | NotGiven = not_given,
+        timeout: float | httpx.Timeout | NotGiven = not_given,
+    ) -> dict[str, Any]:
+        """Audit a ``poetry.lock`` file; arguments as in :meth:`maven`."""
+        return self._audit(
+            _PACKAGE_SPECS["poetry"],
+            file,
+            include_any_version,
+            include_candidates,
+            include_unofficial,
+            include_transitives,
+            timeout,
+        )
+
+    def uv(
+        self,
+        file: str | os.PathLike[str] | IO[bytes] | IO[str] | bytes,
+        *,
+        include_any_version: bool | NotGiven = not_given,
+        include_candidates: bool | NotGiven = not_given,
+        include_unofficial: bool | NotGiven = not_given,
+        include_transitives: bool | NotGiven = not_given,
+        timeout: float | httpx.Timeout | NotGiven = not_given,
+    ) -> dict[str, Any]:
+        """Audit a ``uv.lock`` file; arguments as in :meth:`maven`."""
+        return self._audit(
+            _PACKAGE_SPECS["uv"],
+            file,
+            include_any_version,
+            include_candidates,
+            include_unofficial,
+            include_transitives,
+            timeout,
+        )
+
+    def npm(
+        self,
+        file: str | os.PathLike[str] | IO[bytes] | IO[str] | bytes,
+        *,
+        include_any_version: bool | NotGiven = not_given,
+        include_candidates: bool | NotGiven = not_given,
+        include_unofficial: bool | NotGiven = not_given,
+        include_transitives: bool | NotGiven = not_given,
+        timeout: float | httpx.Timeout | NotGiven = not_given,
+    ) -> dict[str, Any]:
+        """Audit a ``package-lock.json`` file; arguments as in :meth:`maven`."""
+        return self._audit(
+            _PACKAGE_SPECS["npm"],
+            file,
+            include_any_version,
+            include_candidates,
+            include_unofficial,
+            include_transitives,
+            timeout,
+        )
+
+    def golang(
+        self,
+        file: str | os.PathLike[str] | IO[bytes] | IO[str] | bytes,
+        *,
+        include_any_version: bool | NotGiven = not_given,
+        include_candidates: bool | NotGiven = not_given,
+        include_unofficial: bool | NotGiven = not_given,
+        include_transitives: bool | NotGiven = not_given,
+        timeout: float | httpx.Timeout | NotGiven = not_given,
+    ) -> dict[str, Any]:
+        """Audit ``go list -m all`` output; arguments as in :meth:`maven`."""
+        return self._audit(
+            _PACKAGE_SPECS["golang"],
+            file,
+            include_any_version,
+            include_candidates,
+            include_unofficial,
+            include_transitives,
+            timeout,
+        )
+
+    def scan(
+        self,
+        ecosystem: PackageEcosystem,
+        file: str | os.PathLike[str] | IO[bytes] | IO[str] | bytes,
+        *,
+        include_any_version: bool | NotGiven = not_given,
+        include_candidates: bool | NotGiven = not_given,
+        include_unofficial: bool | NotGiven = not_given,
+        include_transitives: bool | NotGiven = not_given,
+        timeout: float | httpx.Timeout | NotGiven = not_given,
+    ) -> dict[str, Any]:
+        """Audit a manifest for the given ``ecosystem``; arguments as in :meth:`maven`.
+
+        Args:
+            ecosystem: One of ``"maven"``, ``"pip"``, ``"poetry"``, ``"uv"``,
+                ``"npm"``, ``"golang"``.
+            file: The manifest — a file path, an open file object, or raw bytes.
+
+        Raises:
+            ValueError: ``ecosystem`` is not a supported value.
+        """
+        spec = _PACKAGE_SPECS.get(ecosystem)
+        if spec is None:
+            supported = ", ".join(sorted(_PACKAGE_SPECS))
+            raise ValueError(f"unsupported ecosystem {ecosystem!r}; expected one of {supported}")
+        return self._audit(
+            spec,
+            file,
+            include_any_version,
+            include_candidates,
+            include_unofficial,
+            include_transitives,
+            timeout,
+        )
+
 
 class Audit(_base.BaseResource):
     """Audit software inventories and identifiers against Vulners intelligence."""
+
+    @cached_property
+    def packages(self) -> AuditPackages:
+        """Package-manager manifest audits (``pip``/``npm``/``maven``/...)."""
+        return AuditPackages(self._client)
+
+    def supported_os(
+        self,
+        *,
+        timeout: float | httpx.Timeout | NotGiven = not_given,
+    ) -> dict[str, str]:
+        """List the operating systems accepted by the Linux-package audits.
+
+        Returns:
+            A mapping of OS short name (e.g. ``"ubuntu"``, ``"rhel"``) to the
+            shell command Vulners recommends for enumerating that OS's
+            installed packages.
+        """
+        return self._request(_SUPPORTED_OS, timeout=timeout)
 
     def software(
         self,

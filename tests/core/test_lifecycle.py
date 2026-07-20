@@ -90,6 +90,25 @@ class TestSyncLifecycle:
         assert KEY not in repr(client.config)
         client.close()
 
+    def test_shared_client_own_traffic_is_not_guarded(self):
+        # Regression: the guard wrapped over a bring-your-own client must be
+        # scoped to SDK-originated requests. The application's own request — to
+        # a private address, with its own x-api-key — passes through untouched
+        # (previously the SSRF guard raised and the foreign key was stripped).
+        records: list[httpx.Request] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            records.append(request)
+            return httpx.Response(200, json={"ok": 1}, headers={"set-cookie": "sid=1"})
+
+        http_client = httpx.Client(transport=httpx.MockTransport(handler))
+        client = Vulners(KEY, http_client=http_client)
+        resp = http_client.get("https://10.0.0.5/internal", headers={"x-api-key": "APP-OWN-KEY"})
+        client.close()
+        http_client.close()
+        assert records[0].headers["x-api-key"] == "APP-OWN-KEY"
+        assert resp.headers["set-cookie"] == "sid=1"
+
 
 class TestAsyncLifecycle:
     async def test_context_manager_closes(self):
@@ -136,3 +155,22 @@ class TestAsyncLifecycle:
         assert records[0].headers.get("x-api-key") == KEY
         assert records[1].url.host == "evil.example"
         assert "x-api-key" not in records[1].headers
+
+    async def test_shared_client_own_traffic_is_not_guarded(self):
+        # Async mirror of the sync regression: non-SDK traffic through a shared
+        # client is not SSRF-guarded, its credential and cookies are untouched.
+        records: list[httpx.Request] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            records.append(request)
+            return httpx.Response(200, json={"ok": 1}, headers={"set-cookie": "sid=1"})
+
+        http_client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+        client = AsyncVulners(KEY, http_client=http_client)
+        resp = await http_client.get(
+            "https://10.0.0.5/internal", headers={"x-api-key": "APP-OWN-KEY"}
+        )
+        await client.aclose()
+        await http_client.aclose()
+        assert records[0].headers["x-api-key"] == "APP-OWN-KEY"
+        assert resp.headers["set-cookie"] == "sid=1"

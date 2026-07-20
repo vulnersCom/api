@@ -11,7 +11,9 @@ from __future__ import annotations
 
 import gzip
 import io
+import json
 import logging
+import math
 import zipfile
 from typing import Annotated, Any
 
@@ -20,6 +22,7 @@ import orjson
 import pytest
 from pydantic import Field, SecretStr
 
+from vulners._base_client import _json_loads_lenient
 from vulners._config import (
     ARCHIVE_TIMEOUT,
     DEFAULT_TIMEOUT,
@@ -66,6 +69,7 @@ from vulners._streaming import (
     is_zip_media,
     iter_zip_json_array,
     make_array_decoder,
+    normalize_archive_record,
 )
 from vulners._types import NotGiven, Omit, not_given, omit
 
@@ -118,6 +122,57 @@ class TestRetryHelpers:
 
 
 # ---------------------------------------------------------------------------
+# lenient JSON decode (orjson fast path + stdlib fallback for CVE-data edges)
+# ---------------------------------------------------------------------------
+
+
+class TestLenientJsonLoads:
+    def test_orjson_fast_path(self):
+        assert _json_loads_lenient(b'{"a": 1}') == {"a": 1}
+
+    def test_bigint_and_infinity_fall_back_to_stdlib(self):
+        # orjson rejects Infinity/NaN literals and ints beyond 64 bits; the
+        # stdlib fallback accepts them (real CVE data carries such edges).
+        payload = json.dumps({"big": 2**80, "inf": float("inf"), "nan": float("nan")})
+        out = _json_loads_lenient(payload.encode())
+        assert out["big"] == 2**80
+        assert out["inf"] == float("inf")
+        assert math.isnan(out["nan"])
+
+    def test_invalid_json_raises_value_error(self):
+        with pytest.raises(ValueError):
+            _json_loads_lenient(b"{not json")
+
+
+# ---------------------------------------------------------------------------
+# archive record normalization (ES-hit envelope unwrap)
+# ---------------------------------------------------------------------------
+
+
+class TestNormalizeArchiveRecord:
+    def test_es_hit_envelope_unwrapped(self):
+        hit = {"_index": "b", "_type": "_doc", "_id": "CVE-1", "_source": {"id": "CVE-1"}}
+        assert normalize_archive_record(hit) == {"id": "CVE-1"}
+
+    def test_plain_record_passes_through(self):
+        record = {"id": "CVE-2", "cvss": {"score": 5.0}}
+        assert normalize_archive_record(record) is record
+
+    def test_mixed_keys_not_unwrapped(self):
+        # A document that merely contains a _source field among regular keys is
+        # not an ES hit and must never be corrupted by the unwrap heuristic.
+        record = {"id": "CVE-3", "_source": {"x": 1}}
+        assert normalize_archive_record(record) is record
+
+    def test_non_dict_source_passes_through(self):
+        record = {"_id": "x", "_source": "scalar"}
+        assert normalize_archive_record(record) is record
+
+    def test_non_dict_record_passes_through(self):
+        assert normalize_archive_record(["not", "a", "dict"]) == ["not", "a", "dict"]
+
+
+# ---------------------------------------------------------------------------
 # _response
 # ---------------------------------------------------------------------------
 
@@ -145,6 +200,14 @@ class TestAPIResponse:
         api = APIResponse(_httpx_response(content=b""), b"", {"x": 2})
         assert api.json() is None
         assert api.parse() == {"x": 2}
+
+    def test_json_decodes_bigint_and_infinity(self):
+        # .json() uses the lenient decoder, so CVE-data edges survive.
+        payload = json.dumps({"big": 2**80, "inf": float("inf")}).encode()
+        api = APIResponse(_httpx_response(content=payload), payload, None)
+        decoded = api.json()
+        assert decoded["big"] == 2**80
+        assert decoded["inf"] == float("inf")
 
     def test_iter_bytes_and_lines(self):
         api = APIResponse(_httpx_response(), b"ab\ncd\nef", None)

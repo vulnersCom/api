@@ -246,6 +246,40 @@ class TestVerbHelpers:
 # ---------------------------------------------------------------------------
 
 
+class TestLenientResponseDecode:
+    @respx.mock
+    def test_sync_body_with_bigint_and_infinity(self):
+        # orjson rejects Infinity literals and >64-bit ints (both occur in real
+        # CVE data); the decode pipeline falls back to the stdlib parser.
+        import json
+
+        body = json.dumps({"result": "OK", "data": {"big": 2**80, "inf": float("inf")}})
+        respx.get(f"{BASE}/api/edge").mock(
+            return_value=httpx.Response(
+                200, content=body.encode(), headers={"content-type": "application/json"}
+            )
+        )
+        with Vulners(KEY) as client:
+            out = client.get("/api/edge")
+        assert out["data"]["big"] == 2**80
+        assert out["data"]["inf"] == float("inf")
+
+    @respx.mock
+    async def test_async_body_with_bigint_and_infinity(self):
+        import json
+
+        body = json.dumps({"result": "OK", "data": {"big": 2**80, "inf": float("inf")}})
+        respx.get(f"{BASE}/api/edge").mock(
+            return_value=httpx.Response(
+                200, content=body.encode(), headers={"content-type": "application/json"}
+            )
+        )
+        async with AsyncVulners(KEY) as client:
+            out = await client.get("/api/edge")
+        assert out["data"]["big"] == 2**80
+        assert out["data"]["inf"] == float("inf")
+
+
 class TestClientContextManagers:
     def test_sync_context_manager(self):
         with SyncAPIClient(resolve_config(api_key=KEY)) as client:

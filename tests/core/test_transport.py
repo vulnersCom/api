@@ -146,6 +146,74 @@ class TestSsrfNumericHosts:
         assert _host_as_ip(host) is None
 
 
+class TestSdkScopedGuard:
+    """``sdk_only=True`` (the bring-your-own-client wrap) guards only requests
+    the SDK tagged via the ``vulners_sdk`` extension; the application's own
+    traffic through the shared client passes through completely untouched."""
+
+    def _cookie_inner(self, records: list[httpx.Request]) -> httpx.MockTransport:
+        def handler(request: httpx.Request) -> httpx.Response:
+            records.append(request)
+            return httpx.Response(200, headers={"set-cookie": "sid=1"})
+
+        return httpx.MockTransport(handler)
+
+    def test_untagged_request_passes_unguarded(self):
+        records: list[httpx.Request] = []
+        transport = VulnersTransport(self._cookie_inner(records), origin=ORIGIN, sdk_only=True)
+        # The app's own request: private-IP host, its own credential — untouched.
+        req = httpx.Request("GET", "https://10.0.0.5/internal", headers={"X-Api-Key": "APP"})
+        resp = transport.handle_request(req)
+        assert records[0].headers["x-api-key"] == "APP"
+        assert resp.headers["set-cookie"] == "sid=1"  # response also untouched
+
+    def test_tagged_request_still_guarded(self):
+        records: list[httpx.Request] = []
+        transport = VulnersTransport(self._cookie_inner(records), origin=ORIGIN, sdk_only=True)
+        req = httpx.Request(
+            "GET",
+            "https://evil.example/api",
+            headers={"X-Api-Key": "K"},
+            extensions={"vulners_sdk": True},
+        )
+        resp = transport.handle_request(req)
+        assert "x-api-key" not in records[0].headers
+        assert "set-cookie" not in resp.headers
+
+    def test_tagged_request_ssrf_guard_fires(self):
+        transport = VulnersTransport(self._cookie_inner([]), origin=ORIGIN, sdk_only=True)
+        req = httpx.Request(
+            "GET", "https://169.254.169.254/latest/", extensions={"vulners_sdk": True}
+        )
+        with pytest.raises(APIConnectionError):
+            transport.handle_request(req)
+
+    async def test_async_untagged_request_passes_unguarded(self):
+        records: list[httpx.Request] = []
+        transport = AsyncVulnersTransport(
+            self._cookie_inner(records), origin=ORIGIN, sdk_only=True
+        )
+        req = httpx.Request("GET", "https://10.0.0.5/internal", headers={"X-Api-Key": "APP"})
+        resp = await transport.handle_async_request(req)
+        assert records[0].headers["x-api-key"] == "APP"
+        assert resp.headers["set-cookie"] == "sid=1"
+
+    async def test_async_tagged_request_still_guarded(self):
+        records: list[httpx.Request] = []
+        transport = AsyncVulnersTransport(
+            self._cookie_inner(records), origin=ORIGIN, sdk_only=True
+        )
+        req = httpx.Request(
+            "GET",
+            "https://evil.example/api",
+            headers={"X-Api-Key": "K"},
+            extensions={"vulners_sdk": True},
+        )
+        resp = await transport.handle_async_request(req)
+        assert "x-api-key" not in records[0].headers
+        assert "set-cookie" not in resp.headers
+
+
 class TestAsyncTransport:
     async def test_set_cookie_is_stripped(self):
         inner = httpx.MockTransport(

@@ -103,5 +103,37 @@ class Report(_base.BaseResource):
         """List of hosts with their cumulative fix and vulnerability ids."""
         return self._report("hostvulns", limit, offset, filter, sort, timeout)
 
+    def vuln_info(
+        self,
+        ip_address: str,
+        bulletin_id: str,
+        *,
+        limit: int = 30,
+        offset: int = 0,
+        filter: dict[str, Any] | None = None,
+        sort: str = "",
+        timeout: float | httpx.Timeout | NotGiven = not_given,
+    ) -> Any:
+        """Detail of one vulnerability on one host.
+
+        Args:
+            ip_address: The host ip the vulnerability was found on.
+            bulletin_id: The vulnerability bulletin id (e.g. a CVE id).
+            limit: Maximum number of rows to return.
+            offset: Number of rows to skip.
+            filter: Additional report filter, if any.
+            sort: Sort field; prefix with ``-`` for descending.
+        """
+        body: dict[str, Any] = {
+            "reporttype": "vulninfo",
+            "ipaddress": ip_address,
+            "bulletinID": bulletin_id,
+            "skip": offset,
+            "size": limit,
+            "filter": filter or {},
+            "sort": sort,
+        }
+        return self._request(_REPORT, body=body, timeout=timeout)
+
 
 __all__ = []

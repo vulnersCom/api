@@ -25,15 +25,23 @@ import warnings
 from typing import TYPE_CHECKING, Any
 
 # --- v3 API (legacy, backward-compatible): eager and import-safe ---
+# __version__ comes from the static _version.py (single source, CI-checked
+# against pyproject) — not from a runtime importlib.metadata scan, so frozen /
+# vendored deployments report the shipped code's version and `import vulners`
+# does no filesystem metadata lookup on this attribute's behalf.
+from ._version import __version__ as __version__
 from .base import VulnersApiError, VulnersDeprecationWarning
-from .base import __version__ as __version__
-from .vscanner import VScannerApi
+from .vscanner import NotificationObj, VScannerApi
 from .vulners import VulnersApi
+from .vulners.audit import AuditFields
+from .vulners.search import DEFAULT_FIELDS
+from .vulners.subscription_v4 import DEFAULT_BULLETIN_FIELDS, BulletinField
 
 if TYPE_CHECKING:
     # Static view of the lazily-loaded v4 surface (runtime resolves via __getattr__).
     from ._client import AsyncVulners as AsyncVulners
     from ._client import Vulners as Vulners
+    from ._deprecation import RemovedInVulners5Warning as RemovedInVulners5Warning
     from ._exceptions import APIConnectionError as APIConnectionError
     from ._exceptions import APIError as APIError
     from ._exceptions import APIResponseValidationError as APIResponseValidationError
@@ -47,7 +55,9 @@ if TYPE_CHECKING:
     from ._exceptions import PermissionDeniedError as PermissionDeniedError
     from ._exceptions import RateLimitError as RateLimitError
     from ._exceptions import SearchWindowExceeded as SearchWindowExceeded
+    from ._exceptions import ServerError as ServerError
     from ._exceptions import UnprocessableEntityError as UnprocessableEntityError
+    from ._exceptions import ValidationError as ValidationError
     from ._exceptions import VulnersError as VulnersError
     from ._models.bulletin import AdvisoryBulletin as AdvisoryBulletin
     from ._models.bulletin import BugBountyBulletin as BugBountyBulletin
@@ -99,8 +109,11 @@ _LAZY_ATTRS = {
     "RateLimitError": "._exceptions",
     "InternalServerError": "._exceptions",
     "SearchWindowExceeded": "._exceptions",
+    "ServerError": "._exceptions",
+    "ValidationError": "._exceptions",
     "not_given": "._types",
     "NotGiven": "._types",
+    "RemovedInVulners5Warning": "._deprecation",
     # v4 return/input types users annotate with (lazy: the pydantic core loads
     # only on first access, keeping `import vulners` lightweight).
     "Bulletin": "._models.bulletin",
@@ -152,7 +165,9 @@ __all__ = [  # noqa: RUF022
     "UnprocessableEntityError",
     "RateLimitError",
     "InternalServerError",
+    "ServerError",
     "SearchWindowExceeded",
+    "ValidationError",
     # v4 sentinels
     "not_given",
     "NotGiven",
@@ -183,7 +198,14 @@ __all__ = [  # noqa: RUF022
     "AsyncStreamedAPIResponse",
     "AuditItem",
     "WinAuditItem",
+    # deprecation tiers
+    "RemovedInVulners5Warning",
     # v3 legacy
+    "AuditFields",
+    "BulletinField",
+    "DEFAULT_BULLETIN_FIELDS",
+    "DEFAULT_FIELDS",
+    "NotificationObj",
     "VScannerApi",
     "VulnersApi",
     "VulnersApiError",

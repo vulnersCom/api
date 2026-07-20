@@ -54,6 +54,15 @@ class AsyncWebhooks(_base.AsyncBaseResource):
         body = {"query": query, "apiKey": self._api_key}
         return await self._request(_ADD, body=body, timeout=timeout)
 
+    async def create(
+        self,
+        query: str,
+        *,
+        timeout: float | httpx.Timeout | NotGiven = not_given,
+    ) -> Any:
+        """Alias of :meth:`add` (the primary CRUD-style name)."""
+        return await self.add(query, timeout=timeout)
+
     async def enable(
         self,
         id: str,
@@ -68,6 +77,16 @@ class AsyncWebhooks(_base.AsyncBaseResource):
             "apiKey": self._api_key,
         }
         return await self._request(_EDIT, body=body, timeout=timeout)
+
+    async def set_enabled(
+        self,
+        id: str,
+        active: bool,
+        *,
+        timeout: float | httpx.Timeout | NotGiven = not_given,
+    ) -> Any:
+        """Alias of :meth:`enable` (the explicit setter-style name)."""
+        return await self.enable(id, active, timeout=timeout)
 
     async def read(
         self,

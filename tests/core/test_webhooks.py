@@ -75,3 +75,29 @@ class TestWebhooksAsync:
             out = await client.webhooks.read("w1")
         assert out == {"payloads": [1]}
         assert route.calls.last.request.url.params["apiKey"] == KEY
+
+
+class TestWebhooksAliases:
+    @respx.mock
+    def test_create_delegates_to_add(self):
+        route = respx.post(f"{BASE}/addWebhookSubscription/").mock(return_value=_v3({"id": "w2"}))
+        with Vulners(KEY) as client:
+            assert client.webhooks.create("ssh") == {"id": "w2"}
+        assert orjson.loads(route.calls.last.request.content) == {"query": "ssh", "apiKey": KEY}
+
+    @respx.mock
+    def test_set_enabled_delegates_to_enable(self):
+        route = respx.post(f"{BASE}/editWebhookSubscription/").mock(return_value=_v3({}))
+        with Vulners(KEY) as client:
+            client.webhooks.set_enabled("w1", True)
+        assert orjson.loads(route.calls.last.request.content)["active"] == "true"
+
+    @respx.mock
+    async def test_async_aliases(self):
+        add = respx.post(f"{BASE}/addWebhookSubscription/").mock(return_value=_v3({"id": "w3"}))
+        edit = respx.post(f"{BASE}/editWebhookSubscription/").mock(return_value=_v3({}))
+        async with AsyncVulners(KEY) as client:
+            assert await client.webhooks.create("nginx") == {"id": "w3"}
+            await client.webhooks.set_enabled("w3", False)
+        assert orjson.loads(add.calls.last.request.content)["query"] == "nginx"
+        assert orjson.loads(edit.calls.last.request.content)["active"] == "false"

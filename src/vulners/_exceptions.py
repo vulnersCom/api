@@ -14,7 +14,15 @@ which understands every observed response shape:
 * 404 ``{"data": {"error": ...}}`` — no ``errorCode``;
 * no key — HTTP 403 ``text/html`` (Cloudflare) — a non-JSON body.
 
-This is a new hierarchy, independent of the legacy ``vulners.base`` layer.
+The hierarchy is new, but it stays catchable by legacy handlers: server-reported
+failures (:class:`APIError` and below) also inherit the v3
+:class:`~vulners.base.VulnersApiError`, so a ``try/except VulnersApiError`` written
+for the legacy client keeps working against the v4 client. Transport-side failures
+(:class:`APIConnectionError`/:class:`APITimeoutError`) and response-shape failures
+(:class:`APIResponseValidationError`) are deliberate siblings of ``APIError`` —
+the legacy client surfaced those as raw ``httpx`` exceptions, never as
+``VulnersApiError``, and the v4 tree preserves that meaning: ``APIError`` ==
+"the server told us something went wrong".
 """
 
 from __future__ import annotations
@@ -24,6 +32,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from typing import Any
+
+from .base import VulnersApiError as _LegacyVulnersApiError
 
 # ---------------------------------------------------------------------------
 # Secret redaction (ported from vulners.base)
@@ -137,13 +147,21 @@ class VulnersError(Exception):
     """Root of every error the SDK raises."""
 
 
-class APIError(VulnersError):
-    """A request failed.
+class APIError(VulnersError, _LegacyVulnersApiError):
+    """The server reported a failure.
 
     Carries what the pipeline could recover about the failure. ``status_code`` is
-    ``None`` for a client-side/transport failure; ``error_code`` is the Vulners
-    ``errorCode`` when the body carried one; ``data`` is the full, secret-redacted
-    error payload; ``retry_after`` is the parsed Retry-After hint, if any.
+    the HTTP status (``None`` only in synthetic cases); ``error_code`` is the
+    Vulners ``errorCode`` when the body carried one; ``data`` is the full,
+    secret-redacted error payload; ``retry_after`` is the parsed Retry-After
+    hint; ``request_id`` is the server request correlation id when a response
+    header carried one; ``validation_errors`` holds the structured items of a v4
+    validation failure (each without the ``input`` echo).
+
+    Also inherits the legacy :class:`~vulners.base.VulnersApiError`, so v3-era
+    ``except VulnersApiError`` handlers catch v4 server errors during migration
+    (the legacy class itself is untouched). ``http_status`` and ``body`` are the
+    v3-compatible spellings of ``status_code`` and ``data``.
     """
 
     status_code: int | None
@@ -151,6 +169,8 @@ class APIError(VulnersError):
     message: str | None
     data: Any
     retry_after: float | None
+    request_id: str | None
+    validation_errors: list[dict[str, Any]]
 
     def __init__(
         self,
@@ -160,20 +180,46 @@ class APIError(VulnersError):
         error_code: int | str | None = None,
         data: Any = None,
         retry_after: float | None = None,
+        request_id: str | None = None,
+        validation_errors: list[dict[str, Any]] | None = None,
     ) -> None:
         self.status_code = status_code
         self.error_code = error_code
         self.message = message
         self.data = data
         self.retry_after = retry_after
-        super().__init__(message if message is not None else data)
+        self.request_id = request_id
+        self.validation_errors = validation_errors or []
+        # Direct Exception.__init__: the legacy VulnersApiError.__init__ in the
+        # MRO has an incompatible (http_status, data) signature and must not run.
+        Exception.__init__(self, message if message is not None else data)
+
+    @property
+    def http_status(self) -> int | None:
+        """v3-compatible alias of :attr:`status_code`."""
+        return self.status_code
+
+    @property
+    def body(self) -> Any:
+        """Alias of :attr:`data` (the redacted error payload)."""
+        return self.data
 
 
-class APIConnectionError(APIError):
-    """The request never got a response (DNS/connect/read failure)."""
+class APIConnectionError(VulnersError):
+    """The request never got a response (DNS/connect/read failure).
+
+    A sibling of :class:`APIError`, not a subclass: no server was heard from, so
+    there is no status/errorCode surface — and legacy ``except VulnersApiError``
+    deliberately does not match (v3 surfaced these as raw httpx errors too).
+    """
+
+    message: str
+    data: Any
 
     def __init__(self, message: str = "Connection error.", *, data: Any = None) -> None:
-        super().__init__(message, data=data)
+        self.message = message
+        self.data = data
+        super().__init__(message)
 
 
 class APITimeoutError(APIConnectionError):
@@ -183,8 +229,23 @@ class APITimeoutError(APIConnectionError):
         super().__init__(message)
 
 
-class APIResponseValidationError(APIError):
-    """A 2xx response body did not match what the endpoint promised."""
+class APIResponseValidationError(VulnersError):
+    """A 2xx response body did not match what the endpoint promised.
+
+    A sibling of :class:`APIError`: the server did not report an error — the
+    response shape itself is what failed. ``status_code`` is informational (the
+    2xx status the malformed body arrived with).
+    """
+
+    message: str
+    data: Any
+    status_code: int | None
+
+    def __init__(self, message: str, *, status_code: int | None = None, data: Any = None) -> None:
+        self.message = message
+        self.status_code = status_code
+        self.data = data
+        super().__init__(message)
 
 
 class APIStatusError(APIError):
@@ -226,6 +287,13 @@ class InternalServerError(APIStatusError):
     """5xx — the server failed to handle the request."""
 
 
+# Plan-vocabulary aliases: the architecture names these ValidationError and
+# ServerError; the primary names follow the wider SDK convention. Both spellings
+# are importable and identical classes.
+ValidationError = UnprocessableEntityError
+ServerError = InternalServerError
+
+
 class SearchWindowExceeded(VulnersError, ValueError):
     """The search page window (offset + limit > 10000) was exceeded.
 
@@ -259,6 +327,8 @@ class ErrorInfo:
     message: str | None = None
     data: Any = field(default=None)
     retry_after: float | None = None
+    request_id: str | None = None
+    validation_errors: tuple[dict[str, Any], ...] = ()
 
     def __repr__(self) -> str:
         # Explicit repr (not dataclass-generated) so this frozen record is not
@@ -308,14 +378,34 @@ def _extract_error(
     # it into the error text can never leak it via str(exc) while data is redacted.
     message = _redact_secret(message, secret)
     retry_after = None
+    request_id = None
     if headers is not None:
         retry_after = _parse_retry_after(headers.get("Retry-After"))
+        request_id = headers.get("X-Request-Id") or headers.get("X-Vulners-Request-Id")
     return ErrorInfo(
         status_code=status,
         error_code=error_code,
         message=message,
         data=_redact_secret(parsed_body, secret),
         retry_after=retry_after,
+        request_id=request_id,
+        validation_errors=_validation_items(parsed_body, secret),
+    )
+
+
+def _validation_items(body: Any, secret: str | None) -> tuple[dict[str, Any], ...]:
+    """Structured v4 validation items (``errors``/``detail``), without the
+    ``input`` echo — the server repeats the whole request there, which can carry
+    sensitive data and belongs in neither logs nor exception payloads."""
+    if not isinstance(body, dict):
+        return ()
+    items = body.get("errors") or body.get("detail")
+    if not isinstance(items, list):
+        return ()
+    return tuple(
+        {k: _redact_secret(v, secret) for k, v in item.items() if k != "input"}
+        for item in items
+        if isinstance(item, dict)
     )
 
 
@@ -354,6 +444,8 @@ def _make_error(info: ErrorInfo) -> APIStatusError:
         error_code=info.error_code,
         data=info.data,
         retry_after=info.retry_after,
+        request_id=info.request_id,
+        validation_errors=list(info.validation_errors),
     )
 
 
@@ -373,6 +465,8 @@ __all__ = [
     "PermissionDeniedError",
     "RateLimitError",
     "SearchWindowExceeded",
+    "ServerError",
     "UnprocessableEntityError",
+    "ValidationError",
     "VulnersError",
 ]

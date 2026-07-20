@@ -6,6 +6,7 @@ import gzip
 import inspect
 import io
 import zipfile
+from typing import ClassVar
 
 import httpx
 import orjson
@@ -180,6 +181,48 @@ class TestStreamRedirect:
         assert "x-api-key" not in gcs_route.calls.last.request.headers
 
 
+class TestArchiveRecordNormalization:
+    """Streamed records in the raw ES-hit shape are unwrapped to ``_source``;
+    plain records pass through untouched (enveloped + plain mixed in one body)."""
+
+    _ENVELOPED: ClassVar[dict] = {
+        "_index": "bulletins",
+        "_type": "_doc",
+        "_id": "CVE-1",
+        "_score": 1.0,
+        "_source": {"id": "CVE-1"},
+    }
+    _PLAIN: ClassVar[dict] = {"id": "CVE-2"}
+
+    @respx.mock
+    def test_sync_gzip_stream_normalizes(self):
+        respx.get(COLLECTION).mock(return_value=_gzip_array([self._ENVELOPED, self._PLAIN]))
+        with Vulners(KEY) as client:
+            out = list(client.archive.iter_collection("cve"))
+        assert out == [{"id": "CVE-1"}, {"id": "CVE-2"}]
+
+    @respx.mock
+    def test_sync_zip_stream_normalizes(self):
+        respx.get(COLLECTION).mock(return_value=_zip_array([self._ENVELOPED, self._PLAIN]))
+        with Vulners(KEY) as client:
+            out = list(client.archive.iter_collection("cve"))
+        assert out == [{"id": "CVE-1"}, {"id": "CVE-2"}]
+
+    @respx.mock
+    async def test_async_gzip_stream_normalizes(self):
+        respx.get(COLLECTION).mock(return_value=_gzip_array([self._ENVELOPED, self._PLAIN]))
+        async with AsyncVulners(KEY) as client:
+            out = [r async for r in client.archive.aiter_collection("cve")]
+        assert out == [{"id": "CVE-1"}, {"id": "CVE-2"}]
+
+    @respx.mock
+    async def test_async_zip_stream_normalizes(self):
+        respx.get(COLLECTION).mock(return_value=_zip_array([self._ENVELOPED, self._PLAIN]))
+        async with AsyncVulners(KEY) as client:
+            out = [r async for r in client.archive.aiter_collection("cve")]
+        assert out == [{"id": "CVE-1"}, {"id": "CVE-2"}]
+
+
 def _search_envelope(*ids: str) -> httpx.Response:
     data = {"search": [{"_source": {"id": i}} for i in ids], "total": len(ids)}
     return httpx.Response(200, content=orjson.dumps({"result": "OK", "data": data}))
@@ -230,3 +273,55 @@ class TestWithStreamingResponse:
             async with await client.search.with_streaming_response.query("ssh") as resp:
                 lines = [line async for line in resp.iter_lines()]
         assert lines == [body.decode()]
+
+
+FAMILY = f"{BASE}/api/v4/archive/family"
+FAMILY_UPDATE = f"{BASE}/api/v4/archive/family-update"
+
+
+class TestIterFamilySync:
+    @respx.mock
+    def test_gzip_array_records_and_name_param(self):
+        records = [{"id": "EDB-1"}, {"id": "EDB-2"}]
+        route = respx.get(FAMILY).mock(return_value=_gzip_array(records))
+        with Vulners(KEY) as client:
+            out = list(client.archive.iter_family("exploit"))
+        assert out == records
+        assert route.calls.last.request.url.params["name"] == "exploit"
+
+    @respx.mock
+    def test_update_from_uses_family_update_endpoint(self):
+        from datetime import datetime, timezone
+
+        records = [{"id": "EDB-3"}]
+        route = respx.get(FAMILY_UPDATE).mock(return_value=_gzip_array(records))
+        after = datetime(2026, 1, 2, 3, 4, 5, tzinfo=timezone.utc)
+        with Vulners(KEY) as client:
+            out = list(client.archive.iter_family("exploit", update_from=after))
+        assert out == records
+        params = route.calls.last.request.url.params
+        assert params["name"] == "exploit"
+        assert params["after"] == after.isoformat()
+
+
+class TestIterFamilyAsync:
+    @respx.mock
+    async def test_gzip_array_records_and_name_param(self):
+        records = [{"id": "EDB-1"}]
+        route = respx.get(FAMILY).mock(return_value=_gzip_array(records))
+        async with AsyncVulners(KEY) as client:
+            out = [r async for r in client.archive.iter_family("exploit")]
+        assert out == records
+        assert route.calls.last.request.url.params["name"] == "exploit"
+
+    @respx.mock
+    async def test_update_from_uses_family_update_endpoint(self):
+        from datetime import datetime, timezone
+
+        records = [{"id": "EDB-9"}]
+        route = respx.get(FAMILY_UPDATE).mock(return_value=_gzip_array(records))
+        after = datetime(2026, 1, 2, 3, 4, 5, tzinfo=timezone.utc)
+        async with AsyncVulners(KEY) as client:
+            out = [r async for r in client.archive.iter_family("exploit", update_from=after)]
+        assert out == records
+        assert route.calls.last.request.url.params["after"] == after.isoformat()

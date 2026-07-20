@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+
 import httpx
 import orjson
 import pytest
@@ -141,6 +143,15 @@ class TestAuditWire:
         assert b'name="file"' in req.content
         assert b'{"bomFormat":"CycloneDX"}' in req.content
 
+    @pytest.mark.skipif(os.name != "posix", reason="needs a POSIX non-regular file")
+    def test_sbom_audit_rejects_non_regular_file(self):
+        # A non-regular upload target (here a character device; in the attack, a
+        # device/FIFO/dir swapped in after any earlier path check) is rejected on
+        # the opened descriptor before any request — the TOCTOU guard.
+        with Vulners(KEY) as client:
+            with pytest.raises(ValueError, match="not a regular file"):
+                client.audit.sbom_audit("/dev/null")
+
     @respx.mock
     def test_smart_wire_and_billing_validation(self):
         route = respx.post(f"{BASE}/api/v4/audit/smart").mock(
@@ -191,3 +202,133 @@ class TestAuditAsync:
         respx.post(f"{BASE}/api/v4/audit/smart").mock(return_value=_v4([]))
         async with AsyncVulners(KEY) as client:
             assert await client.audit.smart(["nginx"]) == []
+
+    @pytest.mark.skipif(os.name != "posix", reason="needs a POSIX non-regular file")
+    async def test_sbom_audit_rejects_non_regular_file(self):
+        # Async mirror of the sync TOCTOU guard test: the opened descriptor is
+        # validated with fstat and a non-regular target is rejected pre-request.
+        async with AsyncVulners(KEY) as client:
+            with pytest.raises(ValueError, match="not a regular file"):
+                await client.audit.sbom_audit("/dev/null")
+
+
+class TestSupportedOS:
+    @respx.mock
+    def test_supported_os_unwraps_map(self):
+        respx.get(f"{BASE}/api/v3/audit/getSupportedOS/").mock(
+            return_value=_v3({"supportedOS": {"ubuntu": "dpkg-query ..."}})
+        )
+        with Vulners(KEY) as client:
+            assert client.audit.supported_os() == {"ubuntu": "dpkg-query ..."}
+
+    @respx.mock
+    async def test_supported_os_async(self):
+        respx.get(f"{BASE}/api/v3/audit/getSupportedOS/").mock(
+            return_value=_v3({"supportedOS": {"rhel": "rpm -qa ..."}})
+        )
+        async with AsyncVulners(KEY) as client:
+            assert await client.audit.supported_os() == {"rhel": "rpm -qa ..."}
+
+
+ECOSYSTEMS = ("maven", "pip", "poetry", "uv", "npm", "golang")
+
+
+class TestAuditPackages:
+    @respx.mock
+    def test_each_ecosystem_posts_text_plain(self):
+        with Vulners(KEY) as client:
+            for eco in ECOSYSTEMS:
+                route = respx.post(f"{BASE}/api/v4/audit/package/{eco}").mock(
+                    return_value=_v4({"issues": []})
+                )
+                out = getattr(client.audit.packages, eco)(b"pkg==1.0\n")
+                assert out == {"issues": []}
+                req = route.calls.last.request
+                assert req.content == b"pkg==1.0\n"
+                assert req.headers["content-type"].startswith("text/plain")
+                # No filters passed -> the server defaults apply (no params sent).
+                assert "includeAnyVersion" not in req.url.params
+
+    @respx.mock
+    def test_include_filters_sent_as_query_params(self):
+        route = respx.post(f"{BASE}/api/v4/audit/package/pip").mock(
+            return_value=_v4({"issues": []})
+        )
+        with Vulners(KEY) as client:
+            client.audit.packages.pip(
+                b"urllib3==1.26.4\n",
+                include_any_version=False,
+                include_candidates=True,
+                include_unofficial=True,
+                include_transitives=False,
+            )
+        params = route.calls.last.request.url.params
+        assert params["includeAnyVersion"] == "false"
+        assert params["includeCandidates"] == "true"
+        assert params["includeUnofficial"] == "true"
+        assert params["includeTransitives"] == "false"
+
+    @respx.mock
+    def test_file_inputs_path_text_io_and_binary_io(self, tmp_path):
+        import io
+
+        route = respx.post(f"{BASE}/api/v4/audit/package/pip").mock(
+            return_value=_v4({"issues": []})
+        )
+        manifest = tmp_path / "requirements.txt"
+        manifest.write_text("requests==2.25.1\n")
+        with Vulners(KEY) as client:
+            client.audit.packages.pip(manifest)
+            assert route.calls.last.request.content == b"requests==2.25.1\n"
+            client.audit.packages.pip(io.StringIO("django==3.2\n"))
+            assert route.calls.last.request.content == b"django==3.2\n"
+            client.audit.packages.pip(io.BytesIO(b"flask==1.0\n"))
+            assert route.calls.last.request.content == b"flask==1.0\n"
+
+    @respx.mock
+    def test_scan_dispatches_and_rejects_unknown(self):
+        route = respx.post(f"{BASE}/api/v4/audit/package/npm").mock(
+            return_value=_v4({"issues": []})
+        )
+        with Vulners(KEY) as client:
+            client.audit.packages.scan("npm", b"{}")
+            assert route.called
+            with pytest.raises(ValueError, match="unsupported ecosystem"):
+                client.audit.packages.scan("cargo", b"")  # type: ignore[arg-type]
+
+    def test_packages_path_rejects_non_regular_file(self):
+        from vulners._resources._sync.audit import _read_package_manifest
+
+        # A character device is not a regular file; the fstat guard rejects it.
+        with pytest.raises(ValueError, match="regular file"):
+            _read_package_manifest(os.devnull)
+
+
+class TestAuditPackagesAsync:
+    @respx.mock
+    async def test_each_ecosystem_posts_text_plain(self):
+        async with AsyncVulners(KEY) as client:
+            for eco in ECOSYSTEMS:
+                route = respx.post(f"{BASE}/api/v4/audit/package/{eco}").mock(
+                    return_value=_v4({"issues": []})
+                )
+                out = await getattr(client.audit.packages, eco)(b"pkg==1.0\n")
+                assert out == {"issues": []}
+                assert route.calls.last.request.content == b"pkg==1.0\n"
+
+    @respx.mock
+    async def test_scan_filters_and_file_inputs(self, tmp_path):
+        import io
+
+        route = respx.post(f"{BASE}/api/v4/audit/package/golang").mock(
+            return_value=_v4({"issues": []})
+        )
+        manifest = tmp_path / "modules.txt"
+        manifest.write_text("github.com/gorilla/mux v1.7.4\n")
+        async with AsyncVulners(KEY) as client:
+            await client.audit.packages.scan("golang", manifest, include_transitives=True)
+            assert route.calls.last.request.url.params["includeTransitives"] == "true"
+            await client.audit.packages.scan("golang", io.StringIO("example.com/app\n"))
+            assert route.calls.last.request.content == b"example.com/app\n"
+            with pytest.raises(ValueError, match="unsupported ecosystem"):
+                await client.audit.packages.scan("cargo", b"")  # type: ignore[arg-type]

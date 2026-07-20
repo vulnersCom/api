@@ -31,6 +31,7 @@ Protocol server ships in the `mcp` extra (`pip install "vulners[mcp]"`, then
 - [Resources](documentation/reference/resources.md): search, audit, archive, misc, report, stix, subscriptions, webhooks, vscanner.
 - [Models & pagination](documentation/reference/models.md): the `Bulletin` hierarchy and `SearchPage`.
 - [Exceptions](documentation/reference/exceptions.md): the `VulnersError` hierarchy.
+- [API index](api.md): generated per-resource index of every client method — signature, return type and HTTP route.
 
 ## Explanation
 

@@ -18,7 +18,7 @@ import io
 from collections.abc import AsyncIterator, Callable, Iterator
 from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
-import orjson
+from ._base_client import _json_loads_lenient
 
 if TYPE_CHECKING:
     import httpx
@@ -75,7 +75,9 @@ class APIResponse(_BaseResponse, Generic[T]):
         return self._content.decode(self._response.encoding or "utf-8", errors="replace")
 
     def json(self) -> Any:
-        return orjson.loads(self._content) if self._content else None
+        # Lenient decode: stdlib json backstops orjson for the NaN/Infinity/
+        # big-int edges CVE data can carry.
+        return _json_loads_lenient(self._content) if self._content else None
 
     def parse(self) -> T:
         """Return the typed value (applies the resource's caster, if any)."""

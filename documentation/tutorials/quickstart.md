@@ -9,20 +9,41 @@ both the synchronous and asynchronous styles. It assumes you have installed the 
 The client takes the key as an argument, or reads it from the `VULNERS_API_KEY`
 environment variable:
 
-```python
-from vulners import Vulners
+=== "Sync"
 
-v = Vulners(api_key="YOUR_API_KEY_HERE")
-# ...or, with `export VULNERS_API_KEY=...` set:
-v = Vulners()
-```
+    ```python
+    from vulners import Vulners
+
+    v = Vulners(api_key="YOUR_API_KEY_HERE")
+    # ...or, with `export VULNERS_API_KEY=...` set:
+    v = Vulners()
+    ```
+
+=== "Async"
+
+    ```python
+    from vulners import AsyncVulners
+
+    v = AsyncVulners(api_key="YOUR_API_KEY_HERE")
+    # ...or, with `export VULNERS_API_KEY=...` set:
+    v = AsyncVulners()
+    ```
 
 Use it as a context manager so the underlying connection pool is released on exit:
 
-```python
-with Vulners() as v:
-    ...  # do work here
-```
+=== "Sync"
+
+    ```python
+    with Vulners() as v:
+        ...  # do work here
+    ```
+
+=== "Async"
+
+    ```python
+    async with AsyncVulners() as v:
+        ...  # do work here
+    ```
 
 ## 2. Your first search
 
@@ -30,14 +51,27 @@ with Vulners() as v:
 `SearchPage` of typed `Bulletin` objects. Iterating the page transparently walks further
 pages (up to the [10,000-document window](../explanation/search-window.md)):
 
-```python
-with Vulners() as v:
-    page = v.search.query("type:cve AND cvss.score:[9 TO 10]", limit=10)
+=== "Sync"
 
-    print(page.total, "documents match")     # total match count
-    for bulletin in page:                     # auto-paginates as you iterate
-        print(bulletin.id, "-", bulletin.title)
-```
+    ```python
+    with Vulners() as v:
+        page = v.search.query("type:cve AND cvss.score:[9 TO 10]", limit=10)
+
+        print(page.total, "documents match")     # total match count
+        for bulletin in page:                     # auto-paginates as you iterate
+            print(bulletin.id, "-", bulletin.title)
+    ```
+
+=== "Async"
+
+    ```python
+    async with AsyncVulners() as v:
+        page = await v.search.query("type:cve AND cvss.score:[9 TO 10]", limit=10)
+
+        print(page.total, "documents match")     # total match count
+        async for bulletin in page:               # auto-paginates as you iterate
+            print(bulletin.id, "-", bulletin.title)
+    ```
 
 Each row is a `Bulletin` model — access fields as attributes (not dict keys):
 
@@ -50,27 +84,52 @@ if b.cvss:
 
 Fetch a single document by id:
 
-```python
-cve = v.search.get_bulletin("CVE-2021-44228")   # -> Bulletin | None
-if cve is not None:
-    print(cve.title)
-```
+=== "Sync"
+
+    ```python
+    cve = v.search.get_bulletin("CVE-2021-44228")   # -> Bulletin | None
+    if cve is not None:
+        print(cve.title)
+    ```
+
+=== "Async"
+
+    ```python
+    cve = await v.search.get_bulletin("CVE-2021-44228")   # -> Bulletin | None
+    if cve is not None:
+        print(cve.title)
+    ```
 
 ## 3. Your first audit
 
 Audit a list of software for known vulnerabilities. Entries can be CPE 2.3 strings or
 simple `{"product": ..., "version": ...}` dicts:
 
-```python
-with Vulners() as v:
-    results = v.audit.software([
-        {"product": "openssl", "version": "1.0.1"},
-        "cpe:2.3:a:apache:log4j:2.14.1",
-    ])
-    for entry in results:
-        vulns = entry.get("vulnerabilities", [])
-        print(entry.get("matched_criteria"), "->", len(vulns), "vulnerabilities")
-```
+=== "Sync"
+
+    ```python
+    with Vulners() as v:
+        results = v.audit.software([
+            {"product": "openssl", "version": "1.0.1"},
+            "cpe:2.3:a:apache:log4j:2.14.1",
+        ])
+        for entry in results:
+            vulns = entry.get("vulnerabilities", [])
+            print(entry.get("matched_criteria"), "->", len(vulns), "vulnerabilities")
+    ```
+
+=== "Async"
+
+    ```python
+    async with AsyncVulners() as v:
+        results = await v.audit.software([
+            {"product": "openssl", "version": "1.0.1"},
+            "cpe:2.3:a:apache:log4j:2.14.1",
+        ])
+        for entry in results:
+            vulns = entry.get("vulnerabilities", [])
+            print(entry.get("matched_criteria"), "->", len(vulns), "vulnerabilities")
+    ```
 
 To audit a Linux host by its installed packages, see
 [Audit a host](../how-to/audit-a-host.md).
@@ -78,7 +137,7 @@ To audit a Linux host by its installed packages, see
 ## 4. The same, asynchronously
 
 Every resource method exists on `AsyncVulners` with an identical signature; you just
-`await` it, and iterate pages with `async for`:
+`await` it, and iterate pages with `async for`. A complete program looks like this:
 
 ```python
 import asyncio
@@ -101,17 +160,33 @@ asyncio.run(main())
 Failed requests raise a subclass of `VulnersError`. Catch the whole family, or a specific
 one such as `RateLimitError`:
 
-```python
-from vulners import Vulners, RateLimitError, VulnersError
+=== "Sync"
 
-try:
-    with Vulners() as v:
-        v.search.query("type:cve", limit=10)
-except RateLimitError as err:
-    print("slow down; retry after", err.retry_after, "seconds")
-except VulnersError as err:
-    print("request failed:", err)
-```
+    ```python
+    from vulners import Vulners, RateLimitError, VulnersError
+
+    try:
+        with Vulners() as v:
+            v.search.query("type:cve", limit=10)
+    except RateLimitError as err:
+        print("slow down; retry after", err.retry_after, "seconds")
+    except VulnersError as err:
+        print("request failed:", err)
+    ```
+
+=== "Async"
+
+    ```python
+    from vulners import AsyncVulners, RateLimitError, VulnersError
+
+    try:
+        async with AsyncVulners() as v:
+            await v.search.query("type:cve", limit=10)
+    except RateLimitError as err:
+        print("slow down; retry after", err.retry_after, "seconds")
+    except VulnersError as err:
+        print("request failed:", err)
+    ```
 
 The full hierarchy is described in [Error model](../explanation/error-model.md).
 

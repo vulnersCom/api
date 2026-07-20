@@ -17,8 +17,8 @@ backward compatibility with the v3 API.
 ### Added
 
 - New sync and async clients, `Vulners` and `AsyncVulners`, with resource
-  namespaces (`search`, `audit`, `archive`, `misc`, `report`, `stix`,
-  `subscriptions`, `subscriptions_v4`, `webhooks`, `vscanner`), importable as
+  namespaces (`search`, `documents`, `audit`, `archive`, `misc`, `report`, `stix`,
+  `subscriptions`, `subscriptions_email`, `webhooks`, `vscanner`), importable as
   `from vulners import Vulners, AsyncVulners`.
 - Typed response models (bulletin family hierarchy), `SearchPage` pagination
   with auto-iteration bounded by the 10 000-document search window, and lazy

@@ -7,22 +7,22 @@ Use this reference to choose the right workflow when working on the Vulners API 
 Use this skill when modifying files under:
 
 ```text
-vulners/**/*.py
+src/vulners/**/*.py
 ```
 
-Expected checks:
+Expected checks (the project uses `uv`, not Poetry):
 
 ```bash
-poetry run ruff check vulners samples
-poetry run ruff format --check vulners samples
-poetry run mypy vulners
+uv run ruff check src samples
+uv run ruff format --check src samples
+uv run mypy
+uv run basedpyright
 ```
 
-`make format`, `make isort`, `make mypy`, and `make cc` are available repository shortcuts.
-Use `poetry run pytest` only after adding `pytest` to the dev dependencies and creating tests.
-
-The root `scripts/format` helper uses the declared ruff tooling. Prefer the Makefile and
-ruff-based scripts unless a task explicitly updates the development dependency set.
+`make format`, `make lint`, `make typecheck`, and `make test` are the repository
+shortcuts; `make check` runs lint + typecheck + unasync-check + test. When editing an
+async resource under `src/vulners/_resources/_async/`, regenerate the committed sync
+mirror with `make unasync` (gated by `make unasync-check`).
 
 ## Editing examples
 
@@ -45,7 +45,7 @@ Use this skill when modifying:
 
 ```text
 README.md
-docs/**/*.md
+documentation/**/*.md
 CONTRIBUTING.md
 SECURITY.md
 ```

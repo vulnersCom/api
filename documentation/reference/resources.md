@@ -13,6 +13,13 @@ with `async for`, not coroutines.
       heading_level: 3
       show_root_heading: true
 
+## Documents
+
+::: vulners._resources._sync.documents.Documents
+    options:
+      heading_level: 3
+      show_root_heading: true
+
 ## Audit
 
 ::: vulners._resources._sync.audit.Audit
@@ -76,9 +83,9 @@ with `async for`, not coroutines.
       heading_level: 3
       show_root_heading: true
 
-The `Vscanner` namespace delegates to nested resources for project, task, result and license
-operations (`v.vscanner.projects`, `v.vscanner.tasks`, `v.vscanner.results`,
-`v.vscanner.licenses`):
+The `Vscanner` namespace delegates to nested resources for project and license operations
+(`v.vscanner.projects`, `v.vscanner.licenses`); task and result operations are nested under a
+project (`v.vscanner.projects.tasks`, `v.vscanner.projects.results`):
 
 ::: vulners._resources._sync.vscanner.VscannerProjects
     options:

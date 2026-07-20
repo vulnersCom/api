@@ -1,4 +1,4 @@
-.PHONY: sync format lint typecheck test test-fast bc cov cov-mcp docs codegen unasync unasync-check check build clean
+.PHONY: sync format lint typecheck test test-fast live live-mcp bc cov cov-mcp docs unasync unasync-check check build clean
 
 # Install the project and the dev dependency group into a uv-managed venv.
 sync:
@@ -74,10 +74,6 @@ unasync-check:
 # Strict docs build (fails on any warning, incl. unresolved mkdocstrings refs).
 docs:
 	uv run --group docs mkdocs build --strict
-
-# Regenerate all codegen artifacts and fail on drift (CI drift gate).
-codegen:
-	uv run python -m codegen.check
 
 check: lint typecheck unasync-check test
 

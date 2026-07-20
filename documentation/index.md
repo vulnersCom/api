@@ -30,7 +30,7 @@ is no build step. Optional extras:
 
 | Extra | Adds |
 |---|---|
-| `vulners[mcp]` | the [`vulners-mcp`](explanation/../how-to/search-exploits.md) Model Context Protocol server |
+| `vulners[mcp]` | the `vulners-mcp` Model Context Protocol server |
 | `vulners[otel]` | opt-in OpenTelemetry tracing |
 
 ## Quickstart

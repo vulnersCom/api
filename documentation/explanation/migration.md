@@ -35,7 +35,7 @@ from vulners import Vulners, AsyncVulners  # v4, recommended
 |---|---|
 | `api.search.search_bulletins(query, limit=, offset=)` | `v.search.query(query, limit=, offset=)` → `SearchPage[Bulletin]` |
 | `api.search.search_bulletins_all(query)` | iterate the page, or `v.search.iter_query(query)` |
-| `api.search.search_exploits(query)` | `v.search.query(f"bulletinFamily:exploit AND ({query})")` |
+| `api.search.search_exploits(query)` | `v.search.exploits(query)` → `SearchPage[Bulletin]` |
 | `api.search.get_bulletin(id)` | `v.search.get_bulletin(id)` → `Bulletin \| None` |
 | `api.search.get_multiple_bulletins(ids)` | `v.search.get_multiple_bulletins(ids)` → `dict[str, Bulletin]` |
 

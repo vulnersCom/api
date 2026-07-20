@@ -225,7 +225,7 @@ The project uses [uv](https://docs.astral.sh/uv/):
 
 ```bash
 uv sync
-make check   # lint + typecheck + tests
+make check   # lint + typecheck + unasync-check + tests
 ```
 
 See [CONTRIBUTING.md](https://github.com/vulnersCom/api/blob/master/CONTRIBUTING.md) for the

@@ -137,7 +137,7 @@ exclude-newer = "2026-07-19T00:00:00Z"
 [tool.unasyncd]
 # Build-time generation of the sync mirror from the async source of truth. Both
 # the async source and the generated sync output are committed; `unasyncd --check`
-# gates that they stay in sync (see scripts/unasync.py / `make unasync`).
+# gates that they stay in sync (`make unasync` / `make unasync-check`).
 add_editors_note = true
 transform_docstrings = true
 ruff_fix = true

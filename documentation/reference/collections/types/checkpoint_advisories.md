@@ -8,10 +8,9 @@ Checkpoint Advisories provide security bulletins from Check Point Software Techn
 |---|---|---|---|---|
 | `bulletinFamily` | `str` | 100% | Broad family the document belongs to (cve, exploit, software, …). | `"info"` |
 | `cvelist` | `list[str]` | 100% | Related CVE identifiers referenced by this document. | `["CVE-2022-21490"]` |
-| `cvss` | `object{score,severity,source,vector,version}` | 100% | Primary CVSS score block (version, base score, vector, severity, source). | `{"version": null, "score": 4.0, "vector": "AV…` |
-| `cvss2` | `object{acInsufInfo,cvssV2,exploitabilityScore,impactScore,obtainAllPrivilege,obtainOtherPrivilege,obtainUserPrivilege,score,severity,source,userInteractionRequired,vector}, object{cvssV2,exploitabilityScore,impactScore,obtainAllPrivilege,obtainOtherPrivilege,obtainUserPrivilege,score,severity,source,userInteractionRequired,vector,version}, object{score,severity,source,vector,version}` | 100% | CVSS v2 score block. | `{"version": null, "score": null, "vector": nu…` |
-| `cvss3` | `object{cvssV3,exploitabilityScore,impactScore,score,severity,source,vector,version}` | 100% | CVSS v3.x score block. | `{"version": null, "score": null, "vector": nu…` |
-| `cvss4` | `object{score,severity,source,vector,version}` | 100% | CVSS v4.0 score block. | `{"version": null, "score": null, "vector": nu…` |
+| `cvss` | `object{score,vector}` | 100% | Primary CVSS score block (version, base score, vector, severity, source). | `{"score": 4.0, "vector": "AV:A/AC:H/Au:S/C:P/…` |
+| `cvss2` | `object{acInsufInfo,cvssV2,exploitabilityScore,impactScore,obtainAllPrivilege,obtainOtherPrivilege,obtainUserPrivilege,severity,userInteractionRequired}, object{cvssV2,exploitabilityScore,impactScore,obtainAllPrivilege,obtainOtherPrivilege,obtainUserPrivilege,severity,userInteractionRequired}` | 75% | CVSS v2 score block. | `{"severity": "MEDIUM", "cvssV2": {"version": …` |
+| `cvss3` | `object{cvssV3,exploitabilityScore,impactScore}` | 100% | CVSS v3.x score block. | `{"cvssV3": {"version": "3.1", "vectorString":…` |
 | `description` | `str` | 100% | Full text or summary of the vulnerability/advisory. | `"A remote code execution vulnerability exists…` |
 | `enchantments` | `object{dependencies,score,short_description,tags}` | 100% | Vulners-computed enrichment layer (AI score, tags, related docs). | `{"score": {"value": 5.4, "vector": "NONE"}, "…` |
 | `epss` | `list[object{cve,date,epss,percentile}]` | 100% | EPSS exploitation-probability forecast datapoints (score + percentile). | `[{"cve": "CVE-2022-21490", "date": "2026-06-1…` |
@@ -23,7 +22,7 @@ Checkpoint Advisories provide security bulletins from Check Point Software Techn
 | `reporter` | `str` | 100% | Person or organization credited with reporting/authoring it. | `"Check Point Advisories"` |
 | `severity` | `str` | 100% | Qualitative severity band (LOW/MEDIUM/HIGH/CRITICAL). | `"Medium"` |
 | `sourceAvailable` | `bool` | 100% | Whether the raw source data is available for this document. | `true` |
-| `timestamps` | `object{contentUpdated,created,enriched,metricsUpdated,reviewed,updated,webApplicabilityUpdated}` | 100% | Vulners lifecycle timestamps (created/updated/enriched/reviewed/…). | `{"created": "2022-11-27T21:00:00Z", "updated"…` |
+| `timestamps` | `object{contentUpdated,created,enriched,metricsUpdated,reviewed,updated}` | 100% | Vulners lifecycle timestamps (created/updated/enriched/reviewed/…). | `{"created": "2022-11-27T21:00:00Z", "updated"…` |
 | `title` | `str` | 100% | Human-readable title of the document. | `"Oracle MySQL Cluster Remote Code Execution (…` |
 | `type` | `str` | 100% | Source collection the document comes from (cve, exploitdb, ubuntu, …). | `"checkpoint_advisories"` |
 | `vhref` | `str` | 100% | URL of the document on vulners.com. | `"https://vulners.com/checkpoint_advisories/CP…` |

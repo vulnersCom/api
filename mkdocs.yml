@@ -95,7 +95,11 @@ plugins:
           - reference/resources.md
           - reference/models.md
           - reference/data-models.md
-          - reference/collections/index.md
+          # collections/index.md is deliberately NOT listed: the llmstxt plugin
+          # rewrites a listed page's relative links to .md companions, but the
+          # 238 per-type pages under collections/types/ are not listed (that
+          # would embed all of them into llms-full.txt), so every rewritten link
+          # would 404. The HTML site remains the canonical collections browser.
           - reference/exceptions.md
         Explanation:
           - explanation/network-and-rate-limits.md

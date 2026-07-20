@@ -39,8 +39,11 @@ def test_unknown_fields_are_preserved():
 
 
 def test_list_of_models():
-    rows = construct_type([{"id": "a"}, {"id": "b"}], list[Bulletin])
-    assert [type(r).__name__ for r in rows] == ["Bulletin", "Bulletin"]
+    # Bulletin is registered in the discriminator registry, so rows specialize
+    # exactly like construct_bulletin: no family -> GenericBulletin fallback,
+    # a family tag -> the family model.
+    rows = construct_type([{"id": "a"}, {"id": "b", "bulletinFamily": "cve"}], list[Bulletin])
+    assert [type(r).__name__ for r in rows] == ["GenericBulletin", "CveBulletin"]
     assert rows[0].id == "a"
 
 

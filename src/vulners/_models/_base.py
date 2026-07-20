@@ -44,36 +44,48 @@ class VulnersModel(BaseModel):
     surface ``Field(description=...)``). Pydantic reads the docstring from source;
     a model with no source available (never the case for these file-defined
     models) simply gets no description.
+
+    ``validate_by_name=True`` lets the strict validation path accept the python
+    (snake_case) spelling of aliased fields alongside the wire spelling — matching
+    what the construct fast path already does, so a ``model_dump()`` round-trip
+    keeps its data on either path.
     """
 
-    model_config = ConfigDict(extra="allow", use_attribute_docstrings=True)
+    model_config = ConfigDict(extra="allow", use_attribute_docstrings=True, validate_by_name=True)
 
 
 class Discriminator:
     """Picks a concrete subclass for a payload from one tag field.
 
     ``mapping`` maps the tag value (read from ``field`` in the payload) to the
-    subclass to build; an unknown or missing tag falls back to ``fallback``.
+    subclass to build; an unknown or missing tag falls back to ``fallback``. A
+    custom ``resolver`` callable replaces the mapping lookup entirely (used for
+    multi-level dispatch like bulletin type -> family).
     """
 
-    __slots__ = ("fallback", "field", "mapping")
+    __slots__ = ("fallback", "field", "mapping", "resolver")
 
     def __init__(
         self,
         field: str,
         mapping: collections.abc.Mapping[Any, type[BaseModel]],
         fallback: type[BaseModel],
+        resolver: collections.abc.Callable[[Any], type[BaseModel]] | None = None,
     ) -> None:
         self.field = field
         self.mapping = dict(mapping)
         self.fallback = fallback
+        self.resolver = resolver
 
     def resolve(self, value: collections.abc.Mapping[Any, Any]) -> type[BaseModel]:
+        if self.resolver is not None:
+            return self.resolver(value)
         return self.mapping.get(value.get(self.field), self.fallback)
 
 
 # base model class -> its discriminator. Populated by model modules (e.g. the
-# bulletin module registers the CVSS-by-version discriminator on ``Cvss``).
+# bulletin module registers the CVSS-by-version discriminator on ``Cvss`` and
+# the type/family resolver on ``Bulletin``).
 _DISCRIMINATORS: dict[type[BaseModel], Discriminator] = {}
 
 
@@ -82,9 +94,11 @@ def register_discriminator(
     field: str,
     mapping: collections.abc.Mapping[Any, type[BaseModel]],
     fallback: type[BaseModel] | None = None,
+    resolver: collections.abc.Callable[[Any], type[BaseModel]] | None = None,
 ) -> None:
-    """Register *base* so ``construct_type`` discriminates it by *field*."""
-    _DISCRIMINATORS[base] = Discriminator(field, mapping, fallback or base)
+    """Register *base* so ``construct_type`` discriminates it by *field* (or via
+    a custom *resolver* callable for multi-level dispatch)."""
+    _DISCRIMINATORS[base] = Discriminator(field, mapping, fallback or base, resolver)
 
 
 def _strip_annotated(type_: Any) -> Any:

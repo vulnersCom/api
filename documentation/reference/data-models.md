@@ -131,7 +131,7 @@ Every document Vulners returns is a **bulletin**. The SDK models them in three l
 
 ### `InfoBulletin`  (extends `Bulletin`)
 
-``bulletinFamily: info`` — threat intel, advisories and news write-ups
+``bulletinFamily: info`` — threat intel, advisories and news write-ups (CISA KEV, blogs, vendor bulletins, exploitation reports).
 
 `bulletinFamily`: `info`
 
@@ -139,7 +139,7 @@ Every document Vulners returns is a **bulletin**. The SDK models them in three l
 |---|---|---|
 | `affected_software` | `affectedSoftware` | Affected software products (name/version/operator). |
 | `cwe` | `cwe` | Associated CWE weakness identifiers. |
-| `known_ransomware_campaign_use` | `knownRansomwareCampaignUse` | Whether it is known to be used in ransomware campaigns. |
+| `known_ransomware_campaign_use` | `knownRansomwareCampaignUse` | Ransomware-campaign-use marker, as a string ('Known'/'Unknown', per CISA KEV) — not a boolean. |
 | `severity` | `severity` | Qualitative severity band (LOW/MEDIUM/HIGH/CRITICAL). |
 | `tags` | `tags` | Classification tags applied to the document. |
 | `wild_exploited` | `wildExploited` | Whether the vulnerability is exploited in the wild. |
@@ -187,7 +187,7 @@ Every document Vulners returns is a **bulletin**. The SDK models them in three l
 
 ### `AdvisoryBulletin`  (extends `Bulletin`)
 
-Vendor/CERT advisory shape (blog, cnnvd, cnvd, crypto, euvd, jvn, ncsc,
+Vendor/CERT advisory shape (blog, cnnvd, cnvd, crypto, euvd, jvn, ncsc, nozomi, tools) — the base plus the affected-software / CPE fields these advisory sources add.
 
 `bulletinFamily`: `blog`, `cnnvd`, `cnvd`, `crypto`, `euvd`, `jvn`, `ncsc`, `nozomi`, `tools`
 

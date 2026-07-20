@@ -59,14 +59,25 @@ def prompt_missing(missing: list[str], ft: dict[str, set[str]]) -> str:
             return "write"
 
 
-def add_placeholders(missing: list[str]) -> None:
-    """Append ``"field": "TODO ..."`` entries for *missing* to _field_descriptions.py.
+def add_placeholders(missing: list[str]) -> dict[str, str]:
+    """Append ``"field": "TODO ..."`` entries for *missing* to _field_descriptions.py
+    and return them, so the caller can merge without re-importing the module.
 
     Inserted before the dict's closing brace, preserving the hand-authored sections.
     Non-empty (so the model/description invariants still hold) and greppable.
     """
     text = FIELD_DESCRIPTIONS.read_text()
+    # The splice anchors on the file's LAST closing brace, which is the dict's
+    # only while the FIELD_DESCRIPTIONS literal stays the final statement — fail
+    # loudly rather than silently splicing into some future trailing construct.
+    if not text.rstrip().endswith("}"):
+        raise SystemExit(
+            "_field_descriptions.py no longer ends with the FIELD_DESCRIPTIONS "
+            "dict — update add_placeholders() before re-running"
+        )
     close = text.rindex("}")
+    added = dict.fromkeys(missing, "TODO: describe this field.")
     block = "    # --- auto-added by sample_collections.py; replace each TODO ---\n"
-    block += "".join(f'    {json.dumps(w)}: "TODO: describe this field.",\n' for w in missing)
+    block += "".join(f"    {json.dumps(w)}: {json.dumps(d)},\n" for w, d in added.items())
     FIELD_DESCRIPTIONS.write_text(text[:close] + block + text[close:])
+    return added

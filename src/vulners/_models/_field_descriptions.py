@@ -1,9 +1,10 @@
 """Canonical human-readable descriptions for every field the Vulners API emits.
 
 Single source of truth shared by the hand-written models (:mod:`.bulletin`), the
-generated per-collection models (:mod:`.collections`) and the documentation. Keep
-it in sync with live data via ``docs/data-models/sample_collections.py --verify``,
-which flags any field seen live that has no description here.
+factory-built per-collection models (:mod:`.collections`) and the documentation.
+Kept in sync with live data by ``dev-tools/data-models/sample_collections.py``,
+which lists any field seen live that has no description here (and the test suite
+enforces full coverage offline).
 
 Authored descriptions (not machine-generated): each explains what the field means
 and why it is there, for both the docs and IDE tooltips.
@@ -147,10 +148,12 @@ FIELD_DESCRIPTIONS: dict[str, str] = {
     "wildExploited": "Whether the vulnerability is exploited in the wild.",
     "wildExploitedCategory": "Category of in-the-wild exploitation.",
     "wildExploitedReports": "Reports evidencing in-the-wild exploitation.",
-    "knownRansomwareCampaignUse": "Whether it is known to be used in ransomware campaigns.",
+    "knownRansomwareCampaignUse": "Ransomware-campaign-use marker, as a string "
+    "('Known'/'Unknown', per CISA KEV) — not a boolean.",
     "impact": "Impact description/classification.",
     "impacts": "Structured impact records (CVE JSON 5.x).",
-    "denialOfService": "Whether the issue can cause denial of service.",
+    "denialOfService": "Denial-of-service impact marker, as a string "
+    "(e.g. 'N/A') — not a boolean.",
     "metasploitHistory": "Metasploit module history.",
     "metasploitReliability": "Reliability rating of the Metasploit module.",
     "osvdbidlist": "Legacy OSVDB identifiers.",

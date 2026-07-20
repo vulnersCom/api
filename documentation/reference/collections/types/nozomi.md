@@ -11,9 +11,8 @@ Nozomi Networks provides advisories and CVEs related to cybersecurity vulnerabil
 | `cpeConfigurations` | `object{_index,vulnersCpeConfiguration}` | 100% | CPE applicability configurations (NVD-style match tree). | `{"_index": true, "vulnersCpeConfiguration": […` |
 | `cvelist` | `list[str]` | 100% | Related CVE identifiers referenced by this document. | `["CVE-2026-33390"]` |
 | `cvss` | `object{score,severity,source,vector,version}` | 100% | Primary CVSS score block (version, base score, vector, severity, source). | `{"version": "3.1", "score": 8.1, "vector": "C…` |
-| `cvss2` | `object{score,severity,source,vector,version}` | 100% | CVSS v2 score block. | `{"version": null, "score": null, "vector": nu…` |
-| `cvss3` | `object{cvssV31,score,severity,source,vector,version}` | 100% | CVSS v3.x score block. | `{"version": null, "score": null, "vector": nu…` |
-| `cvss4` | `object{cvssV4,score,severity,source,vector,version}` | 100% | CVSS v4.0 score block. | `{"version": null, "score": null, "vector": nu…` |
+| `cvss3` | `object{cvssV31}` | 100% | CVSS v3.x score block. | `{"cvssV31": {"source": "nozomi", "version": "…` |
+| `cvss4` | `object{cvssV4}` | 100% | CVSS v4.0 score block. | `{"cvssV4": {"source": "nozomi", "version": "4…` |
 | `description` | `str` | 100% | Full text or summary of the vulnerability/advisory. | `"# Summary\nAn Incorrect Privilege Assignment…` |
 | `enchantments` | `object{dependencies,score,short_description,tags}` | 100% | Vulners-computed enrichment layer (AI score, tags, related docs). | `{"score": {"value": 6.0, "uncertanity": 2.3, …` |
 | `epss` | `list[object{cve,date,epss,percentile}]` | 100% | EPSS exploitation-probability forecast datapoints (score + percentile). | `[{"cve": "CVE-2026-33390", "date": "2026-07-1…` |
@@ -25,7 +24,7 @@ Nozomi Networks provides advisories and CVEs related to cybersecurity vulnerabil
 | `published` | `str` | 100% | Original publication timestamp (ISO-8601). | `"2026-07-07T00:00:00"` |
 | `reporter` | `str` | 100% | Person or organization credited with reporting/authoring it. | `"Nozomi Networks PSIRT"` |
 | `sourceAvailable` | `bool` | 100% | Whether the raw source data is available for this document. | `true` |
-| `timestamps` | `object{contentUpdated,created,enriched,metricsUpdated,reviewed,updated,webApplicabilityUpdated}` | 100% | Vulners lifecycle timestamps (created/updated/enriched/reviewed/…). | `{"created": "2026-07-09T11:39:22.180000Z", "u…` |
+| `timestamps` | `object{contentUpdated,created,enriched,metricsUpdated,reviewed,updated}` | 100% | Vulners lifecycle timestamps (created/updated/enriched/reviewed/…). | `{"created": "2026-07-09T11:39:22.180000Z", "u…` |
 | `title` | `str` | 100% | Human-readable title of the document. | `"Incorrect privilege assignment for Arc senso…` |
 | `type` | `str` | 100% | Source collection the document comes from (cve, exploitdb, ubuntu, …). | `"nozomi"` |
 | `vhref` | `str` | 100% | URL of the document on vulners.com. | `"https://vulners.com/nozomi/NN-2026:13-01"` |

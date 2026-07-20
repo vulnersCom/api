@@ -19,7 +19,7 @@ The model hierarchy is three levels — **base → family → type**:
 Field descriptions come from attribute docstrings (see
 :class:`~vulners._models._base.VulnersModel`), authored in
 :mod:`vulners._models._field_descriptions` and kept in sync with live data by the
-``dev-tools/data_models`` toolset. Fields are all optional and every model keeps
+``dev-tools/data-models`` toolset. Fields are all optional and every model keeps
 ``extra="allow"``, so a document that carries an as-yet-unmodelled field never
 loses data — the field is still accessible, just untyped.
 
@@ -335,7 +335,8 @@ class InfoBulletin(Bulletin):
     known_ransomware_campaign_use: str | None = Field(
         default=None, alias="knownRansomwareCampaignUse"
     )
-    """Whether it is known to be used in ransomware campaigns."""
+    """Ransomware-campaign-use marker, as a string ('Known'/'Unknown', per CISA
+    KEV) — not a boolean."""
     affected_software: list[Any] | None = Field(default=None, alias="affectedSoftware")
     """Affected software products (name/version/operator)."""
 
@@ -377,15 +378,17 @@ class BugBountyBulletin(Bulletin):
     """Bounty amount/details paid for the report."""
     bounty_state: str | None = Field(default=None, alias="bountyState")
     """State of the bounty (awarded, pending, …)."""
-    cwe_id: list[str] | None = Field(default=None, alias="cwe_id")
+    cwe_id: str | None = None
     """Single associated CWE identifier."""
     repository: str | None = None
     """Source code repository associated with the report."""
 
 
 # ``bulletinFamily`` -> concrete model. Every family the API emits is mapped here
-# (verified by dev-tools/data_models/sample_collections.py --verify). ``NVD`` is
-# the legacy tag for a CVE; near-identical advisory families share AdvisoryBulletin.
+# (kept in sync by dev-tools/data-models/sample_collections.py and enforced by
+# tests/core/test_collections.py). ``NVD`` is the legacy tag for a CVE;
+# near-identical advisory families share AdvisoryBulletin. An unmapped (new)
+# family falls back to GenericBulletin — never an error.
 _FAMILY_MODELS: dict[Any, type[Bulletin]] = {
     "cve": CveBulletin,
     "NVD": CveBulletin,
@@ -411,71 +414,79 @@ _FAMILY_MODELS: dict[Any, type[Bulletin]] = {
 
 # Per-collection (``type``) models live in ``collections.py`` and are built lazily
 # by ``collection_model`` (one per type, on demand, cached). Resolved through this
-# cached function ref so a bulletin construction stays cheap and there's no import
-# cycle (``collections`` imports this module). ``None`` = "not resolved yet".
-def _no_collection_model(_ctype: str) -> type[Bulletin] | None:  # pragma: no cover
-    return None
+# holder so a bulletin construction stays cheap and there's no import cycle
+# (``collections`` imports this module); an import failure propagates loudly
+# rather than silently degrading to family models.
+_COLLECTION_MODEL: Callable[[object], type[Bulletin] | None] | None = None
 
 
-_COLLECTION_MODEL: Callable[[str], type[Bulletin] | None] | None = None
-
-
-def _collection_model(ctype: str) -> type[Bulletin] | None:
+def _collection_model(ctype: object) -> type[Bulletin] | None:
     """Build/return the per-collection model for *ctype* (cached factory), or None."""
     global _COLLECTION_MODEL
     if _COLLECTION_MODEL is None:
-        try:
-            from .collections import collection_model
+        from .collections import collection_model
 
-            _COLLECTION_MODEL = collection_model
-        except ImportError:  # pragma: no cover - collections module always present
-            _COLLECTION_MODEL = _no_collection_model
+        _COLLECTION_MODEL = collection_model
     return _COLLECTION_MODEL(ctype)
+
+
+def _family_model(data: Any) -> type[Bulletin]:
+    """Family model for *data*, read from ``bulletinFamily``/``bulletin_family``
+    (mapping key or attribute), falling back to :class:`GenericBulletin`.
+
+    The single family-selection helper shared by the strict and non-strict paths,
+    so a snake_case round-trip (``model_dump()`` output) resolves identically on
+    both. Tolerant of arbitrary values: a non-str family is the fallback.
+    """
+    if isinstance(data, Mapping):
+        family = data.get("bulletinFamily", data.get("bulletin_family"))
+    else:
+        family = getattr(data, "bulletin_family", None)
+    if isinstance(family, str):
+        return _FAMILY_MODELS.get(family, GenericBulletin)
+    return GenericBulletin
 
 
 def bulletin_class_for(data: Any) -> type[Bulletin]:
     """Return the most specific model to build for *data*.
 
-    A known ``type`` selects the per-collection model; otherwise the
-    ``bulletinFamily`` selects the family model, falling back to
-    :class:`GenericBulletin`.
+    A known ``type`` selects the per-collection model; otherwise the family
+    (via :func:`_family_model`) is selected, falling back to
+    :class:`GenericBulletin`. Never raises on malformed server data — an
+    unusable ``type``/``bulletinFamily`` value just degrades the fallback chain.
     """
     if isinstance(data, Mapping):
-        ctype = data.get("type")
-        if ctype is not None:
-            model = _collection_model(ctype)
-            if model is not None:
-                return model
-        return _FAMILY_MODELS.get(data.get("bulletinFamily"), GenericBulletin)
+        model = _collection_model(data.get("type"))
+        if model is not None:
+            return model
+        return _family_model(data)
     return GenericBulletin
 
 
-# ---------------------------------------------------------------------------
-# Opt-in strict validation path (module-level TypeAdapter)
-# ---------------------------------------------------------------------------
+# Register Bulletin in the generic discriminator registry so ANY field annotated
+# ``Bulletin`` (or list[Bulletin], …) specializes through construct_type exactly
+# like a direct construct_bulletin call — same mechanism the CVSS union uses.
+register_discriminator(
+    Bulletin, "bulletinFamily", {}, GenericBulletin, resolver=bulletin_class_for
+)
 
 
-def _family_tag(value: Any) -> str:
-    if isinstance(value, Mapping):
-        family = value.get("bulletinFamily", value.get("bulletin_family"))
-    else:
-        family = getattr(value, "bulletin_family", None)
-    return str(family) if family in _FAMILY_MODELS else "generic"
+# ---------------------------------------------------------------------------
+# Opt-in strict validation path
+# ---------------------------------------------------------------------------
 
 
 def construct_bulletin(data: Any, *, strict: bool = False) -> Bulletin:
     """Build the most specific :class:`Bulletin` for *data*.
 
     ``strict=True`` runs full pydantic validation: it selects the family model
-    from :data:`_FAMILY_MODELS` (the single source of truth shared with the
-    non-strict path via :func:`_family_tag`) and validates through
-    ``model_validate``. The default construct path never validates and prefers
-    the per-collection (``type``) model when one exists.
+    via :func:`_family_model` (the same helper the non-strict path uses) and
+    validates through ``model_validate``. The default construct path never
+    validates and prefers the per-collection (``type``) model when one exists.
     """
     if strict:
-        model = _FAMILY_MODELS.get(_family_tag(data), GenericBulletin)
-        return model.model_validate(data)
-    return construct_type(data, bulletin_class_for(data))
+        return _family_model(data).model_validate(data)
+    return construct_type(data, Bulletin)
 
 
 __all__ = [

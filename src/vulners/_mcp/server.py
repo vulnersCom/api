@@ -25,6 +25,8 @@ except ModuleNotFoundError as exc:  # pragma: no cover - exercised only without 
         "    pip install 'vulners[mcp]'"
     ) from exc
 
+from pydantic import BaseModel
+
 from .._client import AsyncVulners
 from .._models.bulletin import Bulletin
 
@@ -84,6 +86,10 @@ def _compact(value: Any, *, depth: int = 0) -> Any:
         return trimmed
     if isinstance(value, dict):
         return {k: _compact(v, depth=depth + 1) for k, v in value.items()}
+    if isinstance(value, BaseModel):
+        # Typed sub-models (e.g. EpssScore rows) get the same clipping as raw
+        # dicts and serialize uniformly at the MCP boundary.
+        return _compact(value.model_dump(exclude_none=True), depth=depth)
     return value
 
 

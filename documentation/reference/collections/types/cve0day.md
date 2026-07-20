@@ -8,12 +8,11 @@ CVE0day is a collection from various sources focusing on zero-day vulnerabilitie
 |---|---|---|---|---|
 | `bulletinFamily` | `str` | 100% | Broad family the document belongs to (cve, exploit, software, …). | `"info"` |
 | `cvelist` | `list[str]` | 100% | Related CVE identifiers referenced by this document. | `["CVE-2019-6340"]` |
-| `cvss` | `object{score,severity,source,vector,version}` | 100% | Primary CVSS score block (version, base score, vector, severity, source). | `{"version": null, "score": 6.8, "vector": "AV…` |
-| `cvss2` | `object{acInsufInfo,cvssV2,exploitabilityScore,impactScore,obtainAllPrivilege,obtainOtherPrivilege,obtainUserPrivilege,score,severity,source,userInteractionRequired,vector}` | 100% | CVSS v2 score block. | `{"version": null, "score": null, "vector": nu…` |
-| `cvss3` | `object{cvssV3,exploitabilityScore,impactScore,score,severity,source,vector,version}` | 100% | CVSS v3.x score block. | `{"version": null, "score": null, "vector": nu…` |
-| `cvss4` | `object{score,severity,source,vector,version}` | 100% | CVSS v4.0 score block. | `{"version": null, "score": null, "vector": nu…` |
+| `cvss` | `object{score,vector}` | 100% | Primary CVSS score block (version, base score, vector, severity, source). | `{"score": 6.8, "vector": "AV:NETWORK/AC:MEDIU…` |
+| `cvss2` | `object{acInsufInfo,cvssV2,exploitabilityScore,impactScore,obtainAllPrivilege,obtainOtherPrivilege,obtainUserPrivilege,severity,userInteractionRequired}` | 100% | CVSS v2 score block. | `{"severity": "MEDIUM", "acInsufInfo": false, …` |
+| `cvss3` | `object{cvssV3,exploitabilityScore,impactScore}` | 100% | CVSS v3.x score block. | `{"cvssV3": {"attackComplexity": "HIGH", "atta…` |
 | `description` | `str` | 100% | Full text or summary of the vulnerability/advisory. | `"**Description**\n\nThis Metasploit module ex…` |
-| `enchantments` | `object{backreferences,dependencies,exploitation,score,short_description,tags}` | 100% | Vulners-computed enrichment layer (AI score, tags, related docs). | `{"score": {"value": 0.9, "vector": "NONE"}, "…` |
+| `enchantments` | `object{backreferences,dependencies,score,short_description,tags}` | 100% | Vulners-computed enrichment layer (AI score, tags, related docs). | `{"score": {"value": 0.9, "vector": "NONE"}, "…` |
 | `epss` | `list[object{cve,date,epss,percentile}]` | 100% | EPSS exploitation-probability forecast datapoints (score + percentile). | `[{"cve": "CVE-2019-6340", "date": "2026-07-15…` |
 | `href` | `str` | 100% | Canonical URL of the document at its original source. | `"https://www.cve0day.com/drupal-cve-2019-6340…` |
 | `id` | `str` | 100% | Unique document identifier (e.g. a CVE id, exploit id or advisory id). | `"CVE0DAY:BD50F22FA4B45F74682F7562C2FA7C3E"` |
@@ -22,9 +21,9 @@ CVE0day is a collection from various sources focusing on zero-day vulnerabilitie
 | `published` | `str` | 100% | Original publication timestamp (ISO-8601). | `"2019-03-07T14:06:06"` |
 | `reporter` | `str` | 100% | Person or organization credited with reporting/authoring it. | `"CVE 0day"` |
 | `sourceAvailable` | `bool` | 100% | Whether the raw source data is available for this document. | `true` |
-| `timestamps` | `object{contentUpdated,created,enriched,metricsUpdated,reviewed,updated,webApplicabilityUpdated}` | 100% | Vulners lifecycle timestamps (created/updated/enriched/reviewed/…). | `{"created": "2019-03-07T11:06:06Z", "updated"…` |
+| `timestamps` | `object{contentUpdated,created,enriched,metricsUpdated,reviewed,updated}` | 100% | Vulners lifecycle timestamps (created/updated/enriched/reviewed/…). | `{"created": "2019-03-07T11:06:06Z", "updated"…` |
 | `title` | `str` | 100% | Human-readable title of the document. | `"Drupal CVE-2019-6340 Remote Code Execution EXP"` |
 | `type` | `str` | 100% | Source collection the document comes from (cve, exploitdb, ubuntu, …). | `"cve0day"` |
 | `vhref` | `str` | 100% | URL of the document on vulners.com. | `"https://vulners.com/cve0day/CVE0DAY:BD50F22F…` |
-| `viewCount` | `int` | 100% | How many times the document has been viewed on Vulners. | `288` |
+| `viewCount` | `int` | 100% | How many times the document has been viewed on Vulners. | `290` |
 

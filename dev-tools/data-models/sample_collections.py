@@ -27,13 +27,45 @@ modules: _sample / _emit_models / _emit_docs / _descriptions (paths in _paths).
 from __future__ import annotations
 
 import argparse
-import importlib
 import sys
 
 from _descriptions import add_placeholders, field_types, missing_descriptions, prompt_missing
 from _emit_docs import emit_docs
 from _emit_models import build_collections, write_collections_data
 from _sample import sample, write_records
+
+
+def _retain_errored(collections: dict, type_schemas: dict, collection_map: dict) -> list[str]:
+    """Keep the previously-committed spec for any collection that errored this run.
+
+    A transient 429/500/empty-page during sampling must not silently remove a
+    collection's model row and docs page from the repo; retained entries keep the
+    committed field set (marked stale in the docs, without presence/example stats)
+    and are reported so the maintainer can re-run or investigate.
+    """
+    from vulners._models.collections import COLLECTIONS as committed
+
+    retained = []
+    for ctype, info in collection_map.items():
+        if "error" in info and ctype not in collections and ctype in committed:
+            spec = committed[ctype]
+            collections[ctype] = spec
+            collection_map[ctype] = {
+                **info,
+                "bulletinFamily": spec["family"],
+                "description": (info.get("description") or "").strip()
+                + " (Field stats unavailable: this refresh could not sample the "
+                "collection; the previously-committed field set was retained.)",
+            }
+            type_schemas[ctype] = {
+                "bulletinFamily": spec["family"],
+                "fields": {
+                    w: {"presence": None, "types": [tok], "example": None}
+                    for w, tok in spec["fields"].items()
+                },
+            }
+            retained.append(f"{ctype} ({info['error']})")
+    return retained
 
 
 def main() -> int:
@@ -45,10 +77,21 @@ def main() -> int:
     type_schemas, collection_map = sample(args.limit)
     write_records(type_schemas, collection_map)
 
-    from vulners._models import _field_descriptions as fd
     from vulners._models import bulletin as bmod
+    from vulners._models._field_descriptions import FIELD_DESCRIPTIONS
 
     collections = build_collections(type_schemas, bmod)
+
+    errored = _retain_errored(collections, type_schemas, collection_map)
+    if errored:
+        print(
+            f"\nWARNING: {len(errored)} collection(s) errored while sampling; their "
+            "previously-committed models were RETAINED (not refreshed):",
+            file=sys.stderr,
+        )
+        for line in errored:
+            print(f"  - {line}", file=sys.stderr)
+        print("re-run to refresh them.\n", file=sys.stderr)
 
     new_families = sorted({c["family"] for c in collections.values()} - set(bmod._FAMILY_MODELS))
     if new_families:
@@ -58,8 +101,9 @@ def main() -> int:
             file=sys.stderr,
         )
 
+    descriptions = dict(FIELD_DESCRIPTIONS)
     ft = field_types(collections)
-    missing = missing_descriptions(collections, set(fd.FIELD_DESCRIPTIONS))
+    missing = missing_descriptions(collections, set(descriptions))
     if missing:
         if prompt_missing(missing, ft) == "abort":
             print(
@@ -67,8 +111,7 @@ def main() -> int:
                 file=sys.stderr,
             )
             return 1
-        add_placeholders(missing)
-        importlib.reload(fd)  # so the docs pick up the placeholders
+        descriptions.update(add_placeholders(missing))
         print(
             f"added {len(missing)} TODO placeholder(s) to _field_descriptions.py", file=sys.stderr
         )
@@ -76,7 +119,7 @@ def main() -> int:
         print(f"all {len(ft)} type-specific fields have descriptions ✓", file=sys.stderr)
 
     n = write_collections_data(collections)
-    emit_docs(type_schemas, collection_map)
+    emit_docs(type_schemas, collection_map, descriptions)
     print(
         f"updated src/vulners/_models/_collections_data.py ({n} collections) "
         "and documentation/reference/",

@@ -93,8 +93,9 @@ def _field_table(tinfo: dict, descriptions: dict) -> list[str]:
         raw = meta.get("example") or ""
         if len(raw) > 48:
             raw = raw[:45] + "…"
-        pct = int(meta["presence"] * 100)
-        rows.append(f"| `{name}` | `{types}` | {pct}% | {fdesc} | {_md_code(raw)} |")
+        # presence None = stats unavailable (retained entry for an errored sample)
+        pct = "n/a" if meta["presence"] is None else f"{int(meta['presence'] * 100)}%"
+        rows.append(f"| `{name}` | `{types}` | {pct} | {fdesc} | {_md_code(raw)} |")
     return rows
 
 
@@ -146,10 +147,13 @@ def _emit_data_models_narrative(bmod: Any) -> None:
         parent = model.__mro__[1]
         extends = parent.__name__ if parent is not base else "Bulletin"
         fams = [f for f, m in bmod._FAMILY_MODELS.items() if m is model]
+        # First PARAGRAPH of the class docstring, whitespace-collapsed — taking
+        # only the first line would cut multi-line docstrings mid-sentence.
+        blurb = " ".join((model.__doc__ or "").split("\n\n")[0].split())
         lines += [
             f"### `{model.__name__}`  (extends `{extends}`)",
             "",
-            (model.__doc__ or "").strip().split("\n")[0],
+            blurb,
             "",
             f"`bulletinFamily`: {', '.join(f'`{f}`' for f in fams)}",
             "",
@@ -196,7 +200,6 @@ def _emit_collections_reference(
     if types_dir.exists():  # drop pages for collections that no longer exist
         shutil.rmtree(types_dir)
     types_dir.mkdir(parents=True, exist_ok=True)
-    (DOC_DIR / "collections.md").unlink(missing_ok=True)  # remove the old monolith
 
     by_family: dict[str, list[str]] = defaultdict(list)
     for t, info in collection_map.items():
@@ -211,7 +214,7 @@ def _emit_collections_reference(
         "",
         "Every Vulners **collection** (`type`) and the exact fields its documents "
         "carry — one page each. Regenerate with "
-        "`python dev-tools/data-models/sample_collections.py` then `--emit-docs`.",
+        "`python dev-tools/data-models/sample_collections.py`.",
         "",
         f"**{n_types} collections** across **{n_fam} family models** "
         "(see [Data models](../data-models.md)).",
@@ -234,20 +237,19 @@ def _emit_collections_reference(
     (coll_dir / "index.md").write_text("\n".join(lines) + "\n")
 
 
-def emit_docs(type_schemas: dict, collection_map: dict) -> int:
-    """Generate the committed data-model reference from the sampled schemas plus the
-    code models (for the authored field descriptions)."""
+def emit_docs(type_schemas: dict, collection_map: dict, descriptions: dict) -> None:
+    """Generate the committed data-model reference from the sampled schemas, the
+    code models, and the *descriptions* mapping (passed explicitly so freshly
+    added placeholder entries flow in without any module-reload trickery)."""
     from vulners._models import bulletin as bmod
-    from vulners._models._field_descriptions import FIELD_DESCRIPTIONS
 
     fam_names = _family_model_names()
     DOC_DIR.mkdir(parents=True, exist_ok=True)
 
     _emit_data_models_narrative(bmod)
-    _emit_collections_reference(type_schemas, collection_map, fam_names, FIELD_DESCRIPTIONS)
+    _emit_collections_reference(type_schemas, collection_map, fam_names, descriptions)
     print(
         f"wrote {DOC_DIR / 'data-models.md'} and {DOC_DIR / 'collections'}/ "
         "(index + one page per type)",
         file=sys.stderr,
     )
-    return 0

@@ -14,7 +14,6 @@ import time
 from collections import defaultdict
 from typing import Any
 
-import tomllib
 from _paths import COLLECTION_OUT, REPO, TYPE_OUT
 
 
@@ -24,6 +23,13 @@ def _load_key() -> tuple[str, str]:
     k = os.environ.get("VULNERS_API_KEY")
     if k:
         return k, os.environ.get("VULNERS_SERVER_URL", "https://vulners.com")
+    try:
+        import tomllib  # stdlib on 3.11+
+    except ModuleNotFoundError:  # Python 3.10: no stdlib toml reader
+        raise SystemExit(
+            "no VULNERS_API_KEY in the environment and tomllib is unavailable on "
+            "Python 3.10 — set VULNERS_API_KEY instead of tests/live.local.toml"
+        ) from None
     data = tomllib.loads((REPO / "tests" / "live.local.toml").read_text())
     sec = data.get("live", data)
     return sec["api_key"], sec.get("server_url", "https://vulners.com")
@@ -75,11 +81,19 @@ def sample(limit_per: int) -> tuple[dict, dict]:
     type_docn: dict[str, int] = defaultdict(int)
 
     def _record(bucket: dict[str, dict[str, Any]], field: str, val: Any) -> None:
+        # ``fields=["*"]`` pads inapplicable fields with EMPTY values ({} / "" /
+        # []): those are template noise, not occurrences — counting them would
+        # inflate every retained field's presence to ~100% (and pollute the type
+        # column with object{} entries). Only a real value counts.
+        if val in (None, "", [], {}):
+            return
         slot = bucket[field]
         slot["count"] += 1
         slot["types"].add(_typedesc(val))
-        if slot["example"] is None and val not in (None, "", [], {}):
-            slot["example"] = json.dumps(val)[:160].replace(redact, "[REDACTED]")
+        if slot["example"] is None:
+            # Redact BEFORE truncating: a key straddling the truncation boundary
+            # would otherwise survive as an unredacted prefix fragment.
+            slot["example"] = json.dumps(val).replace(redact, "[REDACTED]")[:160]
 
     try:
         for i, col in enumerate(sorted(collections, key=lambda c: c["type"]), 1):
@@ -88,7 +102,11 @@ def sample(limit_per: int) -> tuple[dict, dict]:
                 # fields=["*"] returns the FULL document (search otherwise trims to
                 # a default subset), so the per-type field schema is complete.
                 page = client.search.query(f"type:{ctype}", limit=limit_per, fields=["*"])
-                docs = [b.model_dump(by_alias=True, exclude_none=False) for b in page.data]
+                # exclude_none=True so the dump mirrors the wire document: declared
+                # model fields the server did NOT send must not be None-padded into
+                # the sample, or every field would count as "present" in every doc
+                # and empty nested models would become all-null phantom examples.
+                docs = [b.model_dump(by_alias=True, exclude_none=True) for b in page.data]
             except Exception as exc:
                 collection_map[ctype] = {
                     "error": type(exc).__name__,
@@ -115,11 +133,9 @@ def sample(limit_per: int) -> tuple[dict, dict]:
         client.close()
 
     def _finish(fields: dict[str, dict[str, Any]], docn: int) -> dict[str, Any]:
-        # ``fields=["*"]`` returns a GLOBAL field template: fields that don't apply
-        # to a collection still come back empty ({} / "" / [] / null). Such a field
-        # is noise (e.g. exploit-tool `appercut` on an `android` doc) — a field only
-        # belongs to a type if it carried a real value in at least one sample
-        # (``example`` is set only for non-empty values), so drop the empty-only ones.
+        # _record only counts real (non-empty) values, so a field is present here
+        # iff it carried data in at least one sampled doc, and ``presence`` is the
+        # honest non-empty rate.
         return {
             name: {
                 "presence": round(f["count"] / max(docn, 1), 2),
@@ -127,7 +143,6 @@ def sample(limit_per: int) -> tuple[dict, dict]:
                 "example": f["example"],
             }
             for name, f in sorted(fields.items())
-            if f["example"] is not None
         }
 
     type_schemas = {

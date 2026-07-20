@@ -7,35 +7,38 @@ in ``collections.py`` builds the base -> family -> type model on first use.
 
 from __future__ import annotations
 
+import json
+import sys
+
 from _paths import MODELS_DATA
 
-_PYTYPE = {"str": "str", "int": "int", "float": "float", "bool": "bool"}
-
-
-def _field_pytype(types: list[str]) -> str:
-    non_null = [t for t in types if t != "null"]
-    if len(non_null) == 1:
-        t = non_null[0]
-        if t in _PYTYPE:
-            return _PYTYPE[t]
-        if t.startswith("list["):
-            return "list[Any]"
-    return "Any"
+# The token vocabulary is owned by the runtime factory; emitting a token it does
+# not know would silently type fields as Any, so the generator refuses.
+from vulners._models.collections import _ANN
 
 
 def _token(types: list[str]) -> str:
     """Compact type token for a field, from its sampled JSON types."""
-    pt = _field_pytype(types)
-    if pt.startswith("list"):
-        return "list"
-    return pt if pt in ("str", "int", "float", "bool") else "any"
+    non_null = [t for t in types if t != "null"]
+    if len(non_null) == 1:
+        t = non_null[0]
+        if t in ("str", "int", "float", "bool"):
+            return t
+        if t.startswith("list["):
+            return "list"
+    return "any"
 
 
 def build_collections(type_schemas: dict, bmod: object) -> dict:
     """Return ``type -> {"family": <fam>, "fields": {wire: token}}`` for the fields
     each collection adds beyond its family model (the shape of ``COLLECTIONS``)."""
     fam_names = {f: m.__name__ for f, m in bmod._FAMILY_MODELS.items()}
-    # wire fields each family model already declares (so we only record the delta)
+    # Wire fields each family model already declares (so we only record the
+    # delta). Includes the base Bulletin fields via inheritance; the base set is
+    # also the floor for an UNMAPPED (new) family — otherwise a new family's
+    # collections would re-record every base field (id, cvss, …) as type-added
+    # and the factory would degrade their typing (cvss -> Any, id_ duplicates).
+    base_declared = {fi.alias or n for n, fi in bmod.Bulletin.model_fields.items()}
     fam_declared = {
         m.__name__: {fi.alias or n for n, fi in m.model_fields.items()}
         for m in set(bmod._FAMILY_MODELS.values())
@@ -45,7 +48,7 @@ def build_collections(type_schemas: dict, bmod: object) -> dict:
         fam = type_schemas[t].get("bulletinFamily")
         if not fam:
             continue
-        declared = fam_declared.get(fam_names.get(fam, "GenericBulletin"), set())
+        declared = fam_declared.get(fam_names.get(fam, ""), base_declared)
         fields = {
             w: _token(meta["types"])
             for w, meta in sorted(type_schemas[t]["fields"].items())
@@ -56,11 +59,27 @@ def build_collections(type_schemas: dict, bmod: object) -> dict:
 
 
 def write_collections_data(collections: dict) -> int:
-    """Write ``src/vulners/_models/_collections_data.py``; returns the row count."""
+    """Write ``src/vulners/_models/_collections_data.py``; returns the row count.
+
+    All keys/values go through ``json.dumps`` — valid Python string literals — so
+    a server-supplied type or field name containing quotes/backslashes can never
+    break or inject code into the generated (and committed) module.
+    """
+    unknown = {tok for spec in collections.values() for tok in spec["fields"].values()} - set(
+        _ANN
+    )
+    if unknown:
+        raise SystemExit(f"generator produced tokens the factory doesn't know: {unknown}")
+
     rows = []
     for t, spec in collections.items():
-        fields = "{" + ", ".join(f'"{w}": "{tok}"' for w, tok in spec["fields"].items()) + "}"
-        rows.append(f'    "{t}": {{"family": "{spec["family"]}", "fields": {fields}}},')
+        fields = ", ".join(
+            f"{json.dumps(w)}: {json.dumps(tok)}" for w, tok in spec["fields"].items()
+        )
+        rows.append(
+            f'    {json.dumps(t)}: {{"family": {json.dumps(spec["family"])}, '
+            f'"fields": {{{fields}}}}},'
+        )
     out = [
         '"""Per-collection field data — GENERATED, do not edit.',
         "",
@@ -80,4 +99,5 @@ def write_collections_data(collections: dict) -> int:
         "",
     ]
     MODELS_DATA.write_text("\n".join(out))
+    print(f"wrote {MODELS_DATA} ({len(rows)} collections)", file=sys.stderr)
     return len(rows)

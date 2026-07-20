@@ -9,12 +9,12 @@ AVLeonov provides advisories and CVEs related to vulnerabilities in various soft
 | `bulletinFamily` | `str` | 100% | Broad family the document belongs to (cve, exploit, software, …). | `"blog"` |
 | `cvelist` | `list[str]` | 100% | Related CVE identifiers referenced by this document. | `["CVE-2026-42897"]` |
 | `cvss` | `object{score,severity,source,vector,version}` | 100% | Primary CVSS score block (version, base score, vector, severity, source). | `{"version": "3.1", "score": 8.1, "vector": "C…` |
-| `cvss2` | `object{cvssV2,score,severity,source,vector,version}, object{score,severity,source,vector,version}` | 100% | CVSS v2 score block. | `{"version": null, "score": null, "vector": nu…` |
-| `cvss3` | `object{cvssV3,cvssV31,score,severity,source,vector,version}, object{cvssV31,score,severity,source,vector,version}` | 100% | CVSS v3.x score block. | `{"version": null, "score": null, "vector": nu…` |
-| `cvss4` | `object{cvssV4,score,severity,source,vector,version}, object{score,severity,source,vector,version}` | 100% | CVSS v4.0 score block. | `{"version": null, "score": null, "vector": nu…` |
+| `cvss2` | `object{cvssV2}` | 5% | CVSS v2 score block. | `{"cvssV2": {"source": "cna@vuldb.com", "versi…` |
+| `cvss3` | `object{cvssV3,cvssV31}, object{cvssV31}` | 100% | CVSS v3.x score block. | `{"cvssV31": {"source": "secure@microsoft.com"…` |
+| `cvss4` | `object{cvssV4}` | 25% | CVSS v4.0 score block. | `{"cvssV4": {"source": "psirt@paloaltonetworks…` |
 | `description` | `str` | 100% | Full text or summary of the vulnerability/advisory. | `"![About Cross Site Scripting - Microsoft Exc…` |
 | `enchantments` | `object{aggregatedScoring,dependencies,score,short_description,tags}, object{dependencies,score,short_description,tags}` | 100% | Vulners-computed enrichment layer (AI score, tags, related docs). | `{"score": {"value": 7.7, "uncertanity": 1.8, …` |
-| `epss` | `list[?], list[object{cve,date,epss,percentile}]` | 100% | EPSS exploitation-probability forecast datapoints (score + percentile). | `[{"cve": "CVE-2025-59788", "date": "2026-07-1…` |
+| `epss` | `list[object{cve,date,epss,percentile}]` | 95% | EPSS exploitation-probability forecast datapoints (score + percentile). | `[{"cve": "CVE-2025-59788", "date": "2026-07-1…` |
 | `href` | `str` | 100% | Canonical URL of the document at its original source. | `"https://avleonov.com/2026/07/02/i089-about-c…` |
 | `id` | `str` | 100% | Unique document identifier (e.g. a CVE id, exploit id or advisory id). | `"AVLEONOV:5A4D4FA71C7AFD6D5C3C47E9EF85410A"` |
 | `lastseen` | `str` | 100% | Last time Vulners observed/refreshed the document (ISO-8601). | `"2026-07-02T21:56:00"` |
@@ -23,7 +23,7 @@ AVLeonov provides advisories and CVEs related to vulnerabilities in various soft
 | `published` | `str` | 100% | Original publication timestamp (ISO-8601). | `"2026-07-02T15:00:00"` |
 | `reporter` | `str` | 100% | Person or organization credited with reporting/authoring it. | `"Alexander Leonov"` |
 | `sourceAvailable` | `bool` | 100% | Whether the raw source data is available for this document. | `true` |
-| `timestamps` | `object{contentUpdated,created,enriched,metricsUpdated,reviewed,updated,webApplicabilityUpdated}` | 100% | Vulners lifecycle timestamps (created/updated/enriched/reviewed/…). | `{"created": "2026-07-02T21:56:00.959000Z", "u…` |
+| `timestamps` | `object{contentUpdated,created,enriched,metricsUpdated,reviewed,updated}` | 100% | Vulners lifecycle timestamps (created/updated/enriched/reviewed/…). | `{"created": "2026-07-02T21:56:00.959000Z", "u…` |
 | `title` | `str` | 100% | Human-readable title of the document. | `"About Cross Site Scripting - Microsoft Excha…` |
 | `type` | `str` | 100% | Source collection the document comes from (cve, exploitdb, ubuntu, …). | `"avleonov"` |
 | `vhref` | `str` | 100% | URL of the document on vulners.com. | `"https://vulners.com/avleonov/AVLEONOV:5A4D4F…` |

@@ -6,25 +6,23 @@ RustSec is a vulnerability database focused on Rust programming language package
 
 | field | type | in samples | description | example |
 |---|---|---|---|---|
-| `affectedSoftware` | `list[?], list[object{name,operator,version}]` | 100% | Affected software products (name/version/operator). | `[{"operator": "le", "version": "0.0.8", "name…` |
+| `affectedSoftware` | `list[object{name,operator,version}]` | 75% | Affected software products (name/version/operator). | `[{"operator": "le", "version": "0.0.8", "name…` |
 | `bulletinFamily` | `str` | 100% | Broad family the document belongs to (cve, exploit, software, …). | `"software"` |
-| `cpeConfigurations` | `object{_index,vulnersCpeConfiguration}, object{}` | 100% | CPE applicability configurations (NVD-style match tree). | `{"_index": true, "vulnersCpeConfiguration": […` |
-| `cvelist` | `list[?], list[str]` | 100% | Related CVE identifiers referenced by this document. | `["CVE-2026-63430"]` |
+| `cpeConfigurations` | `object{_index,vulnersCpeConfiguration}` | 75% | CPE applicability configurations (NVD-style match tree). | `{"_index": true, "vulnersCpeConfiguration": […` |
+| `cvelist` | `list[str]` | 10% | Related CVE identifiers referenced by this document. | `["CVE-2026-63430"]` |
 | `cvss` | `object{score,severity,source,vector,version}` | 100% | Primary CVSS score block (version, base score, vector, severity, source). | `{"version": "NONE", "score": 0.0, "vector": "…` |
-| `cvss2` | `object{score,severity,source,vector,version}` | 100% | CVSS v2 score block. | `{"version": null, "score": null, "vector": nu…` |
-| `cvss3` | `object{cvssV31,score,severity,source,vector,version}, object{score,severity,source,vector,version}` | 100% | CVSS v3.x score block. | `{"version": null, "score": null, "vector": nu…` |
-| `cvss4` | `object{score,severity,source,vector,version}` | 100% | CVSS v4.0 score block. | `{"version": null, "score": null, "vector": nu…` |
+| `cvss3` | `object{cvssV31}` | 5% | CVSS v3.x score block. | `{"cvssV31": {"source": "security-advisories@g…` |
 | `description` | `str` | 100% | Full text or summary of the vulnerability/advisory. | `"Crate libcrux-aesgcm was renamed to libcr…` |
-| `enchantments` | `object{dependencies,score,short_description,tags}` | 100% | Vulners-computed enrichment layer (AI score, tags, related docs). | `{"score": {"value": 5.3, "uncertanity": 1.4, …` |
+| `enchantments` | `object{dependencies,score,short_description,tags}, object{score,short_description,tags}` | 100% | Vulners-computed enrichment layer (AI score, tags, related docs). | `{"score": {"value": 5.3, "uncertanity": 1.4, …` |
 | `href` | `str` | 100% | Canonical URL of the document at its original source. | `"https://rustsec.org/advisories/RUSTSEC-2026-…` |
 | `id` | `str` | 100% | Unique document identifier (e.g. a CVE id, exploit id or advisory id). | `"RUSTSEC-2026-0210"` |
 | `lastseen` | `str` | 100% | Last time Vulners observed/refreshed the document (ISO-8601). | `"2026-07-17T11:46:23"` |
-| `metrics` | `object{adp,cna}, object{}` | 100% | Raw scoring metrics blob (CNA/ADP/NVD/vendor sub-objects). | `{"cna": {"cvss31": {"source": "security-advis…` |
+| `metrics` | `object{adp,cna}` | 5% | Raw scoring metrics blob (CNA/ADP/NVD/vendor sub-objects). | `{"cna": {"cvss31": {"source": "security-advis…` |
 | `modified` | `str` | 100% | Last modification timestamp at the source (ISO-8601). | `"2026-07-17T11:34:24"` |
 | `published` | `str` | 100% | Original publication timestamp (ISO-8601). | `"2026-07-15T12:00:00"` |
 | `reporter` | `str` | 100% | Person or organization credited with reporting/authoring it. | `"rustsec"` |
 | `sourceAvailable` | `bool` | 100% | Whether the raw source data is available for this document. | `true` |
-| `timestamps` | `object{contentUpdated,created,enriched,metricsUpdated,reviewed,updated,webApplicabilityUpdated}` | 100% | Vulners lifecycle timestamps (created/updated/enriched/reviewed/…). | `{"created": "2026-07-17T11:46:32.330000Z", "u…` |
+| `timestamps` | `object{contentUpdated,created,enriched,metricsUpdated,reviewed,updated}` | 100% | Vulners lifecycle timestamps (created/updated/enriched/reviewed/…). | `{"created": "2026-07-17T11:46:32.330000Z", "u…` |
 | `title` | `str` | 100% | Human-readable title of the document. | `"libcrux-aesgcm Renamed to libcrux-aes"` |
 | `type` | `str` | 100% | Source collection the document comes from (cve, exploitdb, ubuntu, …). | `"rustsec"` |
 | `vhref` | `str` | 100% | URL of the document on vulners.com. | `"https://vulners.com/rustsec/RUSTSEC-2026-0210"` |

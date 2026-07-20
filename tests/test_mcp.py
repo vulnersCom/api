@@ -123,6 +123,7 @@ async def test_cve_lookup_enriches_cve_fields(fake_client):
             "cvss3": {"score": 10.0},
             "cwe": ["CWE-502"],
             "cpe": ["cpe:2.3:a:apache:log4j:2.14.1"],
+            "epss": [{"cve": "CVE-2021-44228", "epss": 0.97, "percentile": 0.999}],
         }
     )
     fake_client.search.get_bulletin = AsyncMock(return_value=row)
@@ -133,6 +134,9 @@ async def test_cve_lookup_enriches_cve_fields(fake_client):
     assert result["cvss3"] == {"score": 10.0}
     assert result["cwe"] == ["CWE-502"]
     assert result["cpe"] == ["cpe:2.3:a:apache:log4j:2.14.1"]
+    # epss rows are typed EpssScore models; _compact must dump them to plain
+    # dicts so the tool result serializes uniformly at the MCP boundary.
+    assert result["epss"] == [{"cve": "CVE-2021-44228", "epss": 0.97, "percentile": 0.999}]
 
 
 async def test_audit_software_compacts_large_vuln_lists(fake_client):

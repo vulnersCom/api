@@ -8,13 +8,9 @@ Prion collection includes advisories and CVEs related to vulnerabilities in soft
 |---|---|---|---|---|
 | `bulletinFamily` | `str` | 100% | Broad family the document belongs to (cve, exploit, software, …). | `"cve"` |
 | `cvelist` | `list[str]` | 100% | Related CVE identifiers referenced by this document. | `["CVE-2024-56067"]` |
-| `cvss` | `object{score,severity,source,vector,version}` | 100% | Primary CVSS score block (version, base score, vector, severity, source). | `{"version": null, "score": null, "vector": nu…` |
-| `cvss2` | `object{score,severity,source,vector,version}` | 100% | CVSS v2 score block. | `{"version": null, "score": null, "vector": nu…` |
-| `cvss3` | `object{score,severity,source,vector,version}` | 100% | CVSS v3.x score block. | `{"version": null, "score": null, "vector": nu…` |
-| `cvss4` | `object{score,severity,source,vector,version}` | 100% | CVSS v4.0 score block. | `{"version": null, "score": null, "vector": nu…` |
 | `cwe` | `list[str]` | 100% | Associated CWE weakness identifiers. | `["CWE-862"]` |
 | `description` | `str` | 100% | Full text or summary of the vulnerability/advisory. | `"Missing Authorization vulnerability in Azzar…` |
-| `enchantments` | `object{dependencies,score,short_description,tags}` | 100% | Vulners-computed enrichment layer (AI score, tags, related docs). | `{"score": null, "short_description": "Missing…` |
+| `enchantments` | `object{dependencies,short_description,tags}` | 100% | Vulners-computed enrichment layer (AI score, tags, related docs). | `{"short_description": "Missing Authorization …` |
 | `epss` | `list[object{cve,date,epss,percentile}]` | 100% | EPSS exploitation-probability forecast datapoints (score + percentile). | `[{"cve": "CVE-2024-56067", "date": "2026-06-1…` |
 | `href` | `str` | 100% | Canonical URL of the document at its original source. | `"https://www.prio-n.com/kb/vulnerability/CVE-…` |
 | `id` | `str` | 100% | Unique document identifier (e.g. a CVE id, exploit id or advisory id). | `"PRION:CVE-2024-56067"` |
@@ -24,7 +20,7 @@ Prion collection includes advisories and CVEs related to vulnerabilities in soft
 | `references` | `list[str]` | 100% | External reference URLs. | `["https://patchstack.com/database/wordpress/p…` |
 | `reporter` | `str` | 100% | Person or organization credited with reporting/authoring it. | `"PRIOn knowledge base"` |
 | `sourceAvailable` | `bool` | 100% | Whether the raw source data is available for this document. | `false` |
-| `timestamps` | `object{contentUpdated,created,enriched,metricsUpdated,reviewed,updated,webApplicabilityUpdated}` | 100% | Vulners lifecycle timestamps (created/updated/enriched/reviewed/…). | `{"created": "2024-12-31T10:15:00Z", "updated"…` |
+| `timestamps` | `object{contentUpdated,created,enriched,metricsUpdated,reviewed,updated}` | 100% | Vulners lifecycle timestamps (created/updated/enriched/reviewed/…). | `{"created": "2024-12-31T10:15:00Z", "updated"…` |
 | `title` | `str` | 100% | Human-readable title of the document. | `"CVE-2024-56067"` |
 | `type` | `str` | 100% | Source collection the document comes from (cve, exploitdb, ubuntu, …). | `"prion"` |
 | `vhref` | `str` | 100% | URL of the document on vulners.com. | `"https://vulners.com/prion/PRION:CVE-2024-56067"` |

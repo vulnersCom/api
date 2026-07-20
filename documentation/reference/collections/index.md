@@ -1,6 +1,6 @@
 # Collections reference
 
-Every Vulners **collection** (`type`) and the exact fields its documents carry — one page each. Regenerate with `python dev-tools/data-models/sample_collections.py` then `--emit-docs`.
+Every Vulners **collection** (`type`) and the exact fields its documents carry — one page each. Regenerate with `python dev-tools/data-models/sample_collections.py`.
 
 **238 collections** across **10 family models** (see [Data models](../data-models.md)).
 

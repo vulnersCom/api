@@ -24,6 +24,18 @@ test:
 test-fast:
 	uv run pytest
 
+# Opt-in live tests against the REAL API (needs VULNERS_API_KEY or
+# tests/live.local.toml; skipped otherwise). Serial, to keep the SDK's per-key
+# rate limiter coherent and subscription mutations ordered. The MCP live suite
+# runs separately (live-mcp) because its `mcp` extra can't share this env.
+live:
+	uv run pytest tests/live -m live --ignore=tests/live/test_live_mcp.py
+
+# Live MCP-server tests in the isolated `mcp` extra env (fastmcp).
+live-mcp:
+	uv run --no-default-groups --extra mcp --with pytest --with pytest-asyncio \
+		pytest tests/live/test_live_mcp.py -m live
+
 # Backward-compatibility oracle only.
 bc:
 	uv run pytest tests/bc -n auto

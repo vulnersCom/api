@@ -253,11 +253,12 @@ asyncio_mode = "auto"
 # never by weakening this global gate. Third-party warnings we cannot control are
 # narrowed here one-by-one (prefer none).
 filterwarnings = ["error"]
-# Exclude the pytest-codspeed micro-benchmarks from the default run: they live
-# under tests/benchmarks and are only meant to run under `pytest --codspeed`.
-# The default suite (incl. `pytest -n auto`) deselects them via this marker;
-# run them with `uv run pytest tests/benchmarks --codspeed -m benchmark`.
-addopts = "-m 'not benchmark'"
+# Exclude the pytest-codspeed micro-benchmarks AND the opt-in live tests from the
+# default run: benchmarks live under tests/benchmarks (run with `--codspeed -m
+# benchmark`); live tests hit the real API and must never run under the default
+# suite / xdist (parallel API mutations) — run them explicitly with `make live` /
+# `make live-mcp`, which re-select them with `-m live`.
+addopts = "-m 'not benchmark and not live'"
 markers = [
     "live: hits the real Vulners API; needs VULNERS_API_KEY env or tests/live.local.toml",
     "benchmark: a pytest-codspeed micro-benchmark (excluded from the default run)",

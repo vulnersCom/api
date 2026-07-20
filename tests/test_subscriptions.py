@@ -14,6 +14,72 @@ import pytest
 
 from vulners.vulners.subscription_v4 import SubscriptionV4Api
 
+OWNER = "SYNTHETIC-OWNER-KEY-9999"
+
+
+class TestSubscriptionOwnerKey:
+    """The v3 polling/webhook (and email) endpoints carry the key in the request
+    body/query as `apiKey`, naming the *owner* of the subscription. It defaults to
+    the client's own key; passing `api_key=` names a different owner so a
+    privileged header key can manage another key's subscriptions."""
+
+    # -- webhook (polling) subscriptions: not deprecated, no warning --
+
+    def test_webhook_add_defaults_to_own_key(self, api, server):
+        server.enqueue_envelope({"id": "SYNTHETIC00-WH-0001"})
+        api.webhook.add("ssh")
+        body = orjson.loads(server.last.content)
+        assert body == {"query": "ssh", "apiKey": api._api_key}
+
+    def test_webhook_add_owner_key_overrides_body_not_header(self, api, server):
+        server.enqueue_envelope({"id": "SYNTHETIC00-WH-0002"})
+        api.webhook.add("ssh", api_key=OWNER)
+        req = server.last
+        assert orjson.loads(req.content) == {"query": "ssh", "apiKey": OWNER}
+        # auth key stays in the header; only the owner in the body changes
+        assert req.headers["x-api-key"] == api._api_key
+
+    def test_webhook_enable_and_delete_owner_key(self, api, server):
+        server.enqueue_envelope({})
+        api.webhook.enable("SYNTHETIC00-WH-0003", True, api_key=OWNER)
+        ebody = orjson.loads(server.last.content)
+        assert ebody["apiKey"] == OWNER and ebody["active"] == "true"
+
+        server.enqueue_envelope({})
+        api.webhook.delete("SYNTHETIC00-WH-0003", api_key=OWNER)
+        assert orjson.loads(server.last.content)["apiKey"] == OWNER
+
+    def test_webhook_read_owner_key_in_query(self, api, server):
+        server.enqueue_envelope({"webhook": {}})
+        api.webhook.read("SYNTHETIC00-WH-0004", api_key=OWNER)
+        req = server.last
+        assert dict(req.url.params)["apiKey"] == OWNER
+        assert req.headers["x-api-key"] == api._api_key
+
+    # -- email subscriptions: deprecated, so they warn --
+
+    def test_email_add_defaults_to_own_key(self, api, server):
+        server.enqueue_envelope({"id": "SYNTHETIC00-EM-0001"})
+        with pytest.warns(DeprecationWarning):
+            api.subscription.add(query="ssh", email="a@synthetic.test")
+        assert orjson.loads(server.last.content)["apiKey"] == api._api_key
+
+    def test_email_add_edit_delete_owner_key(self, api, server):
+        server.enqueue_envelope({"id": "SYNTHETIC00-EM-0002"})
+        with pytest.warns(DeprecationWarning):
+            api.subscription.add(query="ssh", email="a@synthetic.test", api_key=OWNER)
+        assert orjson.loads(server.last.content)["apiKey"] == OWNER
+
+        server.enqueue_envelope({})
+        with pytest.warns(DeprecationWarning):
+            api.subscription.edit("SYNTHETIC00-EM-0002", active="false", api_key=OWNER)
+        assert orjson.loads(server.last.content)["apiKey"] == OWNER
+
+        server.enqueue_envelope({})
+        with pytest.warns(DeprecationWarning):
+            api.subscription.delete("SYNTHETIC00-EM-0002", api_key=OWNER)
+        assert orjson.loads(server.last.content)["apiKey"] == OWNER
+
 
 class TestKeyNotInQuery:
     """Header-only GET endpoints no longer duplicate the API key
@@ -128,4 +194,3 @@ class TestUpdateFullReplaceDocstring:
     def test_create_has_no_full_replace_warning(self):
         # the warning is scoped to update(); create() legitimately uses defaults
         assert not (SubscriptionV4Api.create.__doc__ or "")
-

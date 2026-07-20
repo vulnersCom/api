@@ -544,7 +544,11 @@ class VulnersApiBase:
             }
             url = re.sub("{([^}]*)}", lambda m: path_values[m.group(1)], url)
         if add_api_key:
-            params["apiKey"] = self._api_key
+            # setdefault (not assign) so an endpoint that declares its own
+            # optional apiKey param can name a different owner key; endpoints
+            # with no such param never populate "apiKey" here, so they still
+            # fall through to the client's own key and the wire is unchanged.
+            params.setdefault("apiKey", self._api_key)
         file_paths = {}
         if file_params:
             for file_param in file_params:

@@ -11,6 +11,18 @@ the commit log. Only the v3 series is covered in detail.
 
 ## [Unreleased]
 
+### Added
+
+- The v3 polling/webhook and email subscription methods accept an optional
+  `api_key` argument naming the *owner* of the subscription. It is sent in the
+  request body (or in the query for `WebhookApi.read`) as `apiKey` and defaults
+  to the client's own key, so existing calls are byte-identical on the wire. A
+  privileged key authenticating via the `X-Api-Key` header can now pass a
+  different key to create, toggle, read or delete that key's subscriptions:
+  `WebhookApi.add` / `enable` / `delete` / `read` and `SubscriptionApi.add` /
+  `edit` / `delete`. Earlier releases hard-coded the caller's own key here, so
+  managing another key's subscriptions was not possible.
+
 ## [3.2.0] - 2026-07-19
 
 This is a bug-fix release that keeps the observable behavior of successful calls

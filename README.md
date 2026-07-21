@@ -12,7 +12,7 @@ your own pipelines — all from a few lines of typed, async-ready Python.
 [![Python versions](https://img.shields.io/pypi/pyversions/vulners)](https://pypi.org/project/vulners/)
 [![Downloads](https://img.shields.io/pypi/dm/vulners?color=blue)](https://pypi.org/project/vulners/)
 [![CI](https://github.com/vulnersCom/api/actions/workflows/ci.yml/badge.svg)](https://github.com/vulnersCom/api/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/vulnersCom/api/blob/master/LICENSE)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Typed](https://img.shields.io/badge/typing-PEP%20561-brightgreen)](https://peps.python.org/pep-0561/)
 
 [**SDK documentation**](https://vulnersCom.github.io/api/) ·
@@ -48,9 +48,11 @@ This SDK is the fastest way to build on that graph from Python:
 pip install -U vulners
 ```
 
-Requires **Python 3.10+**. The only runtime dependencies are
-[`httpx`](https://www.python-httpx.org/), [`pydantic`](https://docs.pydantic.dev/) and
-[`orjson`](https://github.com/ijl/orjson).
+Requires **Python 3.10+**. A plain `pip install vulners` pulls everything needed for fast, modern
+transport — [`httpx`](https://www.python-httpx.org/), [`pydantic`](https://docs.pydantic.dev/) and
+[`orjson`](https://github.com/ijl/orjson), plus HTTP/2 (`h2`), response compression
+(`brotli`/`zstandard`), ISA-L-accelerated gzip (`isal`) and streaming archive decode
+(`ijson`/`stream-unzip`) — all with prebuilt wheels, so there is no build step.
 
 ---
 
@@ -103,7 +105,7 @@ asyncio.run(main())
 ## Usage examples
 
 Runnable scripts for every task live under
-[`samples/`](https://github.com/vulnersCom/api/tree/master/samples) — a **v4** set and a matching
+[`samples/`](samples/) — a **v4** set and a matching
 **v3 (legacy)** set, side by side.
 
 ### Find public exploits for a CVE
@@ -196,7 +198,7 @@ VULNERS_API_KEY=... vulners-mcp        # run the MCP server
 
 It exposes concise, typed tools — search bulletins, look up a CVE, find exploits, and audit
 software/Linux/hosts — that any MCP-compatible client (Claude, IDE agents, …) can call. See
-[`AGENTS.md`](https://github.com/vulnersCom/api/blob/master/AGENTS.md).
+[`AGENTS.md`](AGENTS.md).
 
 > **Hosted vs. bundled.** For a fully managed, always-on endpoint, use the official hosted
 > server at **<https://mcp.vulners.com/>** — no install required. The `vulners-mcp` shipped
@@ -228,9 +230,11 @@ the [migration guide](https://vulnersCom.github.io/api/explanation/migration/).
    to generate a key.
 3. Pass it to `Vulners(api_key=...)`, or export `VULNERS_API_KEY` and let the client read it.
 
-Never commit your API key. The SDK sends it only in the `X-Api-Key` header, strips it on
-cross-origin redirects, refuses redirects to internal addresses, and keeps it out of exception
-messages and object reprs.
+Never commit your API key. The SDK authenticates with the `X-Api-Key` header; a few legacy
+endpoints additionally send the key where the server requires it — in the request body (the
+subscription and webhook mutations and `win_audit`) or the query string (`webhooks.read()`). On
+every request it strips the key on cross-origin redirects, refuses redirects to internal
+addresses, and keeps it out of exception messages and object reprs.
 
 ---
 
@@ -245,9 +249,9 @@ messages and object reprs.
 | 📖 Vulners platform docs | https://docs.vulners.com/docs/ |
 | 🧪 Interactive API (Swagger) | https://docs.vulners.com/docs/api/swagger/ |
 | 🔑 Authentication / API keys | https://docs.vulners.com/docs/quickstart/authentication/ |
-| 💡 Examples | [`samples/`](https://github.com/vulnersCom/api/tree/master/samples) |
-| 🤝 Contributing | [CONTRIBUTING.md](https://github.com/vulnersCom/api/blob/master/CONTRIBUTING.md) |
-| 🔒 Security policy | [SECURITY.md](https://github.com/vulnersCom/api/blob/master/SECURITY.md) |
+| 💡 Examples | [`samples/`](samples/) |
+| 🤝 Contributing | [CONTRIBUTING.md](CONTRIBUTING.md) |
+| 🔒 Security policy | [SECURITY.md](SECURITY.md) |
 
 ---
 
@@ -269,7 +273,7 @@ uv sync
 make check   # lint + typecheck + unasync-check + tests
 ```
 
-See [CONTRIBUTING.md](https://github.com/vulnersCom/api/blob/master/CONTRIBUTING.md) for the
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the
 full workflow.
 
 ---
@@ -277,7 +281,7 @@ full workflow.
 ## Security
 
 Found a security issue in the SDK? Please report it privately — see
-[SECURITY.md](https://github.com/vulnersCom/api/blob/master/SECURITY.md). Do not open a public
+[SECURITY.md](SECURITY.md). Do not open a public
 issue for vulnerabilities.
 
 ---
@@ -285,7 +289,7 @@ issue for vulnerabilities.
 ## License
 
 Distributed under the **MIT License**. See
-[LICENSE](https://github.com/vulnersCom/api/blob/master/LICENSE).
+[LICENSE](LICENSE).
 
 ---
 

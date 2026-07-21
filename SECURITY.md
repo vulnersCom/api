@@ -31,7 +31,9 @@ the Vulners web service or API itself should be reported through
 
 The client is designed to keep your credential out of places it could leak:
 
-- the key is sent only in the `X-Api-Key` request header (never logged);
+- the key is sent in the `X-Api-Key` request header; a few legacy endpoints additionally
+  require it in the request body (the subscription and webhook mutations, and `win_audit`) or
+  the query string (`webhooks.read()`), because the server rejects the header alone there;
 - it is stripped from any request that is redirected to a different origin, and
   redirects to private/internal/loopback addresses are refused (SSRF guard);
 - it is masked in exception messages, object `repr()`, and debug logs;

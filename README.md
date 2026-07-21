@@ -135,7 +135,7 @@ for issue in report["issues"]:
 
 ```python
 for record in v.archive.iter_collection("cve"):
-    ...  # each NDJSON record is yielded as it arrives
+    ...  # each record is yielded as it arrives (a lazily-streamed JSON array)
 ```
 
 ### Handle errors

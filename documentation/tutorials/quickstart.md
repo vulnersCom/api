@@ -48,8 +48,9 @@ Use it as a context manager so the underlying connection pool is released on exi
 ## 2. Your first search
 
 `search.query` runs a [Lucene query](https://vulners.com/help) and returns a
-`SearchPage` of typed `Bulletin` objects. Iterating the page transparently walks further
-pages (up to the [10,000-document window](../explanation/search-window.md)):
+`SearchPage` of typed `Bulletin` objects. `page.data` holds this page's results;
+iterating the page itself (`for b in page`) transparently walks further pages, up to the
+[10,000-document window](../explanation/search-window.md):
 
 === "Sync"
 
@@ -58,7 +59,7 @@ pages (up to the [10,000-document window](../explanation/search-window.md)):
         page = v.search.query("type:cve AND cvss.score:[9 TO 10]", limit=10)
 
         print(page.total, "documents match")     # total match count
-        for bulletin in page:                     # auto-paginates as you iterate
+        for bulletin in page.data:                # this page's results (limit=10)
             print(bulletin.id, "-", bulletin.title)
     ```
 
@@ -69,7 +70,7 @@ pages (up to the [10,000-document window](../explanation/search-window.md)):
         page = await v.search.query("type:cve AND cvss.score:[9 TO 10]", limit=10)
 
         print(page.total, "documents match")     # total match count
-        async for bulletin in page:               # auto-paginates as you iterate
+        for bulletin in page.data:                # this page's results (limit=10)
             print(bulletin.id, "-", bulletin.title)
     ```
 
@@ -137,7 +138,8 @@ To audit a Linux host by its installed packages, see
 ## 4. The same, asynchronously
 
 Every resource method exists on `AsyncVulners` with an identical signature; you just
-`await` it, and iterate pages with `async for`. A complete program looks like this:
+`await` it. (Iterating a page with `async for` auto-paginates, exactly like the sync
+`for`.) A complete program looks like this:
 
 ```python
 import asyncio
@@ -145,8 +147,8 @@ from vulners import AsyncVulners
 
 async def main() -> None:
     async with AsyncVulners() as v:
-        page = await v.search.query("type:exploit AND wordpress", limit=10)
-        async for exploit in page:
+        page = await v.search.query("bulletinFamily:exploit AND wordpress", limit=10)
+        for exploit in page.data:
             print(exploit.id, exploit.href)
 
         results = await v.audit.software(["cpe:2.3:a:apache:log4j:2.14.1"])

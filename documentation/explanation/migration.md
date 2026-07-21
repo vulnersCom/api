@@ -44,8 +44,8 @@ from vulners import Vulners, AsyncVulners  # v4, recommended
 for doc in api.search.search_bulletins("type:cve", limit=10):
     print(doc["id"], doc["title"])
 
-# v4
-for doc in v.search.query("type:cve", limit=10):
+# v4  (`.data` is the first page; iterating the page itself auto-paginates)
+for doc in v.search.query("type:cve", limit=10).data:
     print(doc.id, doc.title)
 ```
 

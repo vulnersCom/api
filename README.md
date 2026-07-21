@@ -66,8 +66,10 @@ with Vulners(api_key="YOUR_API_KEY_HERE") as v:
     print(log4shell.id, "—", log4shell.title)
     print(log4shell.cvss.score, log4shell.cvss.vector)
 
-    # Search with Lucene syntax; the page auto-paginates as you iterate.
-    for bulletin in v.search.query("type:cve AND cvss.score:[9 TO 10]", limit=10):
+    # Search with Lucene syntax. `limit` is the page size; read the first page here
+    # (iterating the page itself auto-paginates the whole result window).
+    page = v.search.query("type:cve AND cvss.score:[9 TO 10]", limit=10)
+    for bulletin in page.data:
         print(bulletin.id, bulletin.title)
 ```
 
@@ -89,7 +91,7 @@ from vulners import AsyncVulners
 async def main():
     async with AsyncVulners(api_key="YOUR_API_KEY_HERE") as v:
         page = await v.search.query("Fortinet AND RCE", limit=20)
-        async for bulletin in page:
+        for bulletin in page.data:
             print(bulletin.id, bulletin.title)
 
 asyncio.run(main())
@@ -106,7 +108,7 @@ Runnable scripts for every task live under
 ### Find public exploits for a CVE
 
 ```python
-for exploit in v.search.query("bulletinFamily:exploit AND CVE-2023-20198", limit=10):
+for exploit in v.search.query("bulletinFamily:exploit AND CVE-2023-20198", limit=10).data:
     print(exploit.id, exploit.href)
 ```
 
@@ -124,7 +126,7 @@ for item in v.audit.software([{"product": "openssl", "version": "1.0.1"},
 ```python
 report = v.audit.linux_audit(os_name="debian", os_version="10",
                              packages=["openssl 1.1.1d-0+deb10u3 amd64"])
-for issue in report["result"]["issues"]:
+for issue in report["issues"]:
     print(issue["package"])
 ```
 

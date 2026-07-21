@@ -41,7 +41,7 @@ Get a free API key at [vulners.com](https://vulners.com), then:
 from vulners import Vulners
 
 with Vulners(api_key="YOUR_API_KEY_HERE") as v:
-    for bulletin in v.search.query("type:exploit AND log4j", limit=5):
+    for bulletin in v.search.query("bulletinFamily:exploit AND log4j", limit=5).data:
         print(bulletin.id, "—", bulletin.title)
 ```
 

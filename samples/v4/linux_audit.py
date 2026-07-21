@@ -14,5 +14,5 @@ with Vulners(api_key=os.environ["VULNERS_API_KEY"]) as v:
     report = v.audit.linux_audit(
         os_name="debian", os_version="10", packages=["openssl 1.1.1d-0+deb10u3 amd64"]
     )
-    for issue in report["result"]["issues"]:
+    for issue in report["issues"]:
         print(issue["package"])

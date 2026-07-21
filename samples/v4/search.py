@@ -9,11 +9,13 @@ from vulners import Vulners
 
 # Direct: Vulners(api_key="YOUR_API_KEY_HERE"), or from the environment:
 with Vulners(api_key=os.environ["VULNERS_API_KEY"]) as v:
-    # Newest Fortinet RCEs (Lucene syntax). The page auto-paginates as you iterate;
-    # each item is a typed Bulletin model.
-    for doc in v.search.query(
+    # Newest Fortinet RCEs (Lucene syntax). `limit` is the page size; read the first
+    # page (iterating the page itself auto-paginates the whole result window). Each
+    # item is a typed Bulletin model.
+    page = v.search.query(
         "Fortinet AND RCE order:published", limit=5, fields=["id", "title", "published"]
-    ):
+    )
+    for doc in page.data:
         print(doc.id, "-", (doc.title or "")[:60])
 
     # Full details for one CVE as a typed model.

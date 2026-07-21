@@ -72,6 +72,8 @@ asyncio.run(main())
 - **[How-to guides](how-to/audit-a-host.md)** — task-focused recipes: audit a host, stream the
   archive, search exploits, configure a proxy/timeouts/retries.
 - **[API reference](reference/clients.md)** — every client, resource, model and exception.
+- **[Data models](reference/bulletins/index.md)** — the `base → family → type` bulletin
+  hierarchy every response builds on: what each family and collection returns, field by field.
 - **[Explanation](explanation/network-and-rate-limits.md)** — the network & rate-limit model,
   the 10,000-document search window, the error model, and the v3→v4 migration guide.
 

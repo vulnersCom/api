@@ -35,11 +35,17 @@ EXPECTED_TOOLS = {
 
 
 class _FakePage:
-    """Minimal stand-in for the client's SearchPage (``.data`` / ``.total``)."""
+    """Minimal stand-in for the client's SearchPage."""
 
-    def __init__(self, rows, total):
+    def __init__(self, rows, total, offset=0, limit=10, has_more=False):
         self.data = rows
         self.total = total
+        self.offset = offset
+        self.limit = limit
+        self._has_more = has_more
+
+    def has_next_page(self):
+        return self._has_more
 
 
 @pytest.fixture
@@ -84,9 +90,70 @@ async def test_get_bulletin_missing_returns_none(fake_client):
     assert await tool.fn(id="CVE-0000-0000") is None
 
 
+async def test_get_bulletin_fields_enriches_summary(fake_client):
+    row = construct_bulletin(
+        {
+            "id": "CVE-2021-44228",
+            "title": "Log4Shell",
+            "bulletinFamily": "NVD",
+            "cwe": ["CWE-502"],
+            "cpe": ["cpe:2.3:a:apache:log4j:2.14.1"],
+        }
+    )
+    fake_client.search.get_bulletin = AsyncMock(return_value=row)
+    tool = await server.mcp.get_tool("get_bulletin")
+    result = await tool.fn(
+        id="CVE-2021-44228",
+        fields=["cwe", "cpe", "id", "bulletin_family", "does_not_exist"],
+    )
+
+    # wire-name fields present in the by-alias dump are added on top of the summary
+    assert result["cwe"] == ["CWE-502"]
+    assert result["cpe"] == ["cpe:2.3:a:apache:log4j:2.14.1"]
+    # a field already in the summary is left as-is (skipped, not duplicated)
+    assert result["id"] == "CVE-2021-44228"
+    # a snake_case attribute absent from the by-alias dump falls back to getattr
+    assert result["bulletin_family"] == "NVD"
+    # an unknown field is silently skipped
+    assert "does_not_exist" not in result
+
+
+async def test_get_bulletin_full_returns_whole_document(fake_client):
+    row = construct_bulletin(
+        {
+            "id": "CVE-2021-44228",
+            "title": "Log4Shell",
+            "bulletinFamily": "NVD",
+            "cwe": ["CWE-502"],
+        }
+    )
+    fake_client.search.get_bulletin = AsyncMock(return_value=row)
+    tool = await server.mcp.get_tool("get_bulletin")
+    result = await tool.fn(id="CVE-2021-44228", full=True)
+
+    # the full dump uses wire (camelCase) names and includes non-summary fields
+    assert result["id"] == "CVE-2021-44228"
+    assert result["bulletinFamily"] == "NVD"
+    assert result["cwe"] == ["CWE-502"]
+
+
+async def test_get_bulletin_flags_truncated_description(fake_client):
+    long_desc = "x" * (server._MAX_STR + 100)
+    row = construct_bulletin({"id": "CVE-2021-44228", "description": long_desc})
+    fake_client.search.get_bulletin = AsyncMock(return_value=row)
+    tool = await server.mcp.get_tool("get_bulletin")
+    result = await tool.fn(id="CVE-2021-44228")
+
+    assert result["description_truncated"] is True
+    assert result["description"].endswith("…")
+    assert len(result["description"]) == server._MAX_STR + 1  # clipped body + ellipsis
+
+
 async def test_search_bulletins_shapes_and_clamps_limit(fake_client):
     rows = [construct_bulletin({"id": f"CVE-2099-{i:04d}", "title": f"t{i}"}) for i in range(3)]
-    fake_client.search.query = AsyncMock(return_value=_FakePage(rows, total=1234))
+    fake_client.search.query = AsyncMock(
+        return_value=_FakePage(rows, total=1234, offset=0, limit=100, has_more=True)
+    )
 
     tool = await server.mcp.get_tool("search_bulletins")
     result = await tool.fn(query="type:cve", limit=500)
@@ -94,13 +161,33 @@ async def test_search_bulletins_shapes_and_clamps_limit(fake_client):
     # limit is clamped into 1..100 before hitting the client
     _, kwargs = fake_client.search.query.call_args
     assert kwargs["limit"] == 100
+    assert kwargs["offset"] == 0
     assert result["total"] == 1234
+    assert result["offset"] == 0
     assert result["returned"] == 3
+    assert result["has_more"] is True
+    assert result["next_offset"] == 100  # offset + limit
     assert [b["id"] for b in result["bulletins"]] == [
         "CVE-2099-0000",
         "CVE-2099-0001",
         "CVE-2099-0002",
     ]
+
+
+async def test_search_bulletins_paginates_with_offset(fake_client):
+    rows = [construct_bulletin({"id": "CVE-2099-0100"})]
+    fake_client.search.query = AsyncMock(
+        return_value=_FakePage(rows, total=5, offset=90, limit=10, has_more=False)
+    )
+    tool = await server.mcp.get_tool("search_bulletins")
+    result = await tool.fn(query="type:cve", limit=10, offset=90)
+
+    # offset is forwarded to the client and echoed back
+    _, kwargs = fake_client.search.query.call_args
+    assert kwargs["offset"] == 90
+    assert result["offset"] == 90
+    assert result["has_more"] is False
+    assert "next_offset" not in result  # omitted once the window is exhausted
 
 
 async def test_search_exploits_restricts_to_exploit_family(fake_client):
@@ -160,9 +247,11 @@ async def test_audit_software_compacts_large_vuln_lists(fake_client):
     fake_client.audit.software.assert_awaited_once()
     assert result["count"] == 1
     vulns = result["results"][0]["vulnerabilities"]
-    # capped at _MAX_ITEMS plus a single "(+N more)" marker string
-    assert len(vulns) == server._MAX_ITEMS + 1
-    assert isinstance(vulns[-1], str) and "more of 50" in vulns[-1]
+    # a capped list becomes a self-describing envelope, not a list ending in a string
+    assert vulns["truncated"] is True
+    assert vulns["total"] == 50
+    assert vulns["returned"] == server._MAX_ITEMS
+    assert len(vulns["items"]) == server._MAX_ITEMS
 
 
 async def test_audit_software_empty_short_circuits(fake_client):

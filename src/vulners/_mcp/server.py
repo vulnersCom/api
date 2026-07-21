@@ -12,9 +12,12 @@ Each tool is a thin, well-described wrapper over the v4 async client
 (:class:`vulners.AsyncVulners`). Responses are trimmed to compact, agent-
 friendly JSON — search/lookup tools select a small field set, and audit tools
 run a schema-agnostic :func:`_compact` pass that clips long strings and caps
-long lists — so a tool call never floods the model's context with a multi-
-megabyte payload. Result sets are paginated: search tools return ``total`` and
-the ``returned`` count so an agent can decide whether to narrow its query.
+long lists (a capped list becomes a ``{items, total, truncated}`` envelope) — so
+a tool call never floods the model's context with a multi-megabyte payload.
+Search tools are paginated: they take ``limit``/``offset`` and return
+``total``/``has_more``/``next_offset`` so an agent can walk results or narrow
+its query. ``get_bulletin`` returns a summary by default and accepts
+``fields``/``full`` for more detail.
 """
 
 from __future__ import annotations
@@ -41,7 +44,8 @@ mcp: FastMCP[Any] = FastMCP(
         "Vulnerability intelligence from Vulners (https://vulners.com). Use these "
         "tools to search CVEs, exploits and advisories, look up a bulletin by id, "
         "and audit software / Linux hosts / CVEs for known vulnerabilities. Results "
-        "are trimmed for brevity; ask for a specific id to get its full record."
+        "are trimmed for brevity; look up a specific id for a bulletin summary, and "
+        "pass fields=[...] or full=true to get_bulletin for the fuller record."
     ),
 )
 
@@ -87,7 +91,15 @@ def _compact(value: Any, *, depth: int = 0) -> Any:
     if isinstance(value, list):
         trimmed = [_compact(v, depth=depth + 1) for v in value[:_MAX_ITEMS]]
         if len(value) > _MAX_ITEMS:
-            trimmed.append(f"…(+{len(value) - _MAX_ITEMS} more of {len(value)})")
+            # Structured truncation: a self-describing envelope, never an ellipsis
+            # string appended into an otherwise-homogeneous array (which would make
+            # the array heterogeneous and awkward for a tool schema to consume).
+            return {
+                "items": trimmed,
+                "returned": len(trimmed),
+                "total": len(value),
+                "truncated": True,
+            }
         return trimmed
     if isinstance(value, dict):
         return {k: _compact(v, depth=depth + 1) for k, v in value.items()}
@@ -117,7 +129,11 @@ def _cvss(cvss: Any) -> dict[str, Any] | None:
 def _bulletin_summary(b: Bulletin) -> dict[str, Any]:
     """A compact, agent-friendly view of a bulletin."""
     desc = b.description
-    return {
+    clipped = False
+    if desc is not None and len(desc) > _MAX_STR:
+        clipped = True
+        desc = desc[:_MAX_STR] + "…"
+    summary: dict[str, Any] = {
         "id": b.id,
         "title": b.title,
         "type": b.type,
@@ -126,8 +142,32 @@ def _bulletin_summary(b: Bulletin) -> dict[str, Any]:
         "published": b.published,
         "modified": b.modified,
         "href": b.href,
-        "description": desc if desc is None or len(desc) <= _MAX_STR else desc[:_MAX_STR] + "…",
+        "description": desc,
     }
+    if clipped:
+        # Flag the clip so the agent knows to fetch the full field if it needs it.
+        summary["description_truncated"] = True
+    return summary
+
+
+def _search_response(page: Any, key: str) -> dict[str, Any]:
+    """Build the paginated envelope shared by the search tools.
+
+    ``has_more``/``next_offset`` come from the page's window-aware
+    :meth:`has_next_page`, so an agent can walk results with ``offset`` until the
+    10000-document search window is exhausted.
+    """
+    has_more = page.has_next_page()
+    out: dict[str, Any] = {
+        "total": page.total,
+        "offset": page.offset,
+        "returned": len(page.data),
+        "has_more": has_more,
+        key: [_bulletin_summary(b) for b in page.data],
+    }
+    if has_more:
+        out["next_offset"] = page.offset + page.limit
+    return out
 
 
 # --------------------------------------------------------------------------- #
@@ -136,7 +176,7 @@ def _bulletin_summary(b: Bulletin) -> dict[str, Any]:
 
 
 @mcp.tool
-async def search_bulletins(query: str, limit: int = 10) -> dict[str, Any]:
+async def search_bulletins(query: str, limit: int = 10, offset: int = 0) -> dict[str, Any]:
     """Search Vulners with Lucene query syntax and return matching bulletins.
 
     Covers CVEs, advisories, exploits, blog posts and more. Example queries:
@@ -146,38 +186,64 @@ async def search_bulletins(query: str, limit: int = 10) -> dict[str, Any]:
     Args:
         query: A Vulners Lucene query.
         limit: Maximum bulletins to return in this page (1-100).
+        offset: Number of matches to skip; pass the previous response's
+            ``next_offset`` to page forward (the window is capped at 10000 docs).
 
     Returns:
-        ``{total, returned, bulletins, note}`` — ``total`` is the full match
-        count; only ``returned`` compact summaries are included. The result
-        window is capped at 10000 documents; narrow the query for more.
+        ``{total, offset, returned, has_more, next_offset, bulletins}`` —
+        ``total`` is the full match count; only ``returned`` compact summaries are
+        included. ``has_more`` is False once the 10000-document window is
+        exhausted; narrow the query to reach matches beyond it.
     """
     limit = max(1, min(limit, 100))
-    page = await _get_client().search.query(query, limit=limit)
-    return {
-        "total": page.total,
-        "returned": len(page.data),
-        "bulletins": [_bulletin_summary(b) for b in page.data],
-        "note": "Result window capped at 10000 docs; refine the query to narrow results.",
-    }
+    offset = max(0, offset)
+    page = await _get_client().search.query(query, limit=limit, offset=offset)
+    return _search_response(page, "bulletins")
 
 
 @mcp.tool
-async def get_bulletin(id: str) -> dict[str, Any] | None:
+async def get_bulletin(
+    id: str, fields: list[str] | None = None, full: bool = False
+) -> dict[str, Any] | None:
     """Fetch a single Vulners bulletin (CVE, advisory, exploit, ...) by its id.
+
+    Returns a compact summary by default — id, title, type, family, cvss,
+    timestamps, href and a clipped description. To pull more without flooding the
+    context, name the fields you need in ``fields`` (wire names from the
+    data-model reference, e.g. ``["cwe", "cpe", "epss", "cvelist",
+    "affectedSoftware"]``), or pass ``full=True`` for the whole (size-guarded)
+    document.
 
     Args:
         id: The bulletin id, e.g. ``CVE-2021-44228`` or ``EDB-ID:50592``.
+        fields: Extra fields to add on top of the summary.
+        full: Return the entire (size-guarded) document instead of a summary.
 
     Returns:
-        A compact summary of the bulletin, or ``null`` if no such id exists.
+        The bulletin summary (optionally enriched via ``fields``), the full
+        document when ``full`` is set, or ``null`` if no such id exists.
     """
     bulletin = await _get_client().search.get_bulletin(id)
-    return None if bulletin is None else _bulletin_summary(bulletin)
+    if bulletin is None:
+        return None
+    if full:
+        return _compact(bulletin.model_dump(by_alias=True, exclude_none=True))
+    summary = _bulletin_summary(bulletin)
+    if fields:
+        dumped = bulletin.model_dump(by_alias=True, exclude_none=True)
+        for name in fields:
+            if name in summary:
+                continue
+            value = dumped.get(name)
+            if value is None:
+                value = getattr(bulletin, name, None)
+            if value is not None:
+                summary[name] = _compact(value)
+    return summary
 
 
 @mcp.tool
-async def search_exploits(query: str, limit: int = 10) -> dict[str, Any]:
+async def search_exploits(query: str, limit: int = 10, offset: int = 0) -> dict[str, Any]:
     """Find public exploits and proof-of-concept code matching a query.
 
     A convenience wrapper that restricts a Lucene search to the ``exploit``
@@ -187,20 +253,21 @@ async def search_exploits(query: str, limit: int = 10) -> dict[str, Any]:
     Args:
         query: A CVE id, product name, or Lucene fragment.
         limit: Maximum exploits to return (1-100).
+        offset: Number of matches to skip; pass the previous response's
+            ``next_offset`` to page forward (the window is capped at 10000 docs).
 
     Returns:
-        ``{total, returned, exploits, note}`` — compact exploit summaries.
+        ``{total, offset, returned, has_more, next_offset, exploits}`` — compact
+        exploit summaries with the same pagination fields as ``search_bulletins``.
     """
     limit = max(1, min(limit, 100))
+    offset = max(0, offset)
     # Shares the SDK's exploit-query builder, so a bare CVE id is phrase-quoted
     # instead of being tokenized by Lucene into far-too-broad terms.
-    page = await _get_client().search.query(exploit_search_query(query), limit=limit)
-    return {
-        "total": page.total,
-        "returned": len(page.data),
-        "exploits": [_bulletin_summary(b) for b in page.data],
-        "note": "Result window capped at 10000 docs; refine the query to narrow results.",
-    }
+    page = await _get_client().search.query(
+        exploit_search_query(query), limit=limit, offset=offset
+    )
+    return _search_response(page, "exploits")
 
 
 @mcp.tool

@@ -26,8 +26,8 @@ from vulners._client import AsyncVulners, Vulners
 from vulners._config import DEFAULT_TIMEOUT, resolve_config
 from vulners._exceptions import ErrorInfo, _extract_message
 from vulners._logging import _SecretRedactingFilter
-from vulners._models._base import VulnersModel, _is_passthrough, construct_type
 from vulners._models import CveBulletin, construct_bulletin
+from vulners._models._base import VulnersModel, _is_passthrough, construct_type
 from vulners._resources._async.archive import _decode_archive as async_decode_archive
 from vulners._resources._async.archive import _distributive as async_distributive
 from vulners._resources._sync.archive import _decode_archive as sync_decode_archive

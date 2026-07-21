@@ -161,6 +161,7 @@ __all__ = [  # noqa: RUF022
     "VulnersDeprecationWarning",
 ]
 
+
 def __getattr__(name: str) -> Any:
     import importlib
 

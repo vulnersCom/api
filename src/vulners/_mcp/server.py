@@ -22,6 +22,8 @@ its query. ``get_bulletin`` returns a summary by default and accepts
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from typing import Any, Literal
 
 try:
@@ -38,8 +40,26 @@ from .._client import AsyncVulners
 from .._models.bulletin import Bulletin
 from .._resources._async.search import exploit_search_query
 
+
+@asynccontextmanager
+async def _lifespan(_server: Any) -> AsyncIterator[None]:
+    """Close the shared async client (its connection pool) on server shutdown.
+
+    In a plain stdio process the OS reclaims sockets on exit, but an embedded
+    server, hot reload, or repeated init would otherwise leak pools and sockets.
+    """
+    try:
+        yield
+    finally:
+        global _client
+        if _client is not None:
+            await _client.aclose()
+            _client = None
+
+
 mcp: FastMCP[Any] = FastMCP(
     name="vulners",
+    lifespan=_lifespan,
     instructions=(
         "Vulnerability intelligence from Vulners (https://vulners.com). Use these "
         "tools to search CVEs, exploits and advisories, look up a bulletin by id, "
@@ -75,7 +95,28 @@ def _get_client() -> AsyncVulners:
 
 _MAX_STR = 800
 _MAX_ITEMS = 20
+# Dict cardinality cap. Generous enough for a whole bulletin document (full=True is
+# ~45 keys) yet still bounds a pathological provider payload with thousands of keys.
+_MAX_KEYS = 100
 _MAX_DEPTH = 8
+
+# Wire field names the compact summary is built from. Requested upstream when the
+# caller asks get_bulletin for extra fields (or the full doc), so a field outside
+# the server's default id-lookup projection is actually returned to enrich from.
+_SUMMARY_FIELDS = (
+    "id",
+    "title",
+    "type",
+    "bulletinFamily",
+    "cvss",
+    "published",
+    "modified",
+    "href",
+    "description",
+)
+# cve_lookup enriches the summary with these CVE-specific fields; request them so
+# they are present regardless of the server's default projection.
+_CVE_FIELDS = (*_SUMMARY_FIELDS, "cvss2", "cvss3", "cwe", "cpe", "epss", "cvelist")
 
 
 def _compact(value: Any, *, depth: int = 0) -> Any:
@@ -102,7 +143,18 @@ def _compact(value: Any, *, depth: int = 0) -> Any:
             }
         return trimmed
     if isinstance(value, dict):
-        return {k: _compact(v, depth=depth + 1) for k, v in value.items()}
+        keys = list(value)
+        items = {k: _compact(value[k], depth=depth + 1) for k in keys[:_MAX_KEYS]}
+        if len(keys) > _MAX_KEYS:
+            # Cap dict cardinality like lists, so a provider response with thousands
+            # of keyed records cannot flood the context. Same self-describing shape.
+            return {
+                "items": items,
+                "returned_keys": len(items),
+                "total_keys": len(keys),
+                "truncated": True,
+            }
+        return items
     if isinstance(value, BaseModel):
         # Typed sub-models (e.g. EpssScore rows) get the same clipping as raw
         # dicts and serialize uniformly at the MCP boundary.
@@ -223,11 +275,25 @@ async def get_bulletin(
         The bulletin summary (optionally enriched via ``fields``), the full
         document when ``full`` is set, or ``null`` if no such id exists.
     """
-    bulletin = await _get_client().search.get_bulletin(id)
+    client = _get_client()
+    if full:
+        # Request the whole document (fields=["*"]) so `full` really means full —
+        # not "whatever the server's default id-lookup projection happened to
+        # include". The SDK's default get_bulletin omits heavy fields.
+        bulletin = await client.search.get_bulletin(id, fields=["*"])
+        if bulletin is None:
+            return None
+        return _compact(bulletin.model_dump(by_alias=True, exclude_none=True))
+    if fields:
+        # Ask the server for the summary fields plus the requested extras, so a
+        # field outside the default projection is actually returned to enrich from
+        # (not silently dropped because it was never fetched).
+        requested = list(dict.fromkeys([*_SUMMARY_FIELDS, *fields]))
+        bulletin = await client.search.get_bulletin(id, fields=requested)
+    else:
+        bulletin = await client.search.get_bulletin(id)
     if bulletin is None:
         return None
-    if full:
-        return _compact(bulletin.model_dump(by_alias=True, exclude_none=True))
     summary = _bulletin_summary(bulletin)
     if fields:
         dumped = bulletin.model_dump(by_alias=True, exclude_none=True)
@@ -280,7 +346,10 @@ async def cve_lookup(cve: str) -> dict[str, Any] | None:
     Returns:
         A compact CVE summary, or ``null`` if the CVE is unknown to Vulners.
     """
-    bulletin = await _get_client().search.get_bulletin(cve)
+    # Request the CVE-specific fields explicitly, so they are present regardless of
+    # the server's default id-lookup projection (not just when it happens to include
+    # them). Otherwise the enrichment below silently finds nothing.
+    bulletin = await _get_client().search.get_bulletin(cve, fields=list(_CVE_FIELDS))
     if bulletin is None:
         return None
     summary = _bulletin_summary(bulletin)

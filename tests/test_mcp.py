@@ -116,6 +116,10 @@ async def test_get_bulletin_fields_enriches_summary(fake_client):
     assert result["bulletin_family"] == "NVD"
     # an unknown field is silently skipped
     assert "does_not_exist" not in result
+    # the extras are actually requested upstream (not just filtered from whatever the
+    # default projection happened to include) — the point of the fix
+    forwarded = fake_client.search.get_bulletin.await_args.kwargs["fields"]
+    assert {"cwe", "cpe", "bulletinFamily", "does_not_exist"} <= set(forwarded)
 
 
 async def test_get_bulletin_full_returns_whole_document(fake_client):
@@ -135,6 +139,14 @@ async def test_get_bulletin_full_returns_whole_document(fake_client):
     assert result["id"] == "CVE-2021-44228"
     assert result["bulletinFamily"] == "NVD"
     assert result["cwe"] == ["CWE-502"]
+    # full=True asks the server for the whole document, not the default projection
+    assert fake_client.search.get_bulletin.await_args.kwargs["fields"] == ["*"]
+
+
+async def test_get_bulletin_full_missing_returns_none(fake_client):
+    fake_client.search.get_bulletin = AsyncMock(return_value=None)
+    tool = await server.mcp.get_tool("get_bulletin")
+    assert await tool.fn(id="CVE-0000-0000", full=True) is None
 
 
 async def test_get_bulletin_flags_truncated_description(fake_client):
@@ -234,6 +246,10 @@ async def test_cve_lookup_enriches_cve_fields(fake_client):
     # epss rows are typed EpssScore models; _compact must dump them to plain
     # dicts so the tool result serializes uniformly at the MCP boundary.
     assert result["epss"] == [{"cve": "CVE-2021-44228", "epss": 0.97, "percentile": 0.999}]
+    # the CVE-specific fields are requested upstream, so enrichment does not depend
+    # on the server's default id-lookup projection
+    forwarded = fake_client.search.get_bulletin.await_args.kwargs["fields"]
+    assert {"cwe", "cpe", "epss", "cvss3"} <= set(forwarded)
 
 
 async def test_audit_software_compacts_large_vuln_lists(fake_client):
@@ -279,6 +295,43 @@ def test_compact_depth_cap_and_scalar_passthrough():
     # Scalars (non-str/list/dict) pass through unchanged.
     assert server._compact(42) == 42
     assert server._compact(None) is None
+
+
+def test_compact_caps_dict_cardinality():
+    # A dict with more than _MAX_KEYS keys is truncated to a self-describing envelope
+    # so a provider payload with thousands of keys cannot flood the context.
+    big = {f"k{i}": i for i in range(server._MAX_KEYS + 5)}
+    out = server._compact(big)
+    assert out["truncated"] is True
+    assert out["total_keys"] == server._MAX_KEYS + 5
+    assert out["returned_keys"] == server._MAX_KEYS
+    assert len(out["items"]) == server._MAX_KEYS
+    # a small dict is returned unchanged (no envelope)
+    assert server._compact({"a": 1, "b": 2}) == {"a": 1, "b": 2}
+
+
+async def test_lifespan_closes_client(monkeypatch):
+    # The FastMCP lifespan closes and clears the shared async client on shutdown, so
+    # embedded/hot-reload/repeated-init lifecycles do not leak the pool.
+    closed = {}
+
+    class _FakeClient:
+        async def aclose(self):
+            closed["aclosed"] = True
+
+    monkeypatch.setattr(server, "_client", _FakeClient())
+    async with server._lifespan(server.mcp):
+        pass
+    assert closed.get("aclosed") is True
+    assert server._client is None
+
+
+async def test_lifespan_without_client_is_noop(monkeypatch):
+    # Shutdown when no client was ever built must not raise.
+    monkeypatch.setattr(server, "_client", None)
+    async with server._lifespan(server.mcp):
+        pass
+    assert server._client is None
 
 
 def test_cvss_includes_vector_and_handles_none():

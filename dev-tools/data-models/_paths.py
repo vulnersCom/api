@@ -11,7 +11,8 @@ REPO = HERE.parents[1]
 TYPE_OUT = HERE / "type_schemas.json"
 COLLECTION_OUT = HERE / "collection_map.json"
 
-# Committed generated outputs.
-MODELS_DATA = REPO / "src" / "vulners" / "_models" / "_collections_data.py"
+# Committed inputs/outputs. Generated models live in _models/bulletins/ (written by
+# _emit_bulletins from BULLETINS_DIR); descriptions are the authored input the
+# generator reads and tops up with placeholders.
 FIELD_DESCRIPTIONS = REPO / "src" / "vulners" / "_models" / "_field_descriptions.py"
 DOC_DIR = REPO / "documentation" / "reference"

@@ -2,24 +2,40 @@
 
 AnandPraka provides security advisories and CVEs focused on vulnerabilities in various software products and operating systems.
 
-**Family model:** [`AdvisoryBulletin`](../../data-models.md) — `bulletinFamily: blog`. Fields beyond the model stay accessible via `extra="allow"`; *in samples* is how often the field appeared in the sampled documents.
+**Family model:** [`AdvisoryBulletin`](../../data-models.md) — `bulletinFamily: blog`. Fields are grouped by where they're modelled; anything Vulners adds beyond the models stays accessible via `extra="allow"`.
 
-| field | type | in samples | description | example |
-|---|---|---|---|---|
-| `bulletinFamily` | `str` | 100% | Broad family the document belongs to (cve, exploit, software, …). | `"blog"` |
-| `cvss` | `object{score,vector}` | 100% | Primary CVSS score block (version, base score, vector, severity, source). | `{"score": 0.0, "vector": "NONE"}` |
-| `description` | `str` | 100% | Full text or summary of the vulnerability/advisory. | `"### Summary:\n\nThis blog post is about an I…` |
-| `enchantments` | `object{backreferences,dependencies,score,short_description,tags}` | 100% | Vulners-computed enrichment layer (AI score, tags, related docs). | `{"score": {"value": 7.0, "vector": "NONE"}, "…` |
-| `href` | `str` | 100% | Canonical URL of the document at its original source. | `"http://www.anandpraka.sh/2017/05/how-i-took-…` |
-| `id` | `str` | 100% | Unique document identifier (e.g. a CVE id, exploit id or advisory id). | `"ANANDPRAKA:E923C02933F806CD63FC04F38A23CAA2"` |
-| `lastseen` | `str` | 100% | Last time Vulners observed/refreshed the document (ISO-8601). | `"2017-07-29T13:18:31"` |
-| `modified` | `str` | 100% | Last modification timestamp at the source (ISO-8601). | `"2017-05-28T14:38:32"` |
-| `published` | `str` | 100% | Original publication timestamp (ISO-8601). | `"2017-05-28T14:38:00"` |
-| `reporter` | `str` | 100% | Person or organization credited with reporting/authoring it. | `"Anand Prakash (noreply@blogger.com)"` |
-| `sourceAvailable` | `bool` | 100% | Whether the raw source data is available for this document. | `false` |
-| `timestamps` | `object{contentUpdated,created,enriched,reviewed,updated}` | 100% | Vulners lifecycle timestamps (created/updated/enriched/reviewed/…). | `{"created": "2017-05-28T11:38:00Z", "updated"…` |
-| `title` | `str` | 100% | Human-readable title of the document. | `"How I took control of your Twitter account (…` |
-| `type` | `str` | 100% | Source collection the document comes from (cve, exploitdb, ubuntu, …). | `"anandpraka"` |
-| `vhref` | `str` | 100% | URL of the document on vulners.com. | `"https://vulners.com/anandpraka/ANANDPRAKA:E9…` |
-| `viewCount` | `int` | 100% | How many times the document has been viewed on Vulners. | `161` |
+### Common document fields
+
+Base [`Bulletin`](../../data-models.md) fields — every document carries these.
+
+| field | type | description | example |
+|---|---|---|---|
+| `bulletinFamily` | `str` | Broad family the document belongs to (cve, exploit, software, …). | `"blog"` |
+| `cvss` | `object{score,vector}` | Primary CVSS score block (version, base score, vector, severity, source). | `{"score": 0.0, "vector": "NONE"}` |
+| `description` | `str` | Full text or summary of the vulnerability/advisory. | `"### Summary:\n\nThis blog post is about an I…` |
+| `enchantments` | `object{backreferences,dependencies,score,short_description,tags}` | Vulners-computed enrichment layer (AI score, tags, related docs). | `{"score": {"value": 7.0, "vector": "NONE"}, "…` |
+| `href` | `str` | Canonical URL of the document at its original source. | `"http://www.anandpraka.sh/2017/05/how-i-took-…` |
+| `id` | `str` | Unique document identifier (e.g. a CVE id, exploit id or advisory id). | `"ANANDPRAKA:E923C02933F806CD63FC04F38A23CAA2"` |
+| `lastseen` | `str` | Last time Vulners observed/refreshed the document (ISO-8601). | `"2017-07-29T13:18:31"` |
+| `modified` | `str` | Last modification timestamp at the source (ISO-8601). | `"2017-05-28T14:38:32"` |
+| `published` | `str` | Original publication timestamp (ISO-8601). | `"2017-05-28T14:38:00"` |
+| `reporter` | `str` | Person or organization credited with reporting/authoring it. | `"Anand Prakash (noreply@blogger.com)"` |
+| `sourceAvailable` | `bool` | Whether the raw source data is available for this document. | `false` |
+| `timestamps` | `object{contentUpdated,created,enriched,reviewed,updated}` | Vulners lifecycle timestamps (created/updated/enriched/reviewed/…). | `{"created": "2017-05-28T11:38:00Z", "updated"…` |
+| `title` | `str` | Human-readable title of the document. | `"How I took control of your Twitter account (…` |
+| `type` | `str` | Source collection the document comes from (cve, exploitdb, ubuntu, …). | `"anandpraka"` |
+| `vhref` | `str` | URL of the document on vulners.com. | `"https://vulners.com/anandpraka/ANANDPRAKA:E9…` |
+| `viewCount` | `int` | How many times the document has been viewed on Vulners. | `161` |
+
+### Family fields
+
+Added by the [`AdvisoryBulletin`](../../data-models.md) family model.
+
+_None in the sample._
+
+### Collection fields
+
+Specific to the `anandpraka` collection.
+
+_None in the sample._
 

@@ -2,32 +2,50 @@
 
 MariaDB Unix collection includes advisories and CVEs specific to Unix-based systems for the MariaDB database server.
 
-**Family model:** [`UnixBulletin`](../../data-models.md) — `bulletinFamily: unix`. Fields beyond the model stay accessible via `extra="allow"`; *in samples* is how often the field appeared in the sampled documents.
+**Family model:** [`UnixBulletin`](../../data-models.md) — `bulletinFamily: unix`. Fields are grouped by where they're modelled; anything Vulners adds beyond the models stays accessible via `extra="allow"`.
 
-| field | type | in samples | description | example |
-|---|---|---|---|---|
-| `affectedPackage` | `list[object{OS,OSVersion,arch,operator,packageFilename,packageManager,packageName,packageVersion}]` | 95% | Affected OS/distribution packages (name, version, OS, arch). | `[{"OS": "Centos", "OSVersion": "7", "arch": "…` |
-| `bulletinFamily` | `str` | 100% | Broad family the document belongs to (cve, exploit, software, …). | `"unix"` |
-| `cvelist` | `list[str]` | 100% | Related CVE identifiers referenced by this document. | `["CVE-2026-49261"]` |
-| `cvss` | `object{score,severity,source,vector,version}` | 100% | Primary CVSS score block (version, base score, vector, severity, source). | `{"version": "3.1", "score": 10.0, "vector": "…` |
-| `cvss3` | `object{cvssV31}, object{cvssV3}` | 60% | CVSS v3.x score block. | `{"cvssV31": {"source": "security-advisories@g…` |
-| `cvss4` | `object{cvssV4}` | 5% | CVSS v4.0 score block. | `{"cvssV4": {"source": "nvd", "version": "4.0"…` |
-| `description` | `str` | 100% | Full text or summary of the vulnerability/advisory. | `"**Disclaimer**:\n_This data contains informa…` |
-| `enchantments` | `object{dependencies,ossf_scorecard,score,short_description,tags}, object{dependencies,score,short_description,tags}` | 100% | Vulners-computed enrichment layer (AI score, tags, related docs). | `{"score": {"value": 5.6, "uncertanity": 1.8, …` |
-| `epss` | `list[object{cve,date,epss,percentile}]` | 100% | EPSS exploitation-probability forecast datapoints (score + percentile). | `[{"cve": "CVE-2026-49261", "date": "2026-07-0…` |
-| `href` | `str` | 60% | Canonical URL of the document at its original source. | `"https://web.nvd.nist.gov/view/vuln/detail?vu…` |
-| `id` | `str` | 100% | Unique document identifier (e.g. a CVE id, exploit id or advisory id). | `"MARIA:CVE-2026-49261"` |
-| `lastseen` | `str` | 100% | Last time Vulners observed/refreshed the document (ISO-8601). | `"2026-07-15T08:37:27"` |
-| `metrics` | `object{adp,cna,nvd}, object{adp,cna}` | 60% | Raw scoring metrics blob (CNA/ADP/NVD/vendor sub-objects). | `{"nvd": {"cvss31": {"source": "nvd", "version…` |
-| `modified` | `str` | 100% | Last modification timestamp at the source (ISO-8601). | `"2026-07-15T02:22:35"` |
-| `published` | `str` | 100% | Original publication timestamp (ISO-8601). | `"2026-06-11T17:13:20"` |
-| `references` | `list[str]` | 60% | External reference URLs. | `["https://github.com/MariaDB/server/security/…` |
-| `reporter` | `str` | 100% | Person or organization credited with reporting/authoring it. | `"MariaDB"` |
-| `sourceAvailable` | `bool` | 100% | Whether the raw source data is available for this document. | `true` |
-| `timestamps` | `object{contentUpdated,created,enriched,metricsUpdated,reviewed,updated}` | 100% | Vulners lifecycle timestamps (created/updated/enriched/reviewed/…). | `{"created": "2026-05-30T11:51:22.696000Z", "u…` |
-| `title` | `str` | 100% | Human-readable title of the document. | `"CVE-2026-49261"` |
-| `type` | `str` | 100% | Source collection the document comes from (cve, exploitdb, ubuntu, …). | `"mariadbunix"` |
-| `unofficial_repo` | `bool` | 100% | Whether the fix comes from an unofficial repository. | `true` |
-| `vhref` | `str` | 100% | URL of the document on vulners.com. | `"https://vulners.com/mariadbunix/MARIA:CVE-20…` |
-| `viewCount` | `int` | 100% | How many times the document has been viewed on Vulners. | `32` |
+### Common document fields
+
+Base [`Bulletin`](../../data-models.md) fields — every document carries these.
+
+| field | type | description | example |
+|---|---|---|---|
+| `bulletinFamily` | `str` | Broad family the document belongs to (cve, exploit, software, …). | `"unix"` |
+| `cvelist` | `list[str]` | Related CVE identifiers referenced by this document. | `["CVE-2026-49261"]` |
+| `cvss` | `object{score,severity,source,vector,version}` | Primary CVSS score block (version, base score, vector, severity, source). | `{"version": "3.1", "score": 10.0, "vector": "…` |
+| `cvss3` | `object{cvssV31}, object{cvssV3}` | CVSS v3.x score block. | `{"cvssV31": {"source": "security-advisories@g…` |
+| `cvss4` | `object{cvssV4}` | CVSS v4.0 score block. | `{"cvssV4": {"source": "nvd", "version": "4.0"…` |
+| `description` | `str` | Full text or summary of the vulnerability/advisory. | `"**Disclaimer**:\n_This data contains informa…` |
+| `enchantments` | `object{dependencies,ossf_scorecard,score,short_description,tags}, object{dependencies,score,short_description,tags}` | Vulners-computed enrichment layer (AI score, tags, related docs). | `{"score": {"value": 5.6, "uncertanity": 1.8, …` |
+| `epss` | `list[object{cve,date,epss,percentile}]` | EPSS exploitation-probability forecast datapoints (score + percentile). | `[{"cve": "CVE-2026-49261", "date": "2026-07-0…` |
+| `href` | `str` | Canonical URL of the document at its original source. | `"https://web.nvd.nist.gov/view/vuln/detail?vu…` |
+| `id` | `str` | Unique document identifier (e.g. a CVE id, exploit id or advisory id). | `"MARIA:CVE-2026-49261"` |
+| `lastseen` | `str` | Last time Vulners observed/refreshed the document (ISO-8601). | `"2026-07-15T08:37:27"` |
+| `metrics` | `object{adp,cna,nvd}, object{adp,cna}` | Raw scoring metrics blob (CNA/ADP/NVD/vendor sub-objects). | `{"nvd": {"cvss31": {"source": "nvd", "version…` |
+| `modified` | `str` | Last modification timestamp at the source (ISO-8601). | `"2026-07-15T02:22:35"` |
+| `published` | `str` | Original publication timestamp (ISO-8601). | `"2026-06-11T17:13:20"` |
+| `references` | `list[str]` | External reference URLs. | `["https://github.com/MariaDB/server/security/…` |
+| `reporter` | `str` | Person or organization credited with reporting/authoring it. | `"MariaDB"` |
+| `sourceAvailable` | `bool` | Whether the raw source data is available for this document. | `true` |
+| `timestamps` | `object{contentUpdated,created,enriched,metricsUpdated,reviewed,updated}` | Vulners lifecycle timestamps (created/updated/enriched/reviewed/…). | `{"created": "2026-05-30T11:51:22.696000Z", "u…` |
+| `title` | `str` | Human-readable title of the document. | `"CVE-2026-49261"` |
+| `type` | `str` | Source collection the document comes from (cve, exploitdb, ubuntu, …). | `"mariadbunix"` |
+| `vhref` | `str` | URL of the document on vulners.com. | `"https://vulners.com/mariadbunix/MARIA:CVE-20…` |
+| `viewCount` | `int` | How many times the document has been viewed on Vulners. | `32` |
+
+### Family fields
+
+Added by the [`UnixBulletin`](../../data-models.md) family model.
+
+| field | type | description | example |
+|---|---|---|---|
+| `affectedPackage` | `list[object{OS,OSVersion,arch,operator,packageFilename,packageManager,packageName,packageVersion}]` | Affected OS/distribution packages (name, version, OS, arch). | `[{"OS": "Centos", "OSVersion": "7", "arch": "…` |
+
+### Collection fields
+
+Specific to the `mariadbunix` collection.
+
+| field | type | description | example |
+|---|---|---|---|
+| `unofficial_repo` | `bool` | Whether the fix comes from an unofficial repository. | `true` |
 

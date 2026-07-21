@@ -85,18 +85,52 @@ def _model_field_rows(model: Any, base: Any) -> list[tuple[str, str, str]]:
     return sorted(rows)
 
 
-def _field_table(tinfo: dict, descriptions: dict) -> list[str]:
-    rows = ["| field | type | in samples | description | example |", "|---|---|---|---|---|"]
+def _field_row(name: str, meta: dict, descriptions: dict) -> str:
+    """One table row: field · type(s) · description · example."""
+    types = ", ".join(meta["types"])
+    fdesc = _md_escape(descriptions.get(name, ""))
+    raw = meta.get("example") or ""
+    if len(raw) > 48:
+        raw = raw[:45] + "…"
+    return f"| `{name}` | `{types}` | {fdesc} | {_md_code(raw)} |"
+
+
+def _field_sections(t: str, tinfo: dict, descriptions: dict, bmod: Any, fam: str) -> list[str]:
+    """Three sorted tables for a collection's sampled fields, partitioned by where
+    each field is modelled: common (base ``Bulletin``) → family → collection (type)."""
+    base = bmod.Bulletin
+    fam_model = bmod._FAMILY_MODELS.get(fam)
+    base_wire = {(fi.alias or n) for n, fi in base.model_fields.items()}
+    fam_wire = (
+        {(fi.alias or n) for n, fi in fam_model.model_fields.items()} - base_wire
+        if fam_model is not None
+        else set()
+    )
+    buckets: dict[str, list[tuple[str, dict]]] = {"base": [], "family": [], "type": []}
     for name, meta in tinfo.get("fields", {}).items():
-        types = ", ".join(meta["types"])
-        fdesc = _md_escape(descriptions.get(name, ""))
-        raw = meta.get("example") or ""
-        if len(raw) > 48:
-            raw = raw[:45] + "…"
-        # presence None = stats unavailable (retained entry for an errored sample)
-        pct = "n/a" if meta["presence"] is None else f"{int(meta['presence'] * 100)}%"
-        rows.append(f"| `{name}` | `{types}` | {pct} | {fdesc} | {_md_code(raw)} |")
-    return rows
+        key = "base" if name in base_wire else "family" if name in fam_wire else "type"
+        buckets[key].append((name, meta))
+
+    fam_name = fam_model.__name__ if fam_model is not None else "GenericBulletin"
+    sections = [
+        ("base", "Common document fields",
+         "Base [`Bulletin`](../../data-models.md) fields — every document carries these."),
+        ("family", "Family fields",
+         f"Added by the [`{fam_name}`](../../data-models.md) family model."),
+        ("type", "Collection fields",
+         f"Specific to the `{t}` collection."),
+    ]
+    out: list[str] = []
+    for key, title, blurb in sections:
+        out += [f"### {title}", "", blurb, ""]
+        rows = sorted(buckets[key])
+        if rows:
+            out += ["| field | type | description | example |", "|---|---|---|---|"]
+            out += [_field_row(n, m, descriptions) for n, m in rows]
+        else:
+            out.append("_None in the sample._")
+        out.append("")
+    return out
 
 
 def _emit_data_models_narrative(bmod: Any) -> None:
@@ -168,10 +202,11 @@ def _emit_data_models_narrative(bmod: Any) -> None:
 
 
 def _write_type_page(
-    types_dir: Path, t: str, info: dict, tinfo: dict, fam_names: dict, descriptions: dict
+    types_dir: Path, t: str, info: dict, tinfo: dict, bmod: Any, descriptions: dict
 ) -> None:
     fam = info["bulletinFamily"]
-    model = fam_names.get(fam, "GenericBulletin")
+    fam_model = bmod._FAMILY_MODELS.get(fam)
+    model = fam_model.__name__ if fam_model is not None else "GenericBulletin"
     cnt_s = _approx(info.get("count"))
     desc = _prose(info.get("description") or "")
     lines = [
@@ -180,17 +215,16 @@ def _write_type_page(
         desc or "_(no description)_",
         "",
         f"**Family model:** [`{model}`](../../data-models.md) — `bulletinFamily: {fam}`. "
-        'Fields beyond the model stay accessible via `extra="allow"`; *in samples* is how '
-        "often the field appeared in the sampled documents.",
+        "Fields are grouped by where they're modelled; anything Vulners adds beyond the "
+        'models stays accessible via `extra="allow"`.',
         "",
-        *_field_table(tinfo, descriptions),
-        "",
+        *_field_sections(t, tinfo, descriptions, bmod, fam),
     ]
     (types_dir / f"{_slug(t)}.md").write_text("\n".join(lines) + "\n")
 
 
 def _emit_collections_reference(
-    type_schemas: dict, collection_map: dict, fam_names: dict, descriptions: dict
+    type_schemas: dict, collection_map: dict, bmod: Any, fam_names: dict, descriptions: dict
 ) -> None:
     """documentation/reference/collections/ — one atomically-editable page per
     collection ``type`` plus an index, so a changed collection touches only its own
@@ -205,7 +239,7 @@ def _emit_collections_reference(
     for t, info in collection_map.items():
         if info.get("bulletinFamily"):
             by_family[info["bulletinFamily"]].append(t)
-            _write_type_page(types_dir, t, info, type_schemas.get(t, {}), fam_names, descriptions)
+            _write_type_page(types_dir, t, info, type_schemas.get(t, {}), bmod, descriptions)
 
     n_fam = len({fam_names.get(f, "GenericBulletin") for f in by_family})
     n_types = sum(len(v) for v in by_family.values())
@@ -247,7 +281,7 @@ def emit_docs(type_schemas: dict, collection_map: dict, descriptions: dict) -> N
     DOC_DIR.mkdir(parents=True, exist_ok=True)
 
     _emit_data_models_narrative(bmod)
-    _emit_collections_reference(type_schemas, collection_map, fam_names, descriptions)
+    _emit_collections_reference(type_schemas, collection_map, bmod, fam_names, descriptions)
     print(
         f"wrote {DOC_DIR / 'data-models.md'} and {DOC_DIR / 'collections'}/ "
         "(index + one page per type)",

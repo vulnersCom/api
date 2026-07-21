@@ -152,6 +152,12 @@ def _option_changes(
 class Vulners:
     """Synchronous Vulners API client."""
 
+    # Set on a with_options() clone to keep its pool's owner alive (the clone shares
+    # but does not own the pool). Deliberately no class-level default: it must be
+    # *absent* on a top-level client so with_options's getattr(self, "_owner", self)
+    # captures the parent, not None.
+    _owner: Vulners | None
+
     def __init__(
         self,
         api_key: str | SecretStr | None = None,
@@ -368,13 +374,19 @@ class Vulners:
         """A copy of this client sharing the same connection pool, with overrides."""
         changes = _option_changes(timeout, max_retries, max_response_bytes)
         clone = object.__new__(type(self))
-        # The shared httpx client is injected, so the clone never closes it; the
-        # parent's pacing buckets are shared so rate-limit pacing is not reset.
+        # The shared httpx client is injected, so the clone's own api treats the
+        # pool as externally-supplied and never closes it; the parent's pacing
+        # buckets are shared so rate-limit pacing is not reset.
         clone._api = SyncAPIClient(
             self._api.config.replace(**changes),
             http_client=self._api._client,
             buckets=self._api._buckets,
         )
+        # Keep the pool's real owner alive for the clone's whole lifetime, and
+        # route close through it. Without this, `Vulners(key).with_options(...)`
+        # would drop the temporary owner immediately — its finalizer closing the
+        # shared pool out from under the clone (RuntimeError on the next request).
+        clone._owner = getattr(self, "_owner", self)
         return clone
 
     @property
@@ -385,7 +397,10 @@ class Vulners:
     def close(self) -> None:
         """Close the underlying connection pool.
 
-        A no-op for an ``http_client`` you passed in; prefer the ``with`` context manager.
+        A no-op for an ``http_client`` you passed in; prefer the ``with`` context
+        manager. A ``with_options()`` clone shares (but does not own) its owner's
+        pool, so closing the clone leaves the pool open — close the owning client,
+        or let it be garbage-collected, to release it.
         """
         self._api.close()
 
@@ -404,6 +419,9 @@ class Vulners:
 
 class AsyncVulners:
     """Asynchronous Vulners API client."""
+
+    # See Vulners._owner: kept only on a with_options() clone, no class default.
+    _owner: AsyncVulners | None
 
     def __init__(
         self,
@@ -621,13 +639,19 @@ class AsyncVulners:
         """A copy of this client sharing the same connection pool, with overrides."""
         changes = _option_changes(timeout, max_retries, max_response_bytes)
         clone = object.__new__(type(self))
-        # The shared httpx client is injected, so the clone never closes it; the
-        # parent's pacing buckets are shared so rate-limit pacing is not reset.
+        # The shared httpx client is injected, so the clone's own api treats the
+        # pool as externally-supplied and never closes it; the parent's pacing
+        # buckets are shared so rate-limit pacing is not reset.
         clone._api = AsyncAPIClient(
             self._api.config.replace(**changes),
             http_client=self._api._client,
             buckets=self._api._buckets,
         )
+        # Keep the pool's real owner alive for the clone's lifetime and route
+        # aclose through it. Without this the temporary owner of
+        # `AsyncVulners(key).with_options(...)` would be dropped with no async
+        # finalizer, leaking the pool (nothing ever closes it).
+        clone._owner = getattr(self, "_owner", self)
         return clone
 
     @property
@@ -638,7 +662,10 @@ class AsyncVulners:
     async def aclose(self) -> None:
         """Close the underlying connection pool.
 
-        A no-op for an ``http_client`` you passed in; prefer the ``async with`` context manager.
+        A no-op for an ``http_client`` you passed in; prefer the ``async with``
+        context manager. A ``with_options()`` clone shares (but does not own) its
+        owner's pool, so closing the clone leaves the pool open — close the owning
+        client to release it (the clone keeps the owner alive until it is gone).
         """
         await self._api.aclose()
 

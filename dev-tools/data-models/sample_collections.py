@@ -62,14 +62,18 @@ def main() -> int:
 
     errored = sorted(t for t, info in collection_map.items() if "error" in info)
     if errored:
+        # A partial sample must not be written: the base/family layers are field
+        # INTERSECTIONS, so a single dropped collection can silently promote a field
+        # onto Bulletin (or a family) and reshape every unrelated model. Refuse and
+        # let the maintainer re-run until every collection samples cleanly.
         print(
-            f"\nWARNING: {len(errored)} collection(s) errored while sampling and were "
-            "SKIPPED — their models/pages will be dropped. Re-run to restore them:",
+            f"\n{len(errored)} collection(s) errored while sampling — REFUSING to write "
+            "(a partial sample would reshape the base/family field layers). Re-run:",
             file=sys.stderr,
         )
         for t in errored:
             print(f"  - {t} ({collection_map[t]['error']})", file=sys.stderr)
-        print(file=sys.stderr)
+        return 1
 
     # Every type-specific field must carry a human description (base/family/nested
     # field descriptions live with those hand-written/authored layers).

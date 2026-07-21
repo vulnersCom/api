@@ -358,7 +358,7 @@ class TenableBulletin(InfoBulletin):
 
 
 class ThnBulletin(InfoBulletin):
-    """`type: thn` — The "thn" collection from the Threat Hunter Network includes advisories and CVEs focused on various software products and vulnerabilities."""
+    """`type: thn` — The \"thn\" collection from the Threat Hunter Network includes advisories and CVEs focused on various software products and vulnerabilities."""
 
     attachments: Any = None
     """Binary/media attachments associated with the document."""

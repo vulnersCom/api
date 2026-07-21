@@ -162,6 +162,15 @@ __all__ = [  # noqa: RUF022
 ]
 
 
+# The nested value objects (framework, hand-written in `_models/_nested.py`) are the
+# only non-…Bulletin names the model layer exports; naming them lets a top-level miss
+# on an unrelated name stay cheap instead of importing (and eagerly building) the model
+# package. Kept in sync with `_nested.__all__` (both hand-edited, rarely).
+_NESTED_NAMES = frozenset(
+    {"Cvss", "Cvss2", "Cvss3", "Cvss4", "Enchantments", "EpssScore", "Timestamps"}
+)
+
+
 def __getattr__(name: str) -> Any:
     import importlib
 
@@ -170,17 +179,25 @@ def __getattr__(name: str) -> Any:
         value = getattr(importlib.import_module(module, __name__), name)
         globals()[name] = value  # cache so later access skips __getattr__
         return value
-    # Generated response models (…Bulletin) and nested value objects (Cvss, …)
-    # resolve lazily, so a bare `import vulners` never eagerly builds the pydantic
-    # models (which call sys._getframe at class definition).
-    for mod in ("._models.bulletins", "._models._nested"):
-        try:
-            value = getattr(importlib.import_module(mod, __name__), name)
-        except AttributeError:
-            continue
-        globals()[name] = value
-        return value
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    # Generated response models (…Bulletin) and nested value objects (Cvss, …) resolve
+    # lazily, so a bare `import vulners` never eagerly builds the pydantic models (which
+    # call sys._getframe at class definition). ONLY these names touch the model layer —
+    # an unrelated miss (a typo, a `getattr(vulners, x, default)` probe) stays cheap.
+    if name.endswith("Bulletin"):
+        mod = "._models.bulletins"
+    elif name in _NESTED_NAMES:
+        mod = "._models._nested"
+    else:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    # import OUTSIDE the getattr guard, so an error while building the model layer
+    # surfaces instead of being masked as a bogus "no attribute".
+    member = importlib.import_module(mod, __name__)
+    try:
+        value = getattr(member, name)
+    except AttributeError:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}") from None
+    globals()[name] = value  # cache so later access skips __getattr__
+    return value
 
 
 def __dir__() -> list[str]:

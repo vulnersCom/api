@@ -58,6 +58,17 @@ class TestHierarchy:
             aliases = [(fi.alias or n) for n, fi in model.model_fields.items()]
             assert len(aliases) == len(set(aliases)), model.__name__
 
+    def test_no_field_shadows_a_base_model_method(self):
+        # A generated field named `has`/`copy`/`model_dump`/… would override the
+        # method and — under the suite's filterwarnings=error — break the import.
+        # The emitter's _pyname renames on collision against dir(VulnersModel).
+        from vulners._models import VulnersModel
+
+        reserved = frozenset(dir(VulnersModel))
+        for model in [vm.Bulletin, *FAMILY_MODELS.values(), *TYPE_MODELS.values()]:
+            clash = set(model.model_fields) & reserved
+            assert not clash, f"{model.__name__} fields shadow base attrs: {sorted(clash)}"
+
 
 class TestConstruction:
     def test_type_wins_over_family(self):

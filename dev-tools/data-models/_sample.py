@@ -77,7 +77,6 @@ def sample(limit_per: int, workers: int = 12) -> tuple[dict, dict]:
     redact = key
     client = Vulners(api_key=key, base_url=server)
 
-    collections = client.get("/api/v4/search/collections")["result"]
     collection_map: dict[str, Any] = {}
     type_fields: dict[str, dict[str, dict[str, Any]]] = defaultdict(
         lambda: defaultdict(_new_field)
@@ -117,6 +116,7 @@ def sample(limit_per: int, workers: int = 12) -> tuple[dict, dict]:
             return col, None, type(exc).__name__
 
     try:
+        collections = client.get("/api/v4/search/collections")["result"]
         with ThreadPoolExecutor(max_workers=workers) as ex:
             futs = [ex.submit(_fetch, col) for col in collections]
             for i, fut in enumerate(as_completed(futs), 1):

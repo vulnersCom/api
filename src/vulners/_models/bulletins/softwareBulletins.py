@@ -832,7 +832,7 @@ class SecurityvulnsBulletin(SoftwareBulletin):
 
 
 class SickBulletin(SoftwareBulletin):
-    """`type: sick` — The "sick" collection includes advisories and CVEs from various vendors, focusing on vulnerabilities in software products and operating systems."""
+    """`type: sick` — The \"sick\" collection includes advisories and CVEs from various vendors, focusing on vulnerabilities in software products and operating systems."""
 
     affected_software: Any = Field(default=None, alias="affectedSoftware")
     """Affected software products (name/version/operator)."""

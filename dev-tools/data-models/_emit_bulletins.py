@@ -29,7 +29,15 @@ from collections import defaultdict
 from _emit_models import derive_layers
 from _paths import REPO
 
+from vulners._models._base import VulnersModel
+
 BULLETINS_DIR = REPO / "src" / "vulners" / "_models" / "bulletins"
+
+# Attribute/method names on the base model (pydantic BaseModel + VulnersModel, e.g.
+# ``has``, ``copy``, ``model_dump``): a field whose snake_case name matched one would
+# shadow the method and — under the suite's ``filterwarnings=["error"]`` — break the
+# import. ``_pyname`` renames on collision so a sampled field never shadows one.
+_RESERVED = frozenset(dir(VulnersModel))
 
 # wire field -> rich annotation (nested value objects from _nested). These keep
 # their proper types wherever the field is modelled (all base fields today).
@@ -86,7 +94,7 @@ def _pyname(wire: str, taken: set[str]) -> str:
         snake = f"f_{snake}"
     if keyword.iskeyword(snake) or not snake.isidentifier():
         snake = f"{snake}_"
-    while snake in taken:
+    while snake in taken or snake in _RESERVED:
         snake = f"{snake}_"
     return snake
 
@@ -112,12 +120,39 @@ def _type_class(ctype: str, reserved: set[str], taken: set[str]) -> str:
     return n
 
 
+def class_names(
+    collection_map: dict,
+) -> tuple[dict[str, str], dict[str, str], dict[str, list[str]]]:
+    """(family -> class, type -> class, family -> [types]) — the single naming source
+    both the code emitter and the docs emitter use, so class names never drift.
+
+    Raises if two ``bulletinFamily`` values PascalCase to the same class name (which
+    would silently make two families resolve to one model)."""
+    fam_types: dict[str, list[str]] = defaultdict(list)
+    for t, info in collection_map.items():
+        fam = info.get("bulletinFamily")
+        if fam:
+            fam_types[fam].append(t)
+    fam_class = {fam: _fam_class(fam) for fam in fam_types}
+    names = list(fam_class.values())
+    if len(set(names)) != len(names):
+        raise SystemExit(f"family class-name collision among families {sorted(fam_types)}")
+    reserved = set(names) | {"Bulletin", "GenericBulletin"}
+    type_class: dict[str, str] = {}
+    taken = set(reserved)
+    for fam in sorted(fam_types):
+        for t in sorted(fam_types[fam]):
+            type_class[t] = _type_class(t, reserved, taken)
+            taken.add(type_class[t])
+    return fam_class, type_class, fam_types
+
+
 def _docstring(text: str) -> str:
-    """Single-line body for a triple-quoted attribute/​class docstring literal."""
-    t = " ".join(text.split()).replace("\\", "\\\\").replace('"""', '\\"\\"\\"')
-    if t.endswith('"'):
-        t = t[:-1] + '\\"'
-    return t
+    """Single-line body for a triple-quoted attribute/class docstring, safe for any
+    content: backslashes and EVERY double-quote are escaped (backslashes first), so
+    server-supplied prose can never contain or adjoin the closing triple-quote, nor end
+    the string on a bare quote. Non-ASCII is kept literal for readable IDE hovers."""
+    return " ".join(text.split()).replace("\\", "\\\\").replace('"', '\\"')
 
 
 def _field_lines(
@@ -174,21 +209,7 @@ def _module_header(doc: str, uses_any: bool, uses_field: bool, nested: set[str],
 def emit_bulletins(type_schemas: dict, collection_map: dict, descriptions: dict) -> int:
     """Generate the whole ``bulletins`` package; returns the number of type models."""
     base_fields, family_fields = derive_layers(type_schemas)
-
-    fam_types: dict[str, list[str]] = defaultdict(list)
-    for t, info in collection_map.items():
-        fam = info.get("bulletinFamily")
-        if fam:
-            fam_types[fam].append(t)
-
-    fam_class = {fam: _fam_class(fam) for fam in fam_types}
-    reserved = set(fam_class.values()) | {"Bulletin", "GenericBulletin"}
-    type_class: dict[str, str] = {}
-    taken_classes = set(reserved)
-    for fam in sorted(fam_types):
-        for t in sorted(fam_types[fam]):
-            type_class[t] = _type_class(t, reserved, taken_classes)
-            taken_classes.add(type_class[t])
+    fam_class, type_class, fam_types = class_names(collection_map)
 
     # aggregate a base field's sampled types across every collection that carries it,
     # so the base annotation reflects the whole corpus (rich fields ignore this).
@@ -255,10 +276,9 @@ def emit_bulletins(type_schemas: dict, collection_map: dict, descriptions: dict)
         for t in sorted(fam_types[fam]):
             fields = type_schemas.get(t, {}).get("fields", {})
             spec = set(fields) - base_fields - family_fields.get(fam, set())
-            # seed with base+family python names so a type field never shadows one
-            type_taken = set(base_taken)
-            for w in fam_wires:
-                type_taken.add(_pyname(w, type_taken))
+            # fam_taken already holds base + family python names, so a type field
+            # never shadows an inherited one
+            type_taken = set(fam_taken)
             tlines, na, nf, nn = _field_lines(sorted(spec), fields, type_taken, descriptions)
             uses_any |= na
             uses_field |= nf

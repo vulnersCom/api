@@ -13,9 +13,9 @@ drift. Under ``documentation/reference/bulletins/``:
 from __future__ import annotations
 
 import shutil
-from collections import defaultdict
+import sys
 
-from _emit_bulletins import _annotation, _fam_class, _type_class
+from _emit_bulletins import _annotation, class_names
 from _emit_models import derive_layers
 from _paths import DOC_DIR
 
@@ -49,24 +49,6 @@ def _approx(n: object) -> str:
     return f"~{r}"
 
 
-def _class_names(collection_map: dict) -> tuple[dict[str, str], dict[str, str], dict[str, list]]:
-    """(fam -> class, type -> class, fam -> [types]) — the SAME naming the code
-    emitter uses, so the docs reference the exact generated class names."""
-    fam_types: dict[str, list[str]] = defaultdict(list)
-    for t, info in collection_map.items():
-        if info.get("bulletinFamily"):
-            fam_types[info["bulletinFamily"]].append(t)
-    fam_class = {fam: _fam_class(fam) for fam in fam_types}
-    reserved = set(fam_class.values()) | {"Bulletin", "GenericBulletin"}
-    type_class: dict[str, str] = {}
-    taken = set(reserved)
-    for fam in sorted(fam_types):
-        for t in sorted(fam_types[fam]):
-            type_class[t] = _type_class(t, reserved, taken)
-            taken.add(type_class[t])
-    return fam_class, type_class, fam_types
-
-
 def _field_table(wires: set[str], meta_of, descriptions: dict) -> list[str]:
     """A ``| field | type | description | example |`` table for *wires*, sorted."""
     if not wires:
@@ -98,7 +80,7 @@ def _agg_meta(type_schemas: dict, wire: str, types: list[str]) -> dict:
 def emit_docs(type_schemas: dict, collection_map: dict, descriptions: dict) -> None:
     """Regenerate ``documentation/reference/bulletins/`` from the sampled layers."""
     base_fields, family_fields = derive_layers(type_schemas)
-    fam_class, type_class, fam_types = _class_names(collection_map)
+    fam_class, type_class, fam_types = class_names(collection_map)
     all_types = [t for fam in fam_types for t in fam_types[fam]]
 
     # Fresh tree (drop pages for collections/families that no longer exist), plus
@@ -214,5 +196,5 @@ def emit_docs(type_schemas: dict, collection_map: dict, descriptions: dict) -> N
 
     print(
         f"wrote {BULLETINS_DOC}/ (index + base + {len(fam_types)} family pages)",
-        file=__import__("sys").stderr,
+        file=sys.stderr,
     )

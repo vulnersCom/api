@@ -11,7 +11,7 @@ from .._nested import Cvss, Enchantments, EpssScore, Timestamps
 
 
 class Bulletin(VulnersModel):
-    """A single Vulners document; base for every bulletinFamily. Carries the fields present in every document. Family/type subclasses add their own; extra="allow" keeps any unmodelled field accessible."""
+    """A single Vulners document; base for every bulletinFamily. Carries the fields present in every document. Family/type subclasses add their own; extra=\"allow\" keeps any unmodelled field accessible."""
 
     bulletin_family: str | None = Field(default=None, alias="bulletinFamily")
     """Broad family the document belongs to (cve, exploit, software, …)."""

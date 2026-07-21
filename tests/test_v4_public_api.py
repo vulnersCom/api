@@ -43,9 +43,10 @@ class TestV4Importable:
 
     def test_public_types_reexported(self):
         # Annotation-worthy return/input types are reachable from the root, lazily.
-        from vulners import AsyncSearchPage, Bulletin, SearchPage
+        from vulners import AsyncSearchPage, Bulletin, Cvss, SearchPage
 
-        assert Bulletin.__name__ == "Bulletin"
+        assert Bulletin.__name__ == "Bulletin"  # a …Bulletin name -> bulletins package
+        assert Cvss.__name__ == "Cvss"  # a nested value object -> _nested
         assert SearchPage.__name__ == "SearchPage"
         assert AsyncSearchPage.__name__ == "AsyncSearchPage"
         # Same object as the private module's (lazy re-export identity).
@@ -58,8 +59,12 @@ class TestV4Importable:
     def test_unknown_attribute_raises(self):
         import pytest
 
+        # a plain miss, a …Bulletin miss (imports the model package, then absent), and
+        # the nested-name gate all raise AttributeError, not something else.
         with pytest.raises(AttributeError):
             _ = vulners.DoesNotExist
+        with pytest.raises(AttributeError):
+            _ = vulners.NotARealBulletin
 
 
 class TestExceptionHierarchy:

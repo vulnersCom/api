@@ -12,7 +12,14 @@ permissions:
   contents: read
 
 jobs:
+  # Release gate: run the full CI (lint, tests, unasync, package, coverage, mcp,
+  # docs) on the tagged commit. build/publish only proceed if every check passes,
+  # so a tag can never ship code that would fail CI.
+  check:
+    uses: ./.github/workflows/ci.yml
+
   build:
+    needs: check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1

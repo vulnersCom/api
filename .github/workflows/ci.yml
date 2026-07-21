@@ -2,9 +2,12 @@ name: ci
 
 on:
   push:
-    branches: [v4.0]
+    branches: [master, v4.0]
   pull_request:
-    branches: [v4.0]
+    branches: [master, v4.0]
+  # Callable as a reusable workflow so the release gate runs the full check on the
+  # tagged commit before anything is built or published.
+  workflow_call:
 
 # TODO(security-review): pin astral-sh/setup-uv to a commit SHA (the other
 # actions are already SHA-pinned). Tags are used here on the dev branch only.

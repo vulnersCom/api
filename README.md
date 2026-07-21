@@ -61,10 +61,11 @@ from vulners import Vulners
 
 # Get a free API key at https://vulners.com (or export VULNERS_API_KEY).
 with Vulners(api_key="YOUR_API_KEY_HERE") as v:
-    # Look up a CVE — you get back a typed model.
+    # Look up a CVE — you get back a typed model (or None if it isn't found).
     log4shell = v.search.get_bulletin("CVE-2021-44228")
-    print(log4shell.id, "—", log4shell.title)
-    print(log4shell.cvss.score, log4shell.cvss.vector)
+    if log4shell is not None and log4shell.cvss is not None:
+        print(log4shell.id, "—", log4shell.title)
+        print(log4shell.cvss.score, log4shell.cvss.vector)
 
     # Search with Lucene syntax. `limit` is the page size; read the first page here
     # (iterating the page itself auto-paginates the whole result window).

@@ -113,17 +113,18 @@ def emit_docs(type_schemas: dict, collection_map: dict, descriptions: dict) -> N
     BULLETINS_DOC.mkdir(parents=True)
 
     # --- index.md ------------------------------------------------------------
+    n_types = sum(len(v) for v in fam_types.values())
     idx = [
         "# Data models",
         "",
-        "Every document Vulners returns is a **bulletin**, modelled in three layers so "
-        "you get typed fields and IDE hints at whatever level of detail you need:",
+        "Every document Vulners returns is a **bulletin**, modelled in three inheritance "
+        "layers so you get typed fields and IDE hints at whatever level of detail you need:",
         "",
         "1. **[`Bulletin`](base.md)** — the base: the fields every document carries.",
         "2. **Family models** (`CveBulletin`, `ExploitBulletin`, …) — one per "
-        "`bulletinFamily`, adding that family's shared fields.",
-        "3. **Collection models** — one per collection `type`, adding the fields specific "
-        "to that collection.",
+        "`bulletinFamily`, extending `Bulletin` with that family's shared fields.",
+        "3. **Collection models** — one per collection `type`, extending its family model "
+        "with the fields specific to that collection.",
         "",
         "`search`/`archive`/`audit` return the most specific model that matches a "
         "document's `type`, then its `bulletinFamily`, then `Bulletin`. Every model keeps "
@@ -131,19 +132,38 @@ def emit_docs(type_schemas: dict, collection_map: dict, descriptions: dict) -> N
         "on the object, just untyped — nothing is ever dropped.",
         "",
         "> The models **and** these pages are generated from live samples by "
-        "`dev-tools/data-models/sample_collections.py`; a field belongs to a layer when the "
-        "server sends it in *every* sampled document at that level.",
+        "`dev-tools/data-models/sample_collections.py` into `src/vulners/_models/bulletins/` "
+        "(one file per family); a field belongs to a layer when the server sends its key in "
+        "*every* sampled document at that level.",
         "",
-        f"## Families ({len(fam_types)})",
+        "## Structure",
         "",
-        "| family | model | collections |",
-        "|---|---|---|",
+        f"`Bulletin` (base) → {len(fam_types)} family models → {n_types} collection models. "
+        "Every family model extends `Bulletin`; every collection model extends its family "
+        "model, so `isinstance` holds at every level (a `nessus` document is a "
+        "`NessusBulletin`, which is a `ScannerBulletin`, which is a `Bulletin`). Each row "
+        "links to that family's page, listing its fields and every collection type under it.",
+        "",
+        f"- **[`Bulletin`](base.md)** — base · {len(base_fields)} common fields",
     ]
     for fam in sorted(fam_types):
+        nf = len(family_fields.get(fam, set()))
+        nt = len(fam_types[fam])
         idx.append(
-            f"| [`{fam}`]({fam}.md) | `{fam_class[fam]}` | {len(fam_types[fam])} |"
+            f"    - **[`{fam_class[fam]}`]({fam}.md)** — `bulletinFamily: {fam}` · "
+            f"+{nf} field{'s' if nf != 1 else ''} · "
+            f"{nt} collection type{'s' if nt != 1 else ''}"
         )
-    idx.append("")
+    idx += [
+        "",
+        f"## Base fields ({len(base_fields)})",
+        "",
+        "Present in every document, at the `Bulletin` level — full table with types, "
+        "descriptions and examples on **[the base page](base.md)**:",
+        "",
+        ", ".join(f"`{w}`" for w in sorted(base_fields)),
+        "",
+    ]
     (BULLETINS_DOC / "index.md").write_text("\n".join(idx) + "\n")
 
     # --- base.md -------------------------------------------------------------

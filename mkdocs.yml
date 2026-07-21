@@ -9,10 +9,11 @@ copyright: Copyright &copy; Vulners
 # source lives under `documentation/`.
 docs_dir: documentation
 
-# The per-collection pages (one per `type`, generated) are reached from the
-# Collections reference index, not listed individually in the nav.
+# The per-family data-model pages (generated) are reached from the Data models
+# index, not listed individually in the nav.
 not_in_nav: |
-  /reference/collections/types/*.md
+  /reference/bulletins/base.md
+  /reference/bulletins/*.md
 
 theme:
   name: material
@@ -94,12 +95,11 @@ plugins:
           - reference/clients.md
           - reference/resources.md
           - reference/models.md
-          - reference/data-models.md
-          # collections/index.md is deliberately NOT listed: the llmstxt plugin
+          # reference/bulletins/*.md are deliberately NOT listed: the llmstxt plugin
           # rewrites a listed page's relative links to .md companions, but the
-          # 238 per-type pages under collections/types/ are not listed (that
-          # would embed all of them into llms-full.txt), so every rewritten link
-          # would 404. The HTML site remains the canonical collections browser.
+          # per-family data-model pages are not all listed (embedding every one would
+          # bloat llms-full.txt), so a rewritten link would 404. The HTML site remains
+          # the canonical data-model browser.
           - reference/exceptions.md
         Explanation:
           - explanation/network-and-rate-limits.md
@@ -120,8 +120,7 @@ nav:
       - Clients: reference/clients.md
       - Resources: reference/resources.md
       - Models & pagination: reference/models.md
-      - Data models: reference/data-models.md
-      - Collections reference: reference/collections/index.md
+      - Data models: reference/bulletins/index.md
       - Exceptions: reference/exceptions.md
   - Explanation:
       - Network & rate limits: explanation/network-and-rate-limits.md

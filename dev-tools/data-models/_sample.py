@@ -56,7 +56,7 @@ def _typedesc(value: Any) -> str:
 
 
 def _new_field() -> dict[str, Any]:
-    return {"count": 0, "types": set(), "example": None}
+    return {"present": 0, "types": set(), "example": None}
 
 
 def sample(limit_per: int, workers: int = 12) -> tuple[dict, dict]:
@@ -85,14 +85,15 @@ def sample(limit_per: int, workers: int = 12) -> tuple[dict, dict]:
     type_docn: dict[str, int] = defaultdict(int)
 
     def _record(bucket: dict[str, dict[str, Any]], field: str, val: Any) -> None:
-        # ``fields=["*"]`` pads inapplicable fields with EMPTY values ({} / "" /
-        # []): those are template noise, not occurrences — counting them would
-        # inflate every retained field's presence to ~100% (and pollute the type
-        # column with object{} entries). Only a real value counts.
+        # Every field reaching here was SENT by the server (the dump is
+        # exclude_unset), so it counts toward presence even when empty — "empty is
+        # not absent": a key the server emits in every document is a real field. The
+        # type token and example come only from a REAL (non-empty) value; an empty
+        # "" / [] / {} / null carries no type or example worth recording.
+        slot = bucket[field]
+        slot["present"] += 1
         if val in (None, "", [], {}):
             return
-        slot = bucket[field]
-        slot["count"] += 1
         slot["types"].add(_typedesc(val))
         if slot["example"] is None:
             # Redact BEFORE truncating: a key straddling the truncation boundary
@@ -106,11 +107,11 @@ def sample(limit_per: int, workers: int = 12) -> tuple[dict, dict]:
             # fields=["*"] returns the FULL document (search otherwise trims to a
             # default subset), so the per-type field schema is complete.
             page = client.search.query(f"type:{col['type']}", limit=limit_per, fields=["*"])
-            # exclude_none=True so the dump mirrors the wire document: declared
-            # model fields the server did NOT send must not be None-padded into
-            # the sample, or every field would count as "present" in every doc
-            # and empty nested models would become all-null phantom examples.
-            docs = [b.model_dump(by_alias=True, exclude_none=True) for b in page.data]
+            # exclude_unset: exactly the fields the server SENT for this document
+            # (present as a key, even if empty/null) — the honest field-presence
+            # signal. Model defaults for fields the server omitted are NOT padded
+            # in, so presence reflects "the server emitted this key", not the model.
+            docs = [b.model_dump(by_alias=True, exclude_unset=True) for b in page.data]
             return col, docs, None
         except Exception as exc:
             return col, None, type(exc).__name__
@@ -146,12 +147,12 @@ def sample(limit_per: int, workers: int = 12) -> tuple[dict, dict]:
         client.close()
 
     def _finish(fields: dict[str, dict[str, Any]], docn: int) -> dict[str, Any]:
-        # _record only counts real (non-empty) values, so a field is present here
-        # iff it carried data in at least one sampled doc, and ``presence`` is the
-        # honest non-empty rate.
+        # ``present`` counts every doc that SENT the field's key (even empty), so
+        # ``presence`` is the field-presence rate — 1.0 means the server emitted the
+        # key in every sampled doc. ``types``/``example`` reflect real values only.
         return {
             name: {
-                "presence": round(f["count"] / max(docn, 1), 2),
+                "presence": round(f["present"] / max(docn, 1), 2),
                 "types": sorted(f["types"]),
                 "example": f["example"],
             }

@@ -5,8 +5,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from vulners._models import construct_type
-from vulners._models.bulletin import (
+from vulners._models import (
     Bulletin,
     CveBulletin,
     Cvss,
@@ -17,6 +16,7 @@ from vulners._models.bulletin import (
     ScannerBulletin,
     bulletin_class_for,
     construct_bulletin,
+    construct_type,
 )
 
 

@@ -14,11 +14,12 @@ Two APIs live in this package:
   ``VulnersApi`` / ``VScannerApi`` classes. Existing code keeps working
   unchanged; new code should prefer the v4 clients above.
 
-The v4 names are imported lazily (PEP 562 ``__getattr__``): a bare
-``import vulners`` stays lightweight and safe in restricted/frozen environments
-(it does not eagerly build the v4 pydantic models, which introspect the call
-stack at definition time). ``from vulners import Vulners`` triggers the import on
-demand. Type checkers see the names through the ``TYPE_CHECKING`` block below.
+The v4 names are imported lazily (PEP 562 ``__getattr__``): a bare ``import
+vulners`` stays lightweight and safe in restricted/frozen environments (it does
+not eagerly build the v4 pydantic models, which call ``sys._getframe`` at class
+definition). ``from vulners import Vulners`` / ``CveBulletin`` triggers the import
+on demand. Type checkers and IDEs see the full surface — including every generated
+``…Bulletin`` class — through the ``TYPE_CHECKING`` block below.
 """
 
 import warnings
@@ -59,25 +60,12 @@ if TYPE_CHECKING:
     from ._exceptions import UnprocessableEntityError as UnprocessableEntityError
     from ._exceptions import ValidationError as ValidationError
     from ._exceptions import VulnersError as VulnersError
-    from ._models.bulletin import AdvisoryBulletin as AdvisoryBulletin
-    from ._models.bulletin import BugBountyBulletin as BugBountyBulletin
-    from ._models.bulletin import Bulletin as Bulletin
-    from ._models.bulletin import CveBulletin as CveBulletin
-    from ._models.bulletin import Cvss as Cvss
-    from ._models.bulletin import Cvss2 as Cvss2
-    from ._models.bulletin import Cvss3 as Cvss3
-    from ._models.bulletin import Cvss4 as Cvss4
-    from ._models.bulletin import Enchantments as Enchantments
-    from ._models.bulletin import EpssScore as EpssScore
-    from ._models.bulletin import ExploitBulletin as ExploitBulletin
-    from ._models.bulletin import GenericBulletin as GenericBulletin
-    from ._models.bulletin import InfoBulletin as InfoBulletin
-    from ._models.bulletin import LibraryBulletin as LibraryBulletin
-    from ._models.bulletin import MicrosoftBulletin as MicrosoftBulletin
-    from ._models.bulletin import ScannerBulletin as ScannerBulletin
-    from ._models.bulletin import SoftwareBulletin as SoftwareBulletin
-    from ._models.bulletin import Timestamps as Timestamps
-    from ._models.bulletin import UnixBulletin as UnixBulletin
+
+    # The full generated response-model surface (base -> family -> type) plus the
+    # nested value objects — static view; the runtime resolves them lazily in
+    # __getattr__ so `import vulners` never eagerly builds the pydantic models.
+    from ._models._nested import *  # noqa: F403
+    from ._models.bulletins import *  # noqa: F403
     from ._pagination import AsyncSearchPage as AsyncSearchPage
     from ._pagination import SearchPage as SearchPage
     from ._response import APIResponse as APIResponse
@@ -114,27 +102,7 @@ _LAZY_ATTRS = {
     "not_given": "._types",
     "NotGiven": "._types",
     "RemovedInVulners5Warning": "._deprecation",
-    # v4 return/input types users annotate with (lazy: the pydantic core loads
-    # only on first access, keeping `import vulners` lightweight).
-    "Bulletin": "._models.bulletin",
-    "CveBulletin": "._models.bulletin",
-    "ExploitBulletin": "._models.bulletin",
-    "ScannerBulletin": "._models.bulletin",
-    "SoftwareBulletin": "._models.bulletin",
-    "UnixBulletin": "._models.bulletin",
-    "InfoBulletin": "._models.bulletin",
-    "LibraryBulletin": "._models.bulletin",
-    "MicrosoftBulletin": "._models.bulletin",
-    "BugBountyBulletin": "._models.bulletin",
-    "AdvisoryBulletin": "._models.bulletin",
-    "GenericBulletin": "._models.bulletin",
-    "Cvss": "._models.bulletin",
-    "Cvss2": "._models.bulletin",
-    "Cvss3": "._models.bulletin",
-    "Cvss4": "._models.bulletin",
-    "Timestamps": "._models.bulletin",
-    "Enchantments": "._models.bulletin",
-    "EpssScore": "._models.bulletin",
+    # v4 response models + nested value objects resolve via the __getattr__ fallback.
     "SearchPage": "._pagination",
     "AsyncSearchPage": "._pagination",
     "APIResponse": "._response",
@@ -172,25 +140,6 @@ __all__ = [  # noqa: RUF022
     "not_given",
     "NotGiven",
     # v4 return / input types (for annotations)
-    "Bulletin",
-    "CveBulletin",
-    "ExploitBulletin",
-    "ScannerBulletin",
-    "SoftwareBulletin",
-    "UnixBulletin",
-    "InfoBulletin",
-    "LibraryBulletin",
-    "MicrosoftBulletin",
-    "BugBountyBulletin",
-    "AdvisoryBulletin",
-    "GenericBulletin",
-    "Cvss",
-    "Cvss2",
-    "Cvss3",
-    "Cvss4",
-    "Timestamps",
-    "Enchantments",
-    "EpssScore",
     "SearchPage",
     "AsyncSearchPage",
     "APIResponse",
@@ -212,16 +161,25 @@ __all__ = [  # noqa: RUF022
     "VulnersDeprecationWarning",
 ]
 
-
 def __getattr__(name: str) -> Any:
-    module = _LAZY_ATTRS.get(name)
-    if module is None:
-        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
     import importlib
 
-    value = getattr(importlib.import_module(module, __name__), name)
-    globals()[name] = value  # cache so later access skips __getattr__
-    return value
+    module = _LAZY_ATTRS.get(name)
+    if module is not None:
+        value = getattr(importlib.import_module(module, __name__), name)
+        globals()[name] = value  # cache so later access skips __getattr__
+        return value
+    # Generated response models (…Bulletin) and nested value objects (Cvss, …)
+    # resolve lazily, so a bare `import vulners` never eagerly builds the pydantic
+    # models (which call sys._getframe at class definition).
+    for mod in ("._models.bulletins", "._models._nested"):
+        try:
+            value = getattr(importlib.import_module(mod, __name__), name)
+        except AttributeError:
+            continue
+        globals()[name] = value
+        return value
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 def __dir__() -> list[str]:

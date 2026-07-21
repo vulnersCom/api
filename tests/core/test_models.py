@@ -29,7 +29,7 @@ def test_no_validation_happens():
 def test_aliases_are_resolved():
     bulletin = construct_type({"bulletinFamily": "NVD", "lastseen": "2099-01-01"}, Bulletin)
     assert bulletin.bulletin_family == "NVD"
-    assert bulletin.last_seen == "2099-01-01"
+    assert bulletin.lastseen == "2099-01-01"
 
 
 def test_unknown_fields_are_preserved():

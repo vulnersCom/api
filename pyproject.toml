@@ -220,6 +220,9 @@ ignore = ["UP040"]
 # yield`, which unasyncd turns into `for ...: yield`; `yield from` is illegal in
 # the async source, so UP028 cannot be honoured there. Ignore it in the mirror.
 "src/vulners/_resources/_sync/**" = ["UP028"]
+# Generated bulletin models: authored field descriptions ride as one-line attribute
+# docstrings that can exceed the line length; the content is generated, not styled.
+"src/vulners/_models/bulletins/**" = ["E501"]
 
 [tool.mypy]
 python_version = "3.10"

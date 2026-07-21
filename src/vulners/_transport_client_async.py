@@ -37,6 +37,11 @@ from ._streaming import (
 from ._transport import AsyncVulnersTransport
 from ._types import NotGiven, Omit, not_given
 
+# Error bodies on a streaming response are read with a small fixed cap: an error
+# message never needs the multi-gigabyte archive budget, so this bounds a giant
+# error body from a broken/hostile endpoint (max_response_bytes, when smaller, wins).
+_ERROR_BODY_CAP = 64 * 1024
+
 
 class AsyncAPIClient(BaseClient):
     """Asynchronous request loop over an ``httpx.AsyncClient``."""
@@ -64,7 +69,11 @@ class AsyncAPIClient(BaseClient):
             # client-level proxy would mount an unguarded transport over ours.
             transport = AsyncVulnersTransport(
                 httpx.AsyncHTTPTransport(
-                    retries=config.connect_retries,
+                    # retries=0: the SDK request loop is the single retry owner
+                    # (idempotency rules, Retry-After, exponential backoff, on_error
+                    # hooks). Letting the transport also retry the connect phase
+                    # would multiply attempts (up to connect_retries x max_retries).
+                    retries=0,
                     http2=config.http2,
                     proxy=config.proxy,
                     verify=config.verify,
@@ -199,6 +208,71 @@ class AsyncAPIClient(BaseClient):
         response, content, parsed = await self._send_with_retries(spec, request, retries)
         return APIResponse(response, content, parsed, cast)
 
+    async def _read_error_capped(self, response: httpx.Response) -> bytes:
+        # Bound an error body to a small fixed size (or max_response_bytes when
+        # smaller): an error message never needs the archive budget, and this stops
+        # a broken/hostile endpoint from streaming a giant error body into memory
+        # on the streaming error path (where a plain aread() would be unbounded).
+        cap = self._config.max_response_bytes
+        limit = _ERROR_BODY_CAP if cap is None else min(cap, _ERROR_BODY_CAP)
+        buf = bytearray()
+        async for chunk in response.aiter_bytes():
+            buf += chunk
+            if len(buf) >= limit:
+                break
+        return bytes(buf[:limit])
+
+    async def _open_stream(self, spec: RequestSpec, request: httpx.Request) -> httpx.Response:
+        """Open a streaming response through the retry loop, returning live headers.
+
+        Retries the *opening* phase — connect/timeout errors and a retryable error
+        status received before any record is yielded — so a stream gets the same
+        resilience and error normalization (typed errors, on_error) as a buffered
+        request. Once the caller consumes records there is no retry (that would
+        duplicate rows), so only this pre-first-byte phase is covered here.
+        """
+        bucket = self._bucket_for(self._ratelimit_key(spec))
+        retries = self._config.max_retries
+        attempt = 0
+        while True:
+            await bucket.consume(self._config.max_rate_limit_wait)
+            try:
+                response = await self._client.send(request, stream=True)
+            except httpx.TimeoutException as exc:
+                error: APIConnectionError = APITimeoutError(f"Request timed out: {exc}")
+                if attempt < retries and self._retryable_exc(exc, spec):
+                    attempt += 1
+                    await self._sleep(_retry_timeout(attempt))
+                    continue
+                await self._emit_error(error)
+                raise error from exc
+            except httpx.TransportError as exc:
+                error = APIConnectionError(f"Connection error: {exc}")
+                if attempt < retries and self._retryable_exc(exc, spec):
+                    attempt += 1
+                    await self._sleep(_retry_timeout(attempt))
+                    continue
+                await self._emit_error(error)
+                raise error from exc
+            self._update_bucket_from_headers(bucket, response)
+            if response.status_code < 400:
+                return response
+            # Error status before any record: bounded read, retry if retryable.
+            content = await self._read_error_capped(response)
+            info = ErrorInfo(status_code=response.status_code, error_code=None)
+            await response.aclose()
+            if attempt < retries and _should_retry(
+                info, response.headers, idempotent=self._idempotent(spec)
+            ):
+                attempt += 1
+                await self._sleep(_retry_timeout(attempt, response.headers))
+                continue
+            try:
+                self._raise_stream_error(response, content)
+            except APIStatusError as err:
+                await self._emit_error(err)
+                raise
+
     async def stream_records(
         self,
         spec: RequestSpec,
@@ -209,16 +283,16 @@ class AsyncAPIClient(BaseClient):
     ) -> AsyncIterator[Any]:
         """Lazily yield the elements of a streamed bulk-archive JSON array."""
         request = self._build_request(spec, params=params, body=body, timeout=timeout)
-        bucket = self._bucket_for(self._ratelimit_key(spec))
-        await bucket.consume(self._config.max_rate_limit_wait)
-        response = await self._client.send(request, stream=True)
+        response = await self._open_stream(spec, request)
         try:
-            self._update_bucket_from_headers(bucket, response)
-            if response.status_code >= 400:
-                self._raise_stream_error(response, await response.aread())
             media = self._media_type(response)
             cap = self._config.max_response_bytes
             if is_zip_media(media):
+                # simplification: the ZIP path buffers the whole (compressed) body
+                # before stream-unzip walks it — stream-unzip is a sync pull-based
+                # generator with no async driver. The real Vulners v4 archive is
+                # single-member gzip, fully streamed in the else branch; ZIP is the
+                # v3/defensive path. Bounded by max_response_bytes when set.
                 buf = bytearray()
                 async for chunk in response.aiter_bytes():
                     buf += chunk
@@ -316,17 +390,10 @@ class AsyncStreamContext:
 
     async def __aenter__(self) -> AsyncStreamedAPIResponse[Any]:
         client = self._client
-        bucket = client._bucket_for(client._ratelimit_key(self._spec))
-        await bucket.consume(client._config.max_rate_limit_wait)
-        response = await client._client.send(self._request, stream=True)
+        # Route the open through the retry loop (connect/timeout/retryable-status),
+        # with bounded error reads — same resilience as a buffered request.
+        response = await client._open_stream(self._spec, self._request)
         self._response = response
-        client._update_bucket_from_headers(bucket, response)
-        if response.status_code >= 400:
-            content = await response.aread()
-            try:
-                client._raise_stream_error(response, content)
-            finally:
-                await response.aclose()
         return AsyncStreamedAPIResponse(response, client._stream_parser(self._spec, self._cast))
 
     async def __aexit__(self, *exc: object) -> None:

@@ -109,7 +109,7 @@ def _scrub_credential(request: httpx.Request) -> None:
     if "apiKey" in request.url.params:
         request.url = request.url.copy_remove_param("apiKey")
     media_type = request.headers.get("content-type", "").split(";", 1)[0].strip().lower()
-    if media_type == "application/json":
+    if media_type == "application/json" or media_type.endswith("+json"):
         try:
             body = orjson.loads(request.read())
         except orjson.JSONDecodeError:
@@ -125,17 +125,31 @@ def _scrub_credential(request: httpx.Request) -> None:
         new_content = urlencode([(k, v) for k, v in pairs if k != "apiKey"]).encode("utf-8")
     else:
         return
+    # Fail closed: httpx transmits ``request.stream``, so setting ``_content``
+    # alone would leave the credential-bearing stream in place. If we cannot
+    # rebuild the stream via httpx's ByteStream, refuse the cross-origin hop
+    # rather than risk sending the key onward.
+    if _HttpxByteStream is None:
+        raise APIConnectionError(
+            "cannot strip the API key from the request body for a cross-origin "
+            "redirect (httpx internals changed); refusing to follow the redirect"
+        )
     request._content = new_content
     request.headers["content-length"] = str(len(new_content))
-    if _HttpxByteStream is not None:
-        request.stream = _HttpxByteStream(new_content)
+    request.stream = _HttpxByteStream(new_content)
 
 
 def _apply_request_guards(request: httpx.Request, origin: httpx.URL | None) -> None:
-    # Compared against the fixed origin (not the previous hop): once the key is
-    # dropped it stays dropped for every later hop, and a bounce back to the
-    # origin does not restore it (mirrors httpx's Authorization policy).
-    if origin is not None and not _key_allowed(request.url, origin):
+    # Prefer the per-request origin the SDK stamped in ``_build_request`` so one
+    # guarded transport shared across clients with different base_urls compares
+    # each request against its own origin — not whichever client wrapped the
+    # transport first — falling back to the transport's fixed origin otherwise.
+    # Compared against the origin (not the previous hop): once the key is dropped
+    # it stays dropped for every later hop, and a bounce back to the origin does
+    # not restore it (mirrors httpx's Authorization policy).
+    req_origin = request.extensions.get("vulners_origin")
+    effective = httpx.URL(req_origin) if req_origin else origin
+    if effective is not None and not _key_allowed(request.url, effective):
         request.headers.pop("x-api-key", None)
         _scrub_credential(request)
         _guard_redirect_target(request.url)

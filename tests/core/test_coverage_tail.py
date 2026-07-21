@@ -24,7 +24,7 @@ import vulners._transport as tp
 from vulners._base_client import BaseClient, RequestSpec
 from vulners._client import AsyncVulners, Vulners
 from vulners._config import DEFAULT_TIMEOUT, resolve_config
-from vulners._exceptions import ErrorInfo, _extract_message
+from vulners._exceptions import APIConnectionError, ErrorInfo, _extract_message
 from vulners._logging import _SecretRedactingFilter
 from vulners._models import CveBulletin, construct_bulletin
 from vulners._models._base import VulnersModel, _is_passthrough, construct_type
@@ -135,9 +135,10 @@ class TestTransportHelpers:
         tp._scrub_credential(req)
         assert req.read() == b"binary"
 
-    def test_scrub_json_body_when_bytestream_unavailable(self, monkeypatch):
-        # Defensive path: if the httpx internal moved, the header/query strip still
-        # happens and the body scrub becomes a stream no-op (not an error).
+    def test_scrub_json_body_fails_closed_when_bytestream_unavailable(self, monkeypatch):
+        # Fail closed: if the httpx ByteStream internal moved, we cannot rebuild the
+        # body stream without the credential (httpx transmits request.stream), so the
+        # cross-origin hop is refused rather than risk sending the key onward.
         monkeypatch.setattr(tp, "_HttpxByteStream", None)
         req = httpx.Request(
             "POST",
@@ -145,8 +146,8 @@ class TestTransportHelpers:
             content=orjson.dumps({"apiKey": "SECRET", "q": "keep"}),
             headers={"content-type": "application/json"},
         )
-        tp._scrub_credential(req)
-        assert orjson.loads(req._content) == {"q": "keep"}
+        with pytest.raises(APIConnectionError):
+            tp._scrub_credential(req)
 
 
 class TestAsyncTransportScrub:

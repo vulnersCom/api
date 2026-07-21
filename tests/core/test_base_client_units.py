@@ -116,9 +116,19 @@ class TestProcessResponse:
         )
         assert out == {"x": 1}
 
-    def test_unwrap_break_on_missing_key(self):
+    def test_unwrap_missing_required_key_raises(self):
+        # A required envelope key that is absent is a contract violation, surfaced
+        # as APIResponseValidationError rather than silently returning the wrong shape.
         c = _client()
         spec = RequestSpec("POST", "/x", unwrap=("data", "missing"))
+        body = b'{"data":{"x":1}}'
+        with pytest.raises(APIResponseValidationError):
+            c._process_response(spec, self._resp(content=body), body)
+
+    def test_unwrap_optional_missing_key_returns_current(self):
+        # unwrap_optional keeps the best-effort break for a genuinely optional key.
+        c = _client()
+        spec = RequestSpec("POST", "/x", unwrap=("data", "missing"), unwrap_optional=True)
         body = b'{"data":{"x":1}}'
         assert c._process_response(spec, self._resp(content=body), body) == {"x": 1}
 
@@ -133,6 +143,24 @@ class TestProcessResponse:
         r = self._resp(status=400, content=b"<not json>")
         with pytest.raises(APIStatusError):
             c._process_response(spec, r, b"<not json>")
+
+    def test_problem_json_media_is_parsed(self):
+        # application/problem+json and other vendor "+json" types are parsed as JSON,
+        # not handed back as opaque bytes — a 200 body unwraps normally.
+        c = _client()
+        spec = RequestSpec("GET", "/x", unwrap=("data",))
+        body = b'{"data":{"ok":1}}'
+        r = self._resp(ct="application/problem+json", content=body)
+        assert c._process_response(spec, r, body) == {"ok": 1}
+
+    def test_problem_json_error_status_raises_typed(self):
+        # A 4xx "+json" error body still becomes a typed status error.
+        c = _client()
+        spec = RequestSpec("GET", "/x")
+        body = b'{"error":"nope"}'
+        r = self._resp(status=404, ct="application/vnd.api+json", content=body)
+        with pytest.raises(APIStatusError):
+            c._process_response(spec, r, body)
 
     def test_json_200_unparseable_raises_validation(self):
         c = _client()

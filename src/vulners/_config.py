@@ -9,6 +9,7 @@ base URL is: explicit argument, then environment (``VULNERS_API_KEY`` /
 from __future__ import annotations
 
 import dataclasses
+import ipaddress
 import os
 import ssl
 from collections.abc import Callable
@@ -34,6 +35,18 @@ DEFAULT_CONNECT_RETRIES = 3
 DEFAULT_MAX_RATE_LIMIT_WAIT = 60.0
 
 TimeoutProfile = Literal["default", "archive"]
+
+
+def _is_local_host(url: httpx.URL) -> bool:
+    """True for a loopback/private/link-local host (safe to reach over plain HTTP)."""
+    host = url.host
+    if host == "localhost":
+        return True
+    try:
+        ip = ipaddress.ip_address(host)
+    except ValueError:
+        return False
+    return ip.is_loopback or ip.is_private or ip.is_link_local
 
 
 @dataclasses.dataclass(frozen=True)
@@ -75,6 +88,42 @@ class ClientConfig:
     before_request: tuple[Callable[..., Any], ...] = ()
     after_response: tuple[Callable[..., Any], ...] = ()
     on_error: tuple[Callable[..., Any], ...] = ()
+
+    def __post_init__(self) -> None:
+        # Validate on construction *and* on every ``replace()`` (with_options),
+        # so a bad override fails fast here instead of deep inside httpx or as
+        # silently wrong behaviour later.
+        if self.max_retries < 0:
+            raise ValueError(f"max_retries must be >= 0, got {self.max_retries}")
+        if self.connect_retries < 0:
+            raise ValueError(f"connect_retries must be >= 0, got {self.connect_retries}")
+        if self.max_response_bytes is not None and self.max_response_bytes < 1:
+            raise ValueError(
+                f"max_response_bytes must be >= 1 or None, got {self.max_response_bytes}"
+            )
+        if self.max_rate_limit_wait < 0:
+            raise ValueError(f"max_rate_limit_wait must be >= 0, got {self.max_rate_limit_wait}")
+        if self.base_url.scheme not in ("http", "https"):
+            raise ValueError(
+                f"base_url scheme must be http or https, got {self.base_url.scheme!r}"
+            )
+        if not self.base_url.host:
+            raise ValueError(f"base_url must include a host, got {str(self.base_url)!r}")
+        if self.base_url.path not in ("", "/"):
+            raise ValueError(
+                f"base_url must not carry a path prefix ({self.base_url.path!r}); "
+                "reverse-proxy path prefixes are not supported — point base_url at the "
+                "host root (e.g. https://host, not https://host/prefix/)"
+            )
+        # The API key rides in the X-Api-Key header on every request; over plain
+        # HTTP to a public host it would cross the network in cleartext. Allow http
+        # only for loopback/private hosts (local dev, on-prem); require https otherwise.
+        if self.base_url.scheme != "https" and not _is_local_host(self.base_url):
+            raise ValueError(
+                f"refusing to send the API key over plain HTTP to a public host "
+                f"({self.base_url.host!r}); use https, or point base_url at a "
+                "loopback/private host for local development"
+            )
 
     def timeout_for(self, profile: TimeoutProfile) -> httpx.Timeout:
         return self.archive_timeout if profile == "archive" else self.timeout

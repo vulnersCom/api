@@ -52,6 +52,10 @@ class RequestSpec:
     path: str
     body_mode: BodyMode = "none"
     unwrap: tuple[str, ...] = ()
+    # When False (the default), a missing unwrap key is a contract violation and
+    # raises APIResponseValidationError instead of silently returning the whole
+    # envelope. Set True for endpoints whose envelope key is genuinely optional.
+    unwrap_optional: bool = False
     response_mode: ResponseMode = "json"
     timeout_profile: Literal["default", "archive"] = "default"
     ratelimit_group: str | None = None
@@ -203,6 +207,11 @@ class BaseClient:
             # policy only to the SDK's own traffic. httpx carries extensions
             # across redirect hops, so the tag survives redirects.
             "vulners_sdk": True,
+            # The SDK origin this request is scoped to, so one guarded transport
+            # shared across clients with different base_urls compares each request
+            # against its own origin (not whichever client wrapped the transport
+            # first). httpx preserves extensions across redirect hops.
+            "vulners_origin": str(self._config.base_url),
         }
         return httpx.Request(
             spec.method,
@@ -245,13 +254,31 @@ class BaseClient:
     def _media_type(response: httpx.Response) -> str:
         return response.headers.get("content-type", "").split(";", 1)[0].strip().lower()
 
-    def _unwrap(self, spec: RequestSpec, parsed: Any) -> Any:
+    @staticmethod
+    def _is_json_media(media: str) -> bool:
+        # Accept application/json and any vendor/problem "+json" structured suffix
+        # (RFC 6839): application/problem+json, application/vnd.api+json, etc. carry
+        # a JSON error/body that must be parsed, not handed back as opaque bytes.
+        return media == "application/json" or media.endswith("+json")
+
+    def _unwrap(self, spec: RequestSpec, parsed: Any, status: int) -> Any:
         current = parsed
         for key in spec.unwrap:
             if isinstance(current, Mapping) and key in current:
                 current = current[key]
-            else:
+            elif spec.unwrap_optional:
                 break
+            else:
+                # A required envelope key is absent: surface the contract drift
+                # instead of silently returning a differently-shaped object that
+                # only fails later, deep in caller code.
+                available = (
+                    sorted(current) if isinstance(current, Mapping) else type(current).__name__
+                )
+                raise APIResponseValidationError(
+                    f"response is missing the expected envelope key {key!r} (got {available!r})",
+                    status_code=status,
+                )
         return current
 
     def _process_response(
@@ -261,7 +288,7 @@ class BaseClient:
         status = response.status_code
         secret = self._config.api_key.get_secret_value()
 
-        if media == "application/json":
+        if self._is_json_media(media):
             parsed: Any = None
             if content:
                 try:
@@ -280,7 +307,7 @@ class BaseClient:
             info = _extract_error(status, response.headers, parsed, secret=secret)
             if info is not None:
                 raise _make_error(info)
-            return self._unwrap(spec, parsed)
+            return self._unwrap(spec, parsed, status)
 
         # Non-JSON content type. Check the status for every mode first, so an
         # HTML/plain gateway error surfaces as a typed error, not silent bytes.
@@ -297,7 +324,7 @@ class BaseClient:
         if not content:
             return None
         try:
-            return self._unwrap(spec, _json_loads_lenient(content))
+            return self._unwrap(spec, _json_loads_lenient(content), status)
         except ValueError as exc:  # both decoders rejected the body
             raise APIResponseValidationError(
                 "expected a JSON response body but got a non-JSON payload",
@@ -423,7 +450,7 @@ class BaseClient:
         secret = self._config.api_key.get_secret_value()
         media = self._media_type(response)
         parsed: Any
-        if media == "application/json" and content:
+        if self._is_json_media(media) and content:
             try:
                 parsed = _json_loads_lenient(content)
             except ValueError:

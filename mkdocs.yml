@@ -115,6 +115,7 @@ nav:
       - Audit a host: how-to/audit-a-host.md
       - Stream the archive: how-to/stream-the-archive.md
       - Search exploits: how-to/search-exploits.md
+      - Connect the MCP server: how-to/connect-mcp.md
       - Proxy, timeouts & retries: how-to/proxy-timeout-retries.md
   - Reference:
       - Clients: reference/clients.md
@@ -126,4 +127,5 @@ nav:
       - Network & rate limits: explanation/network-and-rate-limits.md
       - The 10,000-doc search window: explanation/search-window.md
       - Error model: explanation/error-model.md
+      - Response shapes (untyped endpoints): explanation/response-shapes.md
       - Migrating v3 → v4: explanation/migration.md

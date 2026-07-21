@@ -43,10 +43,16 @@ Key entry points:
 | Namespace | What it does | Common methods |
 |---|---|---|
 | `v.search` | search & fetch documents | `query`, `iter_query`, `get_bulletin`, `get_multiple_bulletins` |
+| `v.documents` | document-centric lookups | `get`, `get_many`, `references`, `history` |
 | `v.audit` | vulnerability assessment | `software`, `host`, `linux_audit`, `library_audit`, `sbom_audit`, `cve_audit`, `kb_audit`, `win_audit`, `smart` |
 | `v.archive` | bulk dataset download | `fetch_collection`, `iter_collection` (stream), `fetch_collection_update` |
 | `v.misc` | lookups | `search_cpe`, `query_autocomplete`, `get_suggestion` |
-| `v.report`, `v.stix`, `v.subscriptions`, `v.webhooks`, `v.vscanner` | reporting, STIX bundles, alerts, VScanner | — |
+| `v.subscriptions` | current **v4** subscriptions API | `list`, `get`, `create`, `update`, `delete` |
+| `v.subscriptions_email` | legacy **v3** email subscriptions | `list`, `add`, `edit`, `delete` |
+| `v.webhooks` | legacy **v3** polling webhook subscriptions | `list`, `add`, `read`, `delete` |
+| `v.report` · `v.stix` · `v.vscanner` | reporting, STIX bundles, VScanner | — |
+
+`v.reports` and `v.subscriptions_v4` are temporary aliases of `v.report` and `v.subscriptions`.
 
 Notes for agents:
 
@@ -82,13 +88,18 @@ Tools exposed (each returns compact, trimmed JSON):
 
 | Tool | Purpose |
 |---|---|
-| `search_bulletins(query, limit=10)` | Lucene search across CVEs/advisories/etc. |
-| `get_bulletin(id)` | fetch one bulletin by id |
-| `search_exploits(query, limit=10)` | exploits/PoCs for a CVE or product |
+| `search_bulletins(query, limit=10, offset=0)` | Lucene search across CVEs/advisories/etc.; paginated (`total`/`has_more`/`next_offset`) |
+| `get_bulletin(id, fields=None, full=False)` | fetch one bulletin — summary by default, `fields=[...]` or `full=True` for more |
+| `search_exploits(query, limit=10, offset=0)` | exploits/PoCs for a CVE or product; paginated |
 | `cve_lookup(cve)` | CVE risk attributes (CVSS/CWE/CPE/EPSS) |
 | `audit_software(software, match="partial")` | vulnerabilities for CPE/software strings |
 | `audit_linux(os_name, os_version, packages)` | vulnerabilities for a Linux package list |
 | `smart_audit(software)` | resolve free-form names → CPE/PURL + vulnerabilities (billed per string) |
+
+Responses are trimmed for agents: long strings are clipped, a capped list becomes a
+`{items, total, truncated}` envelope, and searches page within the 10,000-document window.
+Connecting a client (Claude Desktop, Cursor, VS Code, Docker, hosted) is covered in
+`documentation/how-to/connect-mcp.md`.
 
 The server module lives at `vulners._mcp.server` (private package; `fastmcp` is imported
 lazily, so a bare `import vulners` never needs the `mcp` extra).

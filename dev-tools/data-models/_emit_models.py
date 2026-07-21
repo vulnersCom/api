@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import sys
+from collections import defaultdict
 
 from _paths import MODELS_DATA
 
@@ -29,30 +30,71 @@ def _token(types: list[str]) -> str:
     return "any"
 
 
+def derive_layers(type_schemas: dict) -> tuple[set[str], dict[str, set[str]]]:
+    """Data-driven field layers from the samples — the taxonomy the per-collection
+    models and the reference docs share:
+
+    * ``base``      — wire fields present in EVERY sampled document across all
+      collections (the global intersection);
+    * ``family[F]`` — wire fields present in every sampled document of
+      ``bulletinFamily`` F, minus ``base``.
+
+    A collection's remaining fields are collection-specific. ``presence == 1.0``
+    means "in every sampled document of that collection" (presence is rounded to
+    2dp — exact at the tens-of-docs the sampler pulls per collection). Collections
+    that errored this run carry ``presence=None`` and are skipped so they cannot
+    empty the intersections.
+    """
+    always = {
+        t: {f for f, m in ti.get("fields", {}).items() if m.get("presence") == 1.0}
+        for t, ti in type_schemas.items()
+        if any(m.get("presence") is not None for m in ti.get("fields", {}).values())
+    }
+    if not always:
+        return set(), {}
+    base = set.intersection(*always.values())
+    by_fam: dict[str, list[set[str]]] = defaultdict(list)
+    for t, present in always.items():
+        fam = type_schemas[t].get("bulletinFamily")
+        if fam:
+            by_fam[fam].append(present)
+    family = {fam: set.intersection(*sets) - base for fam, sets in by_fam.items()}
+    return base, family
+
+
 def build_collections(type_schemas: dict, bmod: object) -> dict:
     """Return ``type -> {"family": <fam>, "fields": {wire: token}}`` for the fields
-    each collection adds beyond its family model (the shape of ``COLLECTIONS``)."""
+    each collection adds beyond the shared layers (the shape of ``COLLECTIONS``).
+
+    A field is recorded as collection-specific only when it is neither in the
+    data-driven ``base`` nor universal to its family (``derive_layers``) — so the
+    three model layers are cut by the same principle as the docs. Fields a
+    hand-written family model already declares are also excluded, so the model's
+    richer type (``Cvss``, ``list[Cpe]``, …) is never shadowed by a crude token.
+    """
     fam_names = {f: m.__name__ for f, m in bmod._FAMILY_MODELS.items()}
-    # Wire fields each family model already declares (so we only record the
-    # delta). Includes the base Bulletin fields via inheritance; the base set is
-    # also the floor for an UNMAPPED (new) family — otherwise a new family's
-    # collections would re-record every base field (id, cvss, …) as type-added
-    # and the factory would degrade their typing (cvss -> Any, id_ duplicates).
+    # Fields a family model already declares (base Bulletin fields flow in via
+    # inheritance). Kept as a floor so a model-typed field is never re-recorded
+    # as a crude type-added token; the base set also floors an UNMAPPED family.
     base_declared = {fi.alias or n for n, fi in bmod.Bulletin.model_fields.items()}
     fam_declared = {
         m.__name__: {fi.alias or n for n, fi in m.model_fields.items()}
         for m in set(bmod._FAMILY_MODELS.values())
     }
+    base_layer, family_layer = derive_layers(type_schemas)
     out: dict[str, dict] = {}
     for t in sorted(type_schemas):
         fam = type_schemas[t].get("bulletinFamily")
         if not fam:
             continue
         declared = fam_declared.get(fam_names.get(fam, ""), base_declared)
+        # the layers this collection's field already belongs to (data-driven base
+        # / family) plus what a model already types — the rest is type-specific.
+        shared = declared | base_layer | family_layer.get(fam, set())
         fields = {
             w: _token(meta["types"])
             for w, meta in sorted(type_schemas[t]["fields"].items())
-            if w not in declared
+            if w not in shared
         }
         out[t] = {"family": fam, "fields": fields}
     return out

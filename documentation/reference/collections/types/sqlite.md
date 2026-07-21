@@ -2,29 +2,19 @@
 
 SQLite vulnerabilities collection includes advisories and CVEs related to SQLite database software, focusing on security issues affecting its functionality.
 
-**Family model:** [`SoftwareBulletin`](../../data-models.md) — `bulletinFamily: software`. Fields are grouped by where they're modelled; anything Vulners adds beyond the models stays accessible via `extra="allow"`.
+**Family model:** [`SoftwareBulletin`](../../data-models.md) — `bulletinFamily: software`. Fields are grouped by where they appear across the samples; anything Vulners adds beyond the models stays accessible via `extra="allow"`.
 
 ### Common document fields
 
-Base [`Bulletin`](../../data-models.md) fields — every document carries these.
+Present in every sampled document, across all collections (the base [`Bulletin`](../../data-models.md)).
 
 | field | type | description | example |
 |---|---|---|---|
 | `bulletinFamily` | `str` | Broad family the document belongs to (cve, exploit, software, …). | `"software"` |
-| `cvelist` | `list[str]` | Related CVE identifiers referenced by this document. | `["CVE-2026-11822"]` |
-| `cvss` | `object{score,severity,source,vector,version}` | Primary CVSS score block (version, base score, vector, severity, source). | `{"version": "4.0", "score": 8.5, "vector": "C…` |
-| `cvss2` | `object{cvssV2}` | CVSS v2 score block. | `{"cvssV2": {"source": "cna@vuldb.com", "versi…` |
-| `cvss3` | `object{cvssV3,cvssV31}, object{cvssV31}` | CVSS v3.x score block. | `{"cvssV31": {"source": "disclosure@vulncheck.…` |
-| `cvss4` | `object{cvssV4}` | CVSS v4.0 score block. | `{"cvssV4": {"source": "disclosure@vulncheck.c…` |
-| `description` | `str` | Full text or summary of the vulnerability/advisory. | `"An attacker who can execute arbitrary SQL (f…` |
-| `enchantments` | `object{dependencies,score,short_description,tags}` | Vulners-computed enrichment layer (AI score, tags, related docs). | `{"score": {"value": 6.1, "uncertanity": 2.1, …` |
-| `epss` | `list[object{cve,date,epss,percentile}]` | EPSS exploitation-probability forecast datapoints (score + percentile). | `[{"cve": "CVE-2025-6965", "date": "2026-06-28…` |
 | `id` | `str` | Unique document identifier (e.g. a CVE id, exploit id or advisory id). | `"SQLT:CVE-2026-11822"` |
 | `lastseen` | `str` | Last time Vulners observed/refreshed the document (ISO-8601). | `"2026-06-25T03:15:15"` |
-| `metrics` | `object{adp,cna,nvd}, object{adp,cna}, object{adp,nvd}, object{cna,nvd}` | Raw scoring metrics blob (CNA/ADP/NVD/vendor sub-objects). | `{"cna": {"cvss31": {"source": "disclosure@vul…` |
 | `modified` | `str` | Last modification timestamp at the source (ISO-8601). | `"2026-01-01T00:00:00"` |
 | `published` | `str` | Original publication timestamp (ISO-8601). | `"2026-01-01T00:00:00"` |
-| `reporter` | `str` | Person or organization credited with reporting/authoring it. | `"SQLite ORG"` |
 | `sourceAvailable` | `bool` | Whether the raw source data is available for this document. | `true` |
 | `timestamps` | `object{contentUpdated,created,enriched,metricsUpdated,reviewed,updated}` | Vulners lifecycle timestamps (created/updated/enriched/reviewed/…). | `{"created": "2026-06-25T03:15:15.740000Z", "u…` |
 | `title` | `str` | Human-readable title of the document. | `"SQLite report about CVE-2026-11822"` |
@@ -34,15 +24,26 @@ Base [`Bulletin`](../../data-models.md) fields — every document carries these.
 
 ### Family fields
 
-Added by the [`SoftwareBulletin`](../../data-models.md) family model.
+Present in every sampled `software`-family document (typed by [`SoftwareBulletin`](../../data-models.md)).
+
+| field | type | description | example |
+|---|---|---|---|
+| `cvss` | `object{score,severity,source,vector,version}` | Primary CVSS score block (version, base score, vector, severity, source). | `{"version": "4.0", "score": 8.5, "vector": "C…` |
+| `enchantments` | `object{dependencies,score,short_description,tags}` | Vulners-computed enrichment layer (AI score, tags, related docs). | `{"score": {"value": 6.1, "uncertanity": 2.1, …` |
+| `reporter` | `str` | Person or organization credited with reporting/authoring it. | `"SQLite ORG"` |
+
+### Collection fields
+
+Specific to the `sqlite` collection, beyond the common and family sets.
 
 | field | type | description | example |
 |---|---|---|---|
 | `affectedSoftware` | `list[object{name,operator,version}]` | Affected software products (name/version/operator). | `[{"version": "3.53.2", "operator": "lt", "nam…` |
-
-### Collection fields
-
-Specific to the `sqlite` collection.
-
-_None in the sample._
+| `cvelist` | `list[str]` | Related CVE identifiers referenced by this document. | `["CVE-2026-11822"]` |
+| `cvss2` | `object{cvssV2}` | CVSS v2 score block. | `{"cvssV2": {"source": "cna@vuldb.com", "versi…` |
+| `cvss3` | `object{cvssV3,cvssV31}, object{cvssV31}` | CVSS v3.x score block. | `{"cvssV31": {"source": "disclosure@vulncheck.…` |
+| `cvss4` | `object{cvssV4}` | CVSS v4.0 score block. | `{"cvssV4": {"source": "disclosure@vulncheck.c…` |
+| `description` | `str` | Full text or summary of the vulnerability/advisory. | `"An attacker who can execute arbitrary SQL (f…` |
+| `epss` | `list[object{cve,date,epss,percentile}]` | EPSS exploitation-probability forecast datapoints (score + percentile). | `[{"cve": "CVE-2025-70873", "date": "2026-06-1…` |
+| `metrics` | `object{adp,cna,nvd}, object{adp,cna}, object{adp,nvd}` | Raw scoring metrics blob (CNA/ADP/NVD/vendor sub-objects). | `{"cna": {"cvss31": {"source": "disclosure@vul…` |
 

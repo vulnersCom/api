@@ -1,6 +1,6 @@
 """Live sampling: pull a few docs from every collection and derive its field shape.
 
-Samples EVERY collection from ``/api/v4/search/collections`` (one at a time,
+Samples EVERY collection from ``/api/v4/search/collections`` (concurrently,
 discarding the raw docs after extracting their shape) and derives the per-``type``
 field schema. Never writes or prints the API key — it is read from an untracked
 file / env and redacted out of every saved example.
@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import json
 import sys
-import time
 from collections import defaultdict
 from typing import Any
 
@@ -60,13 +59,18 @@ def _new_field() -> dict[str, Any]:
     return {"count": 0, "types": set(), "example": None}
 
 
-def sample(limit_per: int) -> tuple[dict, dict]:
+def sample(limit_per: int, workers: int = 12) -> tuple[dict, dict]:
     """Return (type_schemas, collection_map).
 
     Fields are aggregated per collection ``type`` (the field set differs per
-    collection). One collection at a time; raw docs are dropped after their shape
-    is extracted.
+    collection). Collections are fetched concurrently (each search returns only a
+    handful of docs, so this is fast and light); the shared rate-limit bucket in
+    the client still paces the actual request rate. Raw docs are dropped after
+    their shape is extracted — aggregation runs on the main thread, so the shared
+    accumulators are never touched concurrently.
     """
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
     from vulners import Vulners
 
     key, server = _load_key()
@@ -95,40 +99,49 @@ def sample(limit_per: int) -> tuple[dict, dict]:
             # would otherwise survive as an unredacted prefix fragment.
             slot["example"] = json.dumps(val).replace(redact, "[REDACTED]")[:160]
 
+    def _fetch(col: dict) -> tuple[dict, list | None, str | None]:
+        # Runs in a worker thread: httpx.Client is safe for concurrent requests
+        # and the rate-limit bucket serialises pacing. Returns raw shape only.
+        try:
+            # fields=["*"] returns the FULL document (search otherwise trims to a
+            # default subset), so the per-type field schema is complete.
+            page = client.search.query(f"type:{col['type']}", limit=limit_per, fields=["*"])
+            # exclude_none=True so the dump mirrors the wire document: declared
+            # model fields the server did NOT send must not be None-padded into
+            # the sample, or every field would count as "present" in every doc
+            # and empty nested models would become all-null phantom examples.
+            docs = [b.model_dump(by_alias=True, exclude_none=True) for b in page.data]
+            return col, docs, None
+        except Exception as exc:
+            return col, None, type(exc).__name__
+
     try:
-        for i, col in enumerate(sorted(collections, key=lambda c: c["type"]), 1):
-            ctype = col["type"]
-            try:
-                # fields=["*"] returns the FULL document (search otherwise trims to
-                # a default subset), so the per-type field schema is complete.
-                page = client.search.query(f"type:{ctype}", limit=limit_per, fields=["*"])
-                # exclude_none=True so the dump mirrors the wire document: declared
-                # model fields the server did NOT send must not be None-padded into
-                # the sample, or every field would count as "present" in every doc
-                # and empty nested models would become all-null phantom examples.
-                docs = [b.model_dump(by_alias=True, exclude_none=True) for b in page.data]
-            except Exception as exc:
+        with ThreadPoolExecutor(max_workers=workers) as ex:
+            futs = [ex.submit(_fetch, col) for col in collections]
+            for i, fut in enumerate(as_completed(futs), 1):
+                col, docs, err = fut.result()
+                ctype = col["type"]
+                if err is not None:
+                    collection_map[ctype] = {
+                        "error": err,
+                        "description": col.get("description"),
+                    }
+                    continue
+                fam = None
+                for doc in docs:
+                    fam = doc.get("bulletinFamily") or fam
+                    type_docn[ctype] += 1
+                    for field, val in doc.items():
+                        _record(type_fields[ctype], field, val)
                 collection_map[ctype] = {
-                    "error": type(exc).__name__,
+                    "bulletinFamily": fam,
+                    "count": col.get("count"),
+                    "last_updated": col.get("last_updated"),
                     "description": col.get("description"),
+                    "sampled": len(docs),
                 }
-                continue
-            fam = None
-            for doc in docs:
-                fam = doc.get("bulletinFamily") or fam
-                type_docn[ctype] += 1
-                for field, val in doc.items():
-                    _record(type_fields[ctype], field, val)
-            collection_map[ctype] = {
-                "bulletinFamily": fam,
-                "count": col.get("count"),
-                "last_updated": col.get("last_updated"),
-                "description": col.get("description"),
-                "sampled": len(docs),
-            }
-            if i % 20 == 0:
-                print(f"  ...{i}/{len(collections)} collections", file=sys.stderr)
-            time.sleep(0.05)  # gentle; the client also paces via the rate-limit bucket
+                if i % 40 == 0:
+                    print(f"  ...{i}/{len(collections)} collections", file=sys.stderr)
     finally:
         client.close()
 

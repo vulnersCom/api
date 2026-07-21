@@ -14,7 +14,7 @@ repo locally (it never commits or pushes):
 New ``bulletinFamily`` values are handled automatically (they fall back to
 ``GenericBulletin``); it just prints a note so you can add a richer model later.
 
-    python dev-tools/data-models/sample_collections.py            # refresh (20 docs/collection)
+    python dev-tools/data-models/sample_collections.py            # refresh (15 docs/collection)
     python dev-tools/data-models/sample_collections.py --limit 50 # sample more per collection
 
 Key source: VULNERS_API_KEY env, else tests/live.local.toml ([live] api_key=...).
@@ -70,11 +70,12 @@ def _retain_errored(collections: dict, type_schemas: dict, collection_map: dict)
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--limit", type=int, default=20, help="documents sampled per collection")
+    ap.add_argument("--limit", type=int, default=15, help="documents sampled per collection")
+    ap.add_argument("--workers", type=int, default=12, help="concurrent collection fetches")
     args = ap.parse_args()
 
-    print("sampling every collection (one at a time)...", file=sys.stderr)
-    type_schemas, collection_map = sample(args.limit)
+    print("sampling every collection (in parallel)...", file=sys.stderr)
+    type_schemas, collection_map = sample(args.limit, args.workers)
     write_records(type_schemas, collection_map)
 
     from vulners._models import bulletin as bmod

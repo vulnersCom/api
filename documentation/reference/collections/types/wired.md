@@ -2,40 +2,42 @@
 
 Wired provides security news and analysis, covering various vendors and products, typically featuring advisories, CVEs, and expert commentary.
 
-**Family model:** [`AdvisoryBulletin`](../../data-models.md) — `bulletinFamily: blog`. Fields are grouped by where they're modelled; anything Vulners adds beyond the models stays accessible via `extra="allow"`.
+**Family model:** [`AdvisoryBulletin`](../../data-models.md) — `bulletinFamily: blog`. Fields are grouped by where they appear across the samples; anything Vulners adds beyond the models stays accessible via `extra="allow"`.
 
 ### Common document fields
 
-Base [`Bulletin`](../../data-models.md) fields — every document carries these.
+Present in every sampled document, across all collections (the base [`Bulletin`](../../data-models.md)).
 
 | field | type | description | example |
 |---|---|---|---|
 | `bulletinFamily` | `str` | Broad family the document belongs to (cve, exploit, software, …). | `"blog"` |
-| `cvss` | `object{score,severity,source,vector,version}` | Primary CVSS score block (version, base score, vector, severity, source). | `{"version": "NONE", "score": 0.0, "vector": "…` |
-| `description` | `str` | Full text or summary of the vulnerability/advisory. | `"A first-of-its-kind analysis found more than…` |
-| `enchantments` | `object{score,short_description,tags}, object{short_description,tags}` | Vulners-computed enrichment layer (AI score, tags, related docs). | `{"short_description": "Study finds over one i…` |
-| `href` | `str` | Canonical URL of the document at its original source. | `"https://www.wired.com/story/apps-marketed-to…` |
-| `id` | `str` | Unique document identifier (e.g. a CVE id, exploit id or advisory id). | `"WIRED:A9D458277D5316228DC658290387B1F1"` |
-| `lastseen` | `str` | Last time Vulners observed/refreshed the document (ISO-8601). | `"2026-07-20T09:39:47"` |
-| `modified` | `str` | Last modification timestamp at the source (ISO-8601). | `"2026-07-20T09:30:00"` |
-| `published` | `str` | Original publication timestamp (ISO-8601). | `"2026-07-20T09:30:00"` |
-| `reporter` | `str` | Person or organization credited with reporting/authoring it. | `"Dell Cameron"` |
+| `id` | `str` | Unique document identifier (e.g. a CVE id, exploit id or advisory id). | `"WIRED:1C17C83160CADA806C6B7446266F2C04"` |
+| `lastseen` | `str` | Last time Vulners observed/refreshed the document (ISO-8601). | `"2026-07-20T11:36:51"` |
+| `modified` | `str` | Last modification timestamp at the source (ISO-8601). | `"2026-07-20T10:00:00"` |
+| `published` | `str` | Original publication timestamp (ISO-8601). | `"2026-07-20T10:00:00"` |
 | `sourceAvailable` | `bool` | Whether the raw source data is available for this document. | `true` |
-| `timestamps` | `object{contentUpdated,created,enriched,metricsUpdated,reviewed,updated}` | Vulners lifecycle timestamps (created/updated/enriched/reviewed/…). | `{"created": "2026-07-20T09:39:47.283000Z", "u…` |
-| `title` | `str` | Human-readable title of the document. | `"Apps Marketed to US Troops Are Shipping Chin…` |
+| `timestamps` | `object{contentUpdated,created,enriched,metricsUpdated,reviewed,updated}` | Vulners lifecycle timestamps (created/updated/enriched/reviewed/…). | `{"created": "2026-07-20T11:36:51.211000Z", "u…` |
+| `title` | `str` | Human-readable title of the document. | `"The ACLU Is Arming Lawyers to Expose State S…` |
 | `type` | `str` | Source collection the document comes from (cve, exploitdb, ubuntu, …). | `"wired"` |
-| `vhref` | `str` | URL of the document on vulners.com. | `"https://vulners.com/wired/WIRED:A9D458277D53…` |
-| `viewCount` | `int` | How many times the document has been viewed on Vulners. | `3` |
+| `vhref` | `str` | URL of the document on vulners.com. | `"https://vulners.com/wired/WIRED:1C17C83160CA…` |
+| `viewCount` | `int` | How many times the document has been viewed on Vulners. | `4` |
 
 ### Family fields
 
-Added by the [`AdvisoryBulletin`](../../data-models.md) family model.
+Present in every sampled `blog`-family document (typed by [`AdvisoryBulletin`](../../data-models.md)).
 
-_None in the sample._
+| field | type | description | example |
+|---|---|---|---|
+| `cvss` | `object{score,severity,source,vector,version}` | Primary CVSS score block (version, base score, vector, severity, source). | `{"version": "NONE", "score": 0.0, "vector": "…` |
+| `enchantments` | `object{score,short_description,tags}` | Vulners-computed enrichment layer (AI score, tags, related docs). | `{"score": {"value": 5.4, "uncertanity": 1.5, …` |
+| `href` | `str` | Canonical URL of the document at its original source. | `"https://www.wired.com/story/the-aclu-is-armi…` |
+| `reporter` | `str` | Person or organization credited with reporting/authoring it. | `"Dell Cameron"` |
 
 ### Collection fields
 
-Specific to the `wired` collection.
+Specific to the `wired` collection, beyond the common and family sets.
 
-_None in the sample._
+| field | type | description | example |
+|---|---|---|---|
+| `description` | `str` | Full text or summary of the vulnerability/advisory. | `"A new toolkit for attorneys in Massachusetts…` |
 

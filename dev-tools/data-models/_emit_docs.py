@@ -17,6 +17,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
+from _emit_models import derive_layers
 from _paths import DOC_DIR
 
 
@@ -95,30 +96,29 @@ def _field_row(name: str, meta: dict, descriptions: dict) -> str:
     return f"| `{name}` | `{types}` | {fdesc} | {_md_code(raw)} |"
 
 
-def _field_sections(t: str, tinfo: dict, descriptions: dict, bmod: Any, fam: str) -> list[str]:
-    """Three sorted tables for a collection's sampled fields, partitioned by where
-    each field is modelled: common (base ``Bulletin``) → family → collection (type)."""
-    base = bmod.Bulletin
-    fam_model = bmod._FAMILY_MODELS.get(fam)
-    base_wire = {(fi.alias or n) for n, fi in base.model_fields.items()}
-    fam_wire = (
-        {(fi.alias or n) for n, fi in fam_model.model_fields.items()} - base_wire
-        if fam_model is not None
-        else set()
-    )
+def _field_sections(
+    t: str, tinfo: dict, descriptions: dict,
+    base_fields: set[str], fam_fields: set[str], fam: str, fam_model: str,
+) -> list[str]:
+    """Three sorted tables partitioning the collection's sampled fields by the
+    data-driven layers (``derive_layers``): common (base) → family → collection
+    (type). A field is common if it appears in every sampled document everywhere,
+    family if it appears in every document of this ``bulletinFamily``, else it is
+    specific to this collection."""
     buckets: dict[str, list[tuple[str, dict]]] = {"base": [], "family": [], "type": []}
     for name, meta in tinfo.get("fields", {}).items():
-        key = "base" if name in base_wire else "family" if name in fam_wire else "type"
+        key = "base" if name in base_fields else "family" if name in fam_fields else "type"
         buckets[key].append((name, meta))
 
-    fam_name = fam_model.__name__ if fam_model is not None else "GenericBulletin"
     sections = [
         ("base", "Common document fields",
-         "Base [`Bulletin`](../../data-models.md) fields — every document carries these."),
+         "Present in every sampled document, across all collections "
+         "(the base [`Bulletin`](../../data-models.md))."),
         ("family", "Family fields",
-         f"Added by the [`{fam_name}`](../../data-models.md) family model."),
+         f"Present in every sampled `{fam}`-family document "
+         f"(typed by [`{fam_model}`](../../data-models.md))."),
         ("type", "Collection fields",
-         f"Specific to the `{t}` collection."),
+         f"Specific to the `{t}` collection, beyond the common and family sets."),
     ]
     out: list[str] = []
     for key, title, blurb in sections:
@@ -202,11 +202,12 @@ def _emit_data_models_narrative(bmod: Any) -> None:
 
 
 def _write_type_page(
-    types_dir: Path, t: str, info: dict, tinfo: dict, bmod: Any, descriptions: dict
+    types_dir: Path, t: str, info: dict, tinfo: dict,
+    base_fields: set[str], family_fields: dict[str, set[str]],
+    fam_names: dict, descriptions: dict,
 ) -> None:
     fam = info["bulletinFamily"]
-    fam_model = bmod._FAMILY_MODELS.get(fam)
-    model = fam_model.__name__ if fam_model is not None else "GenericBulletin"
+    model = fam_names.get(fam, "GenericBulletin")
     cnt_s = _approx(info.get("count"))
     desc = _prose(info.get("description") or "")
     lines = [
@@ -215,16 +216,17 @@ def _write_type_page(
         desc or "_(no description)_",
         "",
         f"**Family model:** [`{model}`](../../data-models.md) — `bulletinFamily: {fam}`. "
-        "Fields are grouped by where they're modelled; anything Vulners adds beyond the "
-        'models stays accessible via `extra="allow"`.',
+        "Fields are grouped by where they appear across the samples; anything Vulners "
+        'adds beyond the models stays accessible via `extra="allow"`.',
         "",
-        *_field_sections(t, tinfo, descriptions, bmod, fam),
+        *_field_sections(t, tinfo, descriptions, base_fields, family_fields.get(fam, set()),
+                         fam, model),
     ]
     (types_dir / f"{_slug(t)}.md").write_text("\n".join(lines) + "\n")
 
 
 def _emit_collections_reference(
-    type_schemas: dict, collection_map: dict, bmod: Any, fam_names: dict, descriptions: dict
+    type_schemas: dict, collection_map: dict, fam_names: dict, descriptions: dict
 ) -> None:
     """documentation/reference/collections/ — one atomically-editable page per
     collection ``type`` plus an index, so a changed collection touches only its own
@@ -235,11 +237,13 @@ def _emit_collections_reference(
         shutil.rmtree(types_dir)
     types_dir.mkdir(parents=True, exist_ok=True)
 
+    base_fields, family_fields = derive_layers(type_schemas)
     by_family: dict[str, list[str]] = defaultdict(list)
     for t, info in collection_map.items():
         if info.get("bulletinFamily"):
             by_family[info["bulletinFamily"]].append(t)
-            _write_type_page(types_dir, t, info, type_schemas.get(t, {}), bmod, descriptions)
+            _write_type_page(types_dir, t, info, type_schemas.get(t, {}),
+                             base_fields, family_fields, fam_names, descriptions)
 
     n_fam = len({fam_names.get(f, "GenericBulletin") for f in by_family})
     n_types = sum(len(v) for v in by_family.values())
@@ -281,7 +285,7 @@ def emit_docs(type_schemas: dict, collection_map: dict, descriptions: dict) -> N
     DOC_DIR.mkdir(parents=True, exist_ok=True)
 
     _emit_data_models_narrative(bmod)
-    _emit_collections_reference(type_schemas, collection_map, bmod, fam_names, descriptions)
+    _emit_collections_reference(type_schemas, collection_map, fam_names, descriptions)
     print(
         f"wrote {DOC_DIR / 'data-models.md'} and {DOC_DIR / 'collections'}/ "
         "(index + one page per type)",

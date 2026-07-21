@@ -139,7 +139,15 @@ class VulnersApiError(Exception):
         retry_after: seconds to wait before retrying, from a Retry-After header.
     """
 
-    def __init__(self, http_status, data, retry_after=None):
+    http_status: int | None
+    retry_after: float | None
+    data: Any
+    error_code: int | str | None
+    message: str | None
+
+    def __init__(
+        self, http_status: int | None, data: Any, retry_after: float | None = None
+    ) -> None:
         # Mask any API-key material (a value under an apiKey/X-Api-Key field, or
         # a server echo of the request that carried the key) before it reaches
         # str()/repr() and from there logs, APM or a crash reporter.

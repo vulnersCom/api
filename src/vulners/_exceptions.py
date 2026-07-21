@@ -194,8 +194,11 @@ class APIError(VulnersError, _LegacyVulnersApiError):
         # MRO has an incompatible (http_status, data) signature and must not run.
         Exception.__init__(self, message if message is not None else data)
 
+    # The legacy base declares http_status as a writeable attribute; here it is an
+    # intentional read-only v3-compat alias of status_code (never assigned), which
+    # is safe but narrower than the base attr, so the override check is suppressed.
     @property
-    def http_status(self) -> int | None:
+    def http_status(self) -> int | None:  # type: ignore[override]
         """v3-compatible alias of :attr:`status_code`."""
         return self.status_code
 

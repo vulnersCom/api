@@ -1,6 +1,6 @@
 # `crypto` family
 
-**Model:** `CryptoBulletin` — extends [`Bulletin`](base.md); `bulletinFamily: crypto`. 1 collection.
+**Model:** `CryptoBulletin` — extends [`Bulletin`](base.md); `bulletinFamily: crypto`.
 
 ## Family fields
 

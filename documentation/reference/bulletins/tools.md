@@ -1,6 +1,6 @@
 # `tools` family
 
-**Model:** `ToolsBulletin` — extends [`Bulletin`](base.md); `bulletinFamily: tools`. 2 collections.
+**Model:** `ToolsBulletin` — extends [`Bulletin`](base.md); `bulletinFamily: tools`.
 
 ## Family fields
 

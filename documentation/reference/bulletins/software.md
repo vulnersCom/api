@@ -1,6 +1,6 @@
 # `software` family
 
-**Model:** `SoftwareBulletin` — extends [`Bulletin`](base.md); `bulletinFamily: software`. 82 collections.
+**Model:** `SoftwareBulletin` — extends [`Bulletin`](base.md); `bulletinFamily: software`.
 
 ## Family fields
 

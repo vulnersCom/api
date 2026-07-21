@@ -1,6 +1,6 @@
 # `cnnvd` family
 
-**Model:** `CnnvdBulletin` — extends [`Bulletin`](base.md); `bulletinFamily: cnnvd`. 1 collection.
+**Model:** `CnnvdBulletin` — extends [`Bulletin`](base.md); `bulletinFamily: cnnvd`.
 
 ## Family fields
 

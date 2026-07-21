@@ -1,6 +1,6 @@
 # `scanner` family
 
-**Model:** `ScannerBulletin` — extends [`Bulletin`](base.md); `bulletinFamily: scanner`. 5 collections.
+**Model:** `ScannerBulletin` — extends [`Bulletin`](base.md); `bulletinFamily: scanner`.
 
 ## Family fields
 

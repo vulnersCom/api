@@ -113,7 +113,6 @@ def emit_docs(type_schemas: dict, collection_map: dict, descriptions: dict) -> N
     BULLETINS_DOC.mkdir(parents=True)
 
     # --- index.md ------------------------------------------------------------
-    n_types = sum(len(v) for v in fam_types.values())
     idx = [
         "# Data models",
         "",
@@ -131,32 +130,26 @@ def emit_docs(type_schemas: dict, collection_map: dict, descriptions: dict) -> N
         '`extra="allow"`, so a field Vulners adds before the SDK models it is still there '
         "on the object, just untyped — nothing is ever dropped.",
         "",
-        "> The models **and** these pages are generated from live samples by "
-        "`dev-tools/data-models/sample_collections.py` into `src/vulners/_models/bulletins/` "
-        "(one file per family); a field belongs to a layer when the server sends its key in "
-        "*every* sampled document at that level.",
+        "> A field sits at the level where it is always present: on `Bulletin` when every "
+        "document carries it, on a family model when every document of that `bulletinFamily` "
+        "carries it, otherwise on the collection model.",
         "",
         "## Structure",
         "",
-        f"`Bulletin` (base) → {len(fam_types)} family models → {n_types} collection models. "
+        "`Bulletin` (base) → a model per `bulletinFamily` → a model per collection `type`. "
         "Every family model extends `Bulletin`; every collection model extends its family "
         "model, so `isinstance` holds at every level (a `nessus` document is a "
-        "`NessusBulletin`, which is a `ScannerBulletin`, which is a `Bulletin`). Each row "
-        "links to that family's page, listing its fields and every collection type under it.",
+        "`NessusBulletin`, which is a `ScannerBulletin`, which is a `Bulletin`). Each family "
+        "below links to its page, which lists the family's fields and every collection type "
+        "under it.",
         "",
-        f"- **[`Bulletin`](base.md)** — base · {len(base_fields)} common fields",
+        "- **[`Bulletin`](base.md)** — base fields, common to every document",
     ]
     for fam in sorted(fam_types):
-        nf = len(family_fields.get(fam, set()))
-        nt = len(fam_types[fam])
-        idx.append(
-            f"    - **[`{fam_class[fam]}`]({fam}.md)** — `bulletinFamily: {fam}` · "
-            f"+{nf} field{'s' if nf != 1 else ''} · "
-            f"{nt} collection type{'s' if nt != 1 else ''}"
-        )
+        idx.append(f"    - **[`{fam_class[fam]}`]({fam}.md)** — `bulletinFamily: {fam}`")
     idx += [
         "",
-        f"## Base fields ({len(base_fields)})",
+        "## Base fields",
         "",
         "Present in every document, at the `Bulletin` level — full table with types, "
         "descriptions and examples on **[the base page](base.md)**:",
@@ -173,7 +166,7 @@ def emit_docs(type_schemas: dict, collection_map: dict, descriptions: dict) -> N
         "Fields the server sends in **every** document, across all collections. Every "
         "family and collection model inherits them. Nested value objects — `Cvss` (with "
         "`Cvss2`/`Cvss3`/`Cvss4` by version), `Timestamps`, `Enchantments`, `EpssScore` — "
-        "are hand-written and shared.",
+        "are shared value objects reused across families.",
         "",
         *_field_table(
             base_fields, lambda w: _agg_meta(type_schemas, w, all_types), descriptions
@@ -190,8 +183,7 @@ def emit_docs(type_schemas: dict, collection_map: dict, descriptions: dict) -> N
             f"# `{fam}` family",
             "",
             f"**Model:** `{fam_class[fam]}` — extends [`Bulletin`](base.md); "
-            f"`bulletinFamily: {fam}`. {len(types)} collection"
-            f"{'s' if len(types) != 1 else ''}.",
+            f"`bulletinFamily: {fam}`.",
             "",
             "## Family fields",
             "",

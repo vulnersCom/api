@@ -1,6 +1,6 @@
 # `blog` family
 
-**Model:** `BlogBulletin` — extends [`Bulletin`](base.md); `bulletinFamily: blog`. 35 collections.
+**Model:** `BlogBulletin` — extends [`Bulletin`](base.md); `bulletinFamily: blog`.
 
 ## Family fields
 

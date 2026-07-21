@@ -9,7 +9,7 @@ models subclass their family model, which subclasses `Bulletin`, so family class
 stable `isinstance`/annotation surface. Fields are accessed as attributes and are all optional
 (a missing field is `None`).
 
-The family and per-collection models are **generated** (`base → family → type`) — see
+The family and per-collection models follow a `base → family → type` hierarchy — see
 **[Data models](bulletins/index.md)** for every family and collection with its fields,
 descriptions and examples.
 
@@ -27,7 +27,7 @@ descriptions and examples.
 
 ### CVSS & nested objects
 
-Hand-written value objects shared across families. `Cvss` specializes to `Cvss2`/`Cvss3`/`Cvss4`
+Value objects shared across families. `Cvss` specializes to `Cvss2`/`Cvss3`/`Cvss4`
 by its `version`.
 
 ::: vulners._models.bulletin.Cvss

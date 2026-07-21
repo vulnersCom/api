@@ -1,6 +1,6 @@
 # `microsoft` family
 
-**Model:** `MicrosoftBulletin` — extends [`Bulletin`](base.md); `bulletinFamily: microsoft`. 3 collections.
+**Model:** `MicrosoftBulletin` — extends [`Bulletin`](base.md); `bulletinFamily: microsoft`.
 
 ## Family fields
 

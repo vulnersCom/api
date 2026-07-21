@@ -1,6 +1,6 @@
 # `jvn` family
 
-**Model:** `JvnBulletin` — extends [`Bulletin`](base.md); `bulletinFamily: jvn`. 1 collection.
+**Model:** `JvnBulletin` — extends [`Bulletin`](base.md); `bulletinFamily: jvn`.
 
 ## Family fields
 

@@ -1,6 +1,6 @@
 # `euvd` family
 
-**Model:** `EuvdBulletin` — extends [`Bulletin`](base.md); `bulletinFamily: euvd`. 1 collection.
+**Model:** `EuvdBulletin` — extends [`Bulletin`](base.md); `bulletinFamily: euvd`.
 
 ## Family fields
 

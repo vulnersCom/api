@@ -8,33 +8,33 @@ Every document Vulners returns is a **bulletin**, modelled in three inheritance 
 
 `search`/`archive`/`audit` return the most specific model that matches a document's `type`, then its `bulletinFamily`, then `Bulletin`. Every model keeps `extra="allow"`, so a field Vulners adds before the SDK models it is still there on the object, just untyped — nothing is ever dropped.
 
-> The models **and** these pages are generated from live samples by `dev-tools/data-models/sample_collections.py` into `src/vulners/_models/bulletins/` (one file per family); a field belongs to a layer when the server sends its key in *every* sampled document at that level.
+> A field sits at the level where it is always present: on `Bulletin` when every document carries it, on a family model when every document of that `bulletinFamily` carries it, otherwise on the collection model.
 
 ## Structure
 
-`Bulletin` (base) → 18 family models → 238 collection models. Every family model extends `Bulletin`; every collection model extends its family model, so `isinstance` holds at every level (a `nessus` document is a `NessusBulletin`, which is a `ScannerBulletin`, which is a `Bulletin`). Each row links to that family's page, listing its fields and every collection type under it.
+`Bulletin` (base) → a model per `bulletinFamily` → a model per collection `type`. Every family model extends `Bulletin`; every collection model extends its family model, so `isinstance` holds at every level (a `nessus` document is a `NessusBulletin`, which is a `ScannerBulletin`, which is a `Bulletin`). Each family below links to its page, which lists the family's fields and every collection type under it.
 
-- **[`Bulletin`](base.md)** — base · 25 common fields
-    - **[`BlogBulletin`](blog.md)** — `bulletinFamily: blog` · +0 fields · 35 collection types
-    - **[`BugbountyBulletin`](bugbounty.md)** — `bulletinFamily: bugbounty` · +1 field · 4 collection types
-    - **[`CnnvdBulletin`](cnnvd.md)** — `bulletinFamily: cnnvd` · +3 fields · 1 collection type
-    - **[`CnvdBulletin`](cnvd.md)** — `bulletinFamily: cnvd` · +4 fields · 1 collection type
-    - **[`CryptoBulletin`](crypto.md)** — `bulletinFamily: crypto` · +1 field · 1 collection type
-    - **[`CveBulletin`](cve.md)** — `bulletinFamily: cve` · +1 field · 5 collection types
-    - **[`EuvdBulletin`](euvd.md)** — `bulletinFamily: euvd` · +2 fields · 1 collection type
-    - **[`ExploitBulletin`](exploit.md)** — `bulletinFamily: exploit` · +0 fields · 18 collection types
-    - **[`InfoBulletin`](info.md)** — `bulletinFamily: info` · +0 fields · 40 collection types
-    - **[`JvnBulletin`](jvn.md)** — `bulletinFamily: jvn` · +3 fields · 1 collection type
-    - **[`LibraryBulletin`](library.md)** — `bulletinFamily: library` · +1 field · 3 collection types
-    - **[`MicrosoftBulletin`](microsoft.md)** — `bulletinFamily: microsoft` · +2 fields · 3 collection types
-    - **[`NcscBulletin`](ncsc.md)** — `bulletinFamily: ncsc` · +3 fields · 1 collection type
-    - **[`NozomiBulletin`](nozomi.md)** — `bulletinFamily: nozomi` · +3 fields · 1 collection type
-    - **[`ScannerBulletin`](scanner.md)** — `bulletinFamily: scanner` · +1 field · 5 collection types
-    - **[`SoftwareBulletin`](software.md)** — `bulletinFamily: software` · +0 fields · 82 collection types
-    - **[`ToolsBulletin`](tools.md)** — `bulletinFamily: tools` · +1 field · 2 collection types
-    - **[`UnixBulletin`](unix.md)** — `bulletinFamily: unix` · +0 fields · 34 collection types
+- **[`Bulletin`](base.md)** — base fields, common to every document
+    - **[`BlogBulletin`](blog.md)** — `bulletinFamily: blog`
+    - **[`BugbountyBulletin`](bugbounty.md)** — `bulletinFamily: bugbounty`
+    - **[`CnnvdBulletin`](cnnvd.md)** — `bulletinFamily: cnnvd`
+    - **[`CnvdBulletin`](cnvd.md)** — `bulletinFamily: cnvd`
+    - **[`CryptoBulletin`](crypto.md)** — `bulletinFamily: crypto`
+    - **[`CveBulletin`](cve.md)** — `bulletinFamily: cve`
+    - **[`EuvdBulletin`](euvd.md)** — `bulletinFamily: euvd`
+    - **[`ExploitBulletin`](exploit.md)** — `bulletinFamily: exploit`
+    - **[`InfoBulletin`](info.md)** — `bulletinFamily: info`
+    - **[`JvnBulletin`](jvn.md)** — `bulletinFamily: jvn`
+    - **[`LibraryBulletin`](library.md)** — `bulletinFamily: library`
+    - **[`MicrosoftBulletin`](microsoft.md)** — `bulletinFamily: microsoft`
+    - **[`NcscBulletin`](ncsc.md)** — `bulletinFamily: ncsc`
+    - **[`NozomiBulletin`](nozomi.md)** — `bulletinFamily: nozomi`
+    - **[`ScannerBulletin`](scanner.md)** — `bulletinFamily: scanner`
+    - **[`SoftwareBulletin`](software.md)** — `bulletinFamily: software`
+    - **[`ToolsBulletin`](tools.md)** — `bulletinFamily: tools`
+    - **[`UnixBulletin`](unix.md)** — `bulletinFamily: unix`
 
-## Base fields (25)
+## Base fields
 
 Present in every document, at the `Bulletin` level — full table with types, descriptions and examples on **[the base page](base.md)**:
 

@@ -1,6 +1,6 @@
 # `info` family
 
-**Model:** `InfoBulletin` — extends [`Bulletin`](base.md); `bulletinFamily: info`. 40 collections.
+**Model:** `InfoBulletin` — extends [`Bulletin`](base.md); `bulletinFamily: info`.
 
 ## Family fields
 

@@ -1,6 +1,6 @@
 # `nozomi` family
 
-**Model:** `NozomiBulletin` — extends [`Bulletin`](base.md); `bulletinFamily: nozomi`. 1 collection.
+**Model:** `NozomiBulletin` — extends [`Bulletin`](base.md); `bulletinFamily: nozomi`.
 
 ## Family fields
 

@@ -1,6 +1,6 @@
 # `Bulletin` — base fields
 
-Fields the server sends in **every** document, across all collections. Every family and collection model inherits them. Nested value objects — `Cvss` (with `Cvss2`/`Cvss3`/`Cvss4` by version), `Timestamps`, `Enchantments`, `EpssScore` — are hand-written and shared.
+Fields the server sends in **every** document, across all collections. Every family and collection model inherits them. Nested value objects — `Cvss` (with `Cvss2`/`Cvss3`/`Cvss4` by version), `Timestamps`, `Enchantments`, `EpssScore` — are shared value objects reused across families.
 
 | field | type | description | example |
 |---|---|---|---|

@@ -1,6 +1,6 @@
 # `unix` family
 
-**Model:** `UnixBulletin` — extends [`Bulletin`](base.md); `bulletinFamily: unix`. 34 collections.
+**Model:** `UnixBulletin` — extends [`Bulletin`](base.md); `bulletinFamily: unix`.
 
 ## Family fields
 

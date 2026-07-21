@@ -1,6 +1,6 @@
 # `bugbounty` family
 
-**Model:** `BugbountyBulletin` — extends [`Bulletin`](base.md); `bulletinFamily: bugbounty`. 4 collections.
+**Model:** `BugbountyBulletin` — extends [`Bulletin`](base.md); `bulletinFamily: bugbounty`.
 
 ## Family fields
 

@@ -1,6 +1,6 @@
 # `library` family
 
-**Model:** `LibraryBulletin` — extends [`Bulletin`](base.md); `bulletinFamily: library`. 3 collections.
+**Model:** `LibraryBulletin` — extends [`Bulletin`](base.md); `bulletinFamily: library`.
 
 ## Family fields
 

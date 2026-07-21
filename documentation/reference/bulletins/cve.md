@@ -1,6 +1,6 @@
 # `cve` family
 
-**Model:** `CveBulletin` — extends [`Bulletin`](base.md); `bulletinFamily: cve`. 5 collections.
+**Model:** `CveBulletin` — extends [`Bulletin`](base.md); `bulletinFamily: cve`.
 
 ## Family fields
 

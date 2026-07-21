@@ -1,6 +1,6 @@
 # `ncsc` family
 
-**Model:** `NcscBulletin` — extends [`Bulletin`](base.md); `bulletinFamily: ncsc`. 1 collection.
+**Model:** `NcscBulletin` — extends [`Bulletin`](base.md); `bulletinFamily: ncsc`.
 
 ## Family fields
 

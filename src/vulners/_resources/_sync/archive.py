@@ -11,7 +11,9 @@ collections can be gigabytes, so they use the archive timeout profile.
 
 from __future__ import annotations
 
+import contextlib
 import os
+import tempfile
 from collections.abc import Iterator
 from datetime import datetime
 from typing import Any, BinaryIO
@@ -139,10 +141,26 @@ def _distributive(value: Any) -> list[Any]:
     return [item["_source"] for item in value if isinstance(item, dict) and "_source" in item]
 
 
-def _open_binary_write(path: str) -> BinaryIO:
-    # Module-level helper so the blocking open can be pushed off the event loop
-    # (the async source wraps it in a thread; the sync mirror calls it inline).
-    return open(path, "wb")
+def _open_temp_beside(dest: str) -> tuple[BinaryIO, str]:
+    # Open a temp file in the destination's own directory so a later os.replace()
+    # onto dest is an atomic same-filesystem rename. Blocking, so the async source
+    # runs it off the event loop (the sync mirror calls it inline).
+    directory = os.path.dirname(os.path.abspath(dest)) or "."
+    fd, tmp_path = tempfile.mkstemp(prefix=".vulners-dl-", dir=directory)
+    return os.fdopen(fd, "wb"), tmp_path
+
+
+def _flush_and_close(handle: BinaryIO) -> None:
+    handle.flush()
+    os.fsync(handle.fileno())
+    handle.close()
+
+
+def _cleanup_temp(handle: BinaryIO, tmp_path: str) -> None:
+    with contextlib.suppress(OSError):
+        handle.close()
+    with contextlib.suppress(OSError):
+        os.unlink(tmp_path)
 
 
 class Archive(_base.BaseResource):
@@ -209,15 +227,23 @@ class Archive(_base.BaseResource):
         if update_from is not None:
             spec = _STREAM_COLLECTION_UPDATE
             params["after"] = update_from.isoformat()
+        dest = os.fspath(path)
+        # Atomic write: stream into a temp file beside the destination, fsync, then
+        # os.replace() (an atomic same-filesystem rename). A timeout, cancellation,
+        # disconnect or ENOSPC mid-download leaves any existing archive at `path`
+        # intact instead of clobbering it with a half-written file.
+        handle, tmp_path = vulners._base_client._call_blocking(_open_temp_beside, dest)
         written = 0
-        with self._client.stream_response(spec, params=params, timeout=timeout) as resp:
-            handle = vulners._base_client._call_blocking(_open_binary_write, os.fspath(path))
-            try:
+        try:
+            with self._client.stream_response(spec, params=params, timeout=timeout) as resp:
                 for chunk in resp.iter_bytes():
                     vulners._base_client._call_blocking(handle.write, chunk)
                     written += len(chunk)
-            finally:
-                vulners._base_client._call_blocking(handle.close)
+            vulners._base_client._call_blocking(_flush_and_close, handle)
+            vulners._base_client._call_blocking(os.replace, tmp_path, dest)
+        except BaseException:
+            vulners._base_client._call_blocking(_cleanup_temp, handle, tmp_path)
+            raise
         return written
 
     def fetch_collection_update(

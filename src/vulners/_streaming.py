@@ -137,6 +137,14 @@ class GzipJsonArrayDecoder:
 
     def flush(self) -> Iterator[Any]:
         yield from self._items.feed(self._d.flush())
+        if not self._d.eof:
+            # The gzip stream ended before its trailer: the JSON may parse, but the
+            # CRC/length trailer was never reached, so a truncated download (dropped
+            # connection, short archive) would otherwise look successful. Treat it
+            # as a corrupt archive instead of silently yielding a partial dataset.
+            raise APIResponseValidationError(
+                "truncated gzip archive: stream ended before the gzip trailer"
+            )
         yield from self._items.flush()
 
 

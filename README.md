@@ -15,8 +15,8 @@ your own pipelines — all from a few lines of typed, async-ready Python.
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/vulnersCom/api/blob/master/LICENSE)
 [![Typed](https://img.shields.io/badge/typing-PEP%20561-brightgreen)](https://peps.python.org/pep-0561/)
 
-[**Documentation**](https://docs.vulners.com/docs/) ·
-[**API Reference**](https://docs.vulners.com/docs/api/) ·
+[**SDK documentation**](https://vulnersCom.github.io/api/) ·
+[**Data models**](https://vulnersCom.github.io/api/reference/bulletins/) ·
 [**Get an API key**](https://docs.vulners.com/docs/quickstart/authentication/) ·
 [**Vulners.com**](https://vulners.com)
 
@@ -151,6 +151,36 @@ except APIError as err:
 
 ---
 
+## Data models
+
+Every document the API returns is a **bulletin**, and the SDK models them in three typed layers,
+so your editor and type checker know the exact shape at whatever level of detail you need:
+
+- **`Bulletin`** — the base fields every document carries (`id`, `title`, `cvss`, `published`, …).
+- **Family models** (`CveBulletin`, `ExploitBulletin`, `ScannerBulletin`, …) — one per
+  `bulletinFamily`, adding that family's shared fields.
+- **Collection models** — one per collection `type`, adding the fields specific to that source.
+
+`search`/`archive`/`audit` return the most specific model that fits a document (`type` →
+`bulletinFamily` → `Bulletin`). Every field is optional (a missing one is `None`) and every model
+keeps `extra="allow"`, so a field the API adds before the SDK models it is still on the object —
+nothing is ever dropped.
+
+```python
+from vulners import Vulners, CveBulletin
+
+with Vulners() as v:                          # reads VULNERS_API_KEY
+    cve = v.search.get_bulletin("CVE-2021-44228")
+    if isinstance(cve, CveBulletin):
+        print(cve.cwe)                        # typed, cve-specific field — IDE-completed
+```
+
+The full hierarchy — every family and collection with its fields, descriptions and examples,
+generated from live data — is browsable in the
+**[Data models reference](https://vulnersCom.github.io/api/reference/bulletins/)**.
+
+---
+
 ## AI agents (MCP)
 
 Ship live Vulners intelligence to AI agents and copilots via the built-in
@@ -205,8 +235,11 @@ messages and object reprs.
 
 | Resource | Link |
 |---|---|
-| 📖 Full documentation | https://docs.vulners.com/docs/ |
-| 🔌 API reference | https://docs.vulners.com/docs/api/ |
+| 📘 SDK documentation | https://vulnersCom.github.io/api/ |
+| 🧬 Data models (bulletin hierarchy) | https://vulnersCom.github.io/api/reference/bulletins/ |
+| 🔌 SDK API reference (clients, resources, exceptions) | https://vulnersCom.github.io/api/reference/clients/ |
+| 🧭 Migration (v3 → v4) | https://vulnersCom.github.io/api/explanation/migration/ |
+| 📖 Vulners platform docs | https://docs.vulners.com/docs/ |
 | 🧪 Interactive API (Swagger) | https://docs.vulners.com/docs/api/swagger/ |
 | 🔑 Authentication / API keys | https://docs.vulners.com/docs/quickstart/authentication/ |
 | 💡 Examples | [`samples/`](https://github.com/vulnersCom/api/tree/master/samples) |

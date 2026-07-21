@@ -103,6 +103,12 @@ class AsyncSearch(_base.AsyncBaseResource):
             SearchWindowExceeded: ``offset`` is at or beyond the 10000-document
                 window; use the archive API to page further.
         """
+        if not query or not query.strip():
+            raise ValueError("query must not be empty")
+        if limit < 1:
+            raise ValueError(f"limit must be >= 1, got {limit}")
+        if offset < 0:
+            raise ValueError(f"offset must be >= 0, got {offset}")
         if offset >= SEARCH_WINDOW:
             raise SearchWindowExceeded(
                 f"offset must be less than {SEARCH_WINDOW} (got {offset}); the search "

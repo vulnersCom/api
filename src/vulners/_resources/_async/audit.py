@@ -63,6 +63,30 @@ _SUPPORTED_OS = RequestSpec(
 
 _SMART_MAX_ITEMS = 500
 _SMART_MAX_LEN = 512
+# Documented upper bound for the package/library audit endpoints.
+_AUDIT_MAX_PACKAGES = 2500
+
+
+def _require_count(
+    items: Sequence[Any], name: str, *, hi: int | None = None, strings: bool = False
+) -> list[Any]:
+    """Validate a batch before a request: non-empty, within ``hi``, no empty strings.
+
+    Enforces the documented limits client-side so an empty or oversized batch (or a
+    negative-size payload derived from it) fails fast with a clear message instead
+    of a confusing server error — important for the per-string-billed endpoints.
+    """
+    seq = list(items)
+    if not seq:
+        raise ValueError(f"{name} must not be empty")
+    if hi is not None and len(seq) > hi:
+        raise ValueError(f"{name} must have at most {hi} entries, got {len(seq)}")
+    if strings:
+        for i, entry in enumerate(seq):
+            if not isinstance(entry, str) or not entry.strip():
+                raise ValueError(f"{name}[{i}] must be a non-empty string")
+    return seq
+
 
 PackageEcosystem = Literal["maven", "pip", "poetry", "uv", "npm", "golang"]
 
@@ -322,7 +346,7 @@ class AsyncAudit(_base.AsyncBaseResource):
             catalog: ``"official"`` or ``"extended"`` product catalog.
         """
         body: dict[str, Any] = {
-            "software": list(software),
+            "software": _require_count(software, "software"),
             "match": match,
             "catalog": catalog,
         }
@@ -345,7 +369,7 @@ class AsyncAudit(_base.AsyncBaseResource):
     ) -> list[dict[str, Any]]:
         """Audit a host: its software plus optional application/OS/hardware CPEs."""
         body: dict[str, Any] = {
-            "software": list(software),
+            "software": _require_count(software, "software"),
             "match": match,
             "catalog": catalog,
         }
@@ -402,7 +426,9 @@ class AsyncAudit(_base.AsyncBaseResource):
         body = {
             "osName": os_name,
             "osVersion": os_version,
-            "packages": list(packages),
+            "packages": _require_count(
+                packages, "packages", hi=_AUDIT_MAX_PACKAGES, strings=True
+            ),
             "osArch": os_arch,
             "includeUnofficial": include_unofficial,
             "includeCandidates": include_candidates,
@@ -431,7 +457,9 @@ class AsyncAudit(_base.AsyncBaseResource):
             cvelist_metrics: Add cvelist metrics (non-free licenses only).
         """
         body = {
-            "packages": list(packages),
+            "packages": _require_count(
+                packages, "packages", hi=_AUDIT_MAX_PACKAGES, strings=True
+            ),
             "includeUnofficial": include_unofficial,
             "includeCandidates": include_candidates,
             "includeAnyVersion": include_any_version,
@@ -471,7 +499,9 @@ class AsyncAudit(_base.AsyncBaseResource):
         timeout: float | httpx.Timeout | NotGiven = not_given,
     ) -> list[dict[str, Any]]:
         """Audit a batch of CVE identifiers (at least one)."""
-        return await self._request(_CVES, body={"cve": list(cve)}, timeout=timeout)
+        return await self._request(
+            _CVES, body={"cve": _require_count(cve, "cve", strings=True)}, timeout=timeout
+        )
 
     async def kb_audit(
         self,

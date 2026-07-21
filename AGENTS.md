@@ -11,6 +11,10 @@ pip install vulners            # core
 pip install "vulners[mcp]"     # + the MCP server (see below)
 ```
 
+> **Working inside a repository checkout?** Use `uv sync --locked` and `uv run python ...`.
+> Do not run `pip install vulners` — that installs the currently published release rather than
+> this checkout. (For development conventions and commands, see `.agents/skills/vulners-api/SKILL.md`.)
+
 The API key comes from the `VULNERS_API_KEY` environment variable, or is passed explicitly.
 Get a free key at <https://vulners.com>. Never hard-code a key in committed code.
 

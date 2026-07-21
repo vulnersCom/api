@@ -38,7 +38,7 @@ This SDK is the fastest way to build on that graph from Python:
 - 🖥️ **Assessment** — find the vulnerabilities affecting your software, Linux/Windows hosts, KBs, libraries and SBOMs
 - 🗄️ **Datasets** — stream the full graph (and hourly updates) into your own pipelines and mirrors
 - 🔔 **Alerts** — subscribe to new vulnerabilities matching a query and get notified via webhook
-- 🤖 **AI-ready** — a built-in [MCP server](#ai-agents-mcp) and fully typed responses to ground AI agents on live vulnerability facts
+- 🤖 **AI-ready** — a built-in [MCP server](#ai-agents-mcp), typed bulletin models and documented response shapes to ground AI agents on live vulnerability facts
 
 ---
 

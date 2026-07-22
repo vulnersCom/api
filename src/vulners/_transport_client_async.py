@@ -17,7 +17,7 @@ import httpx
 from typing_extensions import Self
 
 from ._base_client import BaseClient, RequestSpec, _mount_guard
-from ._config import ClientConfig
+from ._config import ClientConfig, resolve_proxy
 from ._exceptions import (
     APIConnectionError,
     APIStatusError,
@@ -75,7 +75,9 @@ class AsyncAPIClient(BaseClient):
                     # would multiply attempts (up to connect_retries x max_retries).
                     retries=0,
                     http2=config.http2,
-                    proxy=config.proxy,
+                    # Explicit proxy=, else the env proxy for base_url when trust_env
+                    # (the explicit transport bypasses httpx's client-level env mounts).
+                    proxy=resolve_proxy(config),
                     verify=config.verify,
                     trust_env=config.trust_env,
                 ),

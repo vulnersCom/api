@@ -12,6 +12,7 @@ import dataclasses
 import ipaddress
 import os
 import ssl
+import urllib.request
 from collections.abc import Callable
 from typing import Any, Literal
 
@@ -47,6 +48,27 @@ def _is_local_host(url: httpx.URL) -> bool:
     except ValueError:
         return False
     return ip.is_loopback or ip.is_private or ip.is_link_local
+
+
+def resolve_proxy(config: ClientConfig) -> str | httpx.Proxy | None:
+    """The proxy for the SDK-owned transport.
+
+    An explicit ``proxy=`` wins. Otherwise, when ``trust_env`` is set, honour the
+    environment proxy for ``base_url`` (``HTTPS_PROXY`` / ``HTTP_PROXY`` /
+    ``ALL_PROXY``, respecting ``NO_PROXY``). httpx would build these as *client*
+    mounts, but the SDK passes an explicit transport — which bypasses that mount
+    building — so the env proxy is resolved here or it would be silently ignored.
+    """
+    if config.proxy is not None:
+        return config.proxy
+    if not config.trust_env:
+        return None
+    # base_url always has a host (validated in __post_init__). proxy_bypass_environment
+    # is a real, long-standing stdlib function that typeshed happens not to stub.
+    if urllib.request.proxy_bypass_environment(config.base_url.host):  # type: ignore[attr-defined]
+        return None
+    proxies = urllib.request.getproxies_environment()
+    return proxies.get(config.base_url.scheme) or proxies.get("all")
 
 
 @dataclasses.dataclass(frozen=True)

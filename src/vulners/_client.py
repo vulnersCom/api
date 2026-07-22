@@ -209,9 +209,11 @@ class Vulners:
             verify: TLS verification for the SDK-owned transport: ``True``
                 (default), ``False``, a CA-bundle path, or an
                 ``ssl.SSLContext``. Cannot be combined with ``http_client=``.
-            trust_env: Whether the SDK-owned client trusts environment settings
-                (e.g. ``SSL_CERT_FILE``/``SSL_CERT_DIR`` for TLS). Cannot be
-                combined with ``http_client=``.
+            trust_env: Whether the SDK-owned client trusts environment settings —
+                TLS (``SSL_CERT_FILE``/``SSL_CERT_DIR``) and proxies
+                (``HTTPS_PROXY``/``HTTP_PROXY``/``ALL_PROXY``, honouring
+                ``NO_PROXY``) when ``proxy=`` is not given. Cannot be combined
+                with ``http_client=``.
             before_request: Callable (or sequence of callables) invoked with the
                 ``httpx.Request`` before it is sent (an httpx request event
                 hook on the SDK-owned client).
@@ -482,9 +484,11 @@ class AsyncVulners:
             verify: TLS verification for the SDK-owned transport: ``True``
                 (default), ``False``, a CA-bundle path, or an
                 ``ssl.SSLContext``. Cannot be combined with ``http_client=``.
-            trust_env: Whether the SDK-owned client trusts environment settings
-                (e.g. ``SSL_CERT_FILE``/``SSL_CERT_DIR`` for TLS). Cannot be
-                combined with ``http_client=``.
+            trust_env: Whether the SDK-owned client trusts environment settings —
+                TLS (``SSL_CERT_FILE``/``SSL_CERT_DIR``) and proxies
+                (``HTTPS_PROXY``/``HTTP_PROXY``/``ALL_PROXY``, honouring
+                ``NO_PROXY``) when ``proxy=`` is not given. Cannot be combined
+                with ``http_client=``.
             before_request: Callable (or sequence of callables) invoked with the
                 ``httpx.Request`` before it is sent (an httpx request event
                 hook on the SDK-owned client). Sync or async callables.

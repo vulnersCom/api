@@ -53,6 +53,43 @@ class TestTransportConveniences:
             inner = client._api._client._transport._transport
             assert isinstance(inner._pool, httpcore.AsyncHTTPProxy)
 
+    def test_env_proxy_honored_when_trust_env(self, monkeypatch):
+        # HTTPS_PROXY + trust_env (default) routes the SDK transport through the proxy,
+        # even though the SDK passes an explicit transport (which bypasses httpx's own
+        # client-level env-proxy mounts).
+        monkeypatch.setenv("HTTPS_PROXY", "http://envproxy.local:8080")
+        with Vulners(KEY) as client:
+            inner = client._api._client._transport._transport
+            assert isinstance(inner._pool, httpcore.HTTPProxy)
+
+    def test_env_proxy_ignored_when_trust_env_false(self, monkeypatch):
+        monkeypatch.setenv("HTTPS_PROXY", "http://envproxy.local:8080")
+        with Vulners(KEY, trust_env=False) as client:
+            inner = client._api._client._transport._transport
+            assert isinstance(inner._pool, httpcore.ConnectionPool)  # direct
+
+    def test_resolve_proxy_precedence(self, monkeypatch):
+        from vulners._config import resolve_config, resolve_proxy
+
+        def cfg(**kw):
+            return resolve_config(api_key="x", base_url="https://vulners.com", **kw)
+
+        monkeypatch.setenv("HTTPS_PROXY", "http://envproxy.local:8080")
+        # explicit proxy wins over any env proxy
+        assert resolve_proxy(cfg(proxy="http://x.local:3128")) == "http://x.local:3128"
+        # env HTTPS_PROXY is honored for an https base_url
+        assert resolve_proxy(cfg()) == "http://envproxy.local:8080"
+        # NO_PROXY exempts the host
+        monkeypatch.setenv("NO_PROXY", "vulners.com")
+        assert resolve_proxy(cfg()) is None
+        monkeypatch.delenv("NO_PROXY")
+        # ALL_PROXY is the fallback when no scheme-specific proxy is set
+        monkeypatch.delenv("HTTPS_PROXY")
+        monkeypatch.setenv("ALL_PROXY", "http://all.local:1080")
+        assert resolve_proxy(cfg()) == "http://all.local:1080"
+        # trust_env=False ignores env proxies entirely
+        assert resolve_proxy(cfg(trust_env=False)) is None
+
     def test_sync_verify_false_disables_tls_verification(self):
         with Vulners(KEY, verify=False) as client:
             inner = client._api._client._transport._transport

@@ -19,6 +19,7 @@ from vulners import _transport_client_sync as tcs
 from vulners._client import AsyncVulners, Vulners
 from vulners._config import ClientConfig
 from vulners._exceptions import APIConnectionError, APIResponseValidationError, APIStatusError
+from vulners._resources._async.search import exploit_search_query
 from vulners._streaming import GzipJsonArrayDecoder
 
 KEY = "SYNTHETIC-TEST-KEY"
@@ -55,11 +56,13 @@ def _cfg(**kw) -> ClientConfig:
 
 def test_with_options_survives_temporary_parent_gc():
     # `Vulners(KEY).with_options(...)` drops the parent immediately; the clone must
-    # keep it alive (and its pool open) via _owner instead of closing early.
+    # keep it alive (and its pool open) via _owner instead of closing early — and an
+    # explicit close() must actually close the shared pool (via the owner), now.
     client = Vulners(KEY).with_options(timeout=1.0)
     gc.collect()
     assert not client.is_closed
     client.close()
+    assert client.is_closed
 
 
 async def test_async_with_options_survives_temporary_parent_gc():
@@ -67,6 +70,7 @@ async def test_async_with_options_survives_temporary_parent_gc():
     gc.collect()
     assert not client.is_closed
     await client.aclose()
+    assert client.is_closed
 
 
 # -- findings 7 / 16 / 17: config validation -------------------------------------
@@ -104,6 +108,21 @@ async def test_search_query_rejects_bad_inputs():
                 await v.search.query(**bad)
 
 
+def test_exploit_search_query_rejects_empty():
+    # An empty exploit query must be rejected here — not wrapped into
+    # "bulletinFamily:exploit AND ()", which would slip past query()'s check.
+    for bad in ("", "   "):
+        with pytest.raises(ValueError):
+            exploit_search_query(bad)
+    assert exploit_search_query("nginx") == "bulletinFamily:exploit AND (nginx)"
+
+
+async def test_search_exploits_rejects_empty():
+    async with AsyncVulners(KEY, http_client=_ok_client()) as v:
+        with pytest.raises(ValueError):
+            await v.search.exploits("")
+
+
 # -- finding 15: audit input limits ----------------------------------------------
 
 
@@ -132,6 +151,8 @@ def test_sync_search_and_audit_validation():
             v.search.query("x", limit=0)
         with pytest.raises(ValueError):
             v.search.query("x", offset=-1)
+        with pytest.raises(ValueError):
+            v.search.exploits("")  # exercises the sync exploit_search_query guard
         with pytest.raises(ValueError):
             v.audit.software([])
         with pytest.raises(ValueError):
@@ -189,6 +210,20 @@ def test_gzip_decoder_rejects_truncated_stream():
     with pytest.raises(APIResponseValidationError):
         list(decoder.feed(truncated))
         list(decoder.flush())
+
+
+def test_gzip_decoder_rejects_trailing_garbage():
+    poisoned = gzip.compress(b'[{"id": 1}]') + b"GARBAGE"  # non-NUL tail after a valid member
+    decoder = GzipJsonArrayDecoder()
+    with pytest.raises(APIResponseValidationError):
+        list(decoder.feed(poisoned))
+
+
+def test_gzip_decoder_tolerates_nul_padding():
+    padded = gzip.compress(b'[{"id": 1}]') + b"\x00\x00\x00"
+    decoder = GzipJsonArrayDecoder()
+    records = list(decoder.feed(padded)) + list(decoder.flush())
+    assert records == [{"id": 1}]
 
 
 # -- finding 9: the stream open phase goes through the retry loop -----------------

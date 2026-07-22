@@ -103,9 +103,10 @@ class TestMcpToolsLive:
         assert isinstance(res["count"], int)
         assert isinstance(res["results"], list)
 
-    async def test_audit_software_empty_short_circuits(self, live_mcp):
-        res = await _call(live_mcp, "audit_software", software=[])
-        assert res == {"count": 0, "results": []}
+    async def test_audit_software_empty_raises(self, live_mcp):
+        # An empty batch must raise, not report a false "0 vulnerabilities" success.
+        with pytest.raises(ValueError):
+            await _call(live_mcp, "audit_software", software=[])
 
     async def test_audit_linux(self, live_mcp):
         res = await _call(

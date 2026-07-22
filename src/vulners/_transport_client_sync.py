@@ -219,11 +219,14 @@ class SyncAPIClient(BaseClient):
         cap = self._config.max_response_bytes
         limit = _ERROR_BODY_CAP if cap is None else min(cap, _ERROR_BODY_CAP)
         buf = bytearray()
-        for chunk in response.iter_bytes():
-            buf += chunk
+        # Re-chunk to the cap and slice each chunk to the remaining budget, so the cap
+        # bounds memory (not just the final bytearray): neither buf nor a single
+        # oversized transport chunk can exceed `limit`.
+        for chunk in response.iter_bytes(chunk_size=limit):
+            buf += chunk[: limit - len(buf)]
             if len(buf) >= limit:
                 break
-        return bytes(buf[:limit])
+        return bytes(buf)
 
     def _open_stream(self, spec: RequestSpec, request: httpx.Request) -> httpx.Response:
         """Open a streaming response through the retry loop, returning live headers.

@@ -127,7 +127,14 @@ class GzipJsonArrayDecoder:
             if self._d.eof:
                 rest = self._d.unused_data
                 if rest[:2] != _GZIP_MAGIC:
-                    return  # trailing padding after the final member; ignore
+                    # After the final member, tolerate only NUL padding; any other
+                    # trailing bytes mean this is not a clean archive (a corrupt or
+                    # spoofed tail must not pass as a valid download).
+                    if rest.strip(b"\x00"):
+                        raise APIResponseValidationError(
+                            "trailing garbage after the gzip archive"
+                        )
+                    return
                 self._d = _new_gzip_decompressor()
                 data = rest
             else:

@@ -266,9 +266,10 @@ class TestStreamingGzipBranches:
         out = list(d.feed(body)) + list(d.flush())
         assert out == [{"a": 1}, {"b": 2}]
 
-    def test_gzip_trailing_padding_after_member_ignored(self):
-        # Non-gzip trailing bytes after a complete member are ignored (not a member).
-        body = gzip.compress(self._arr({"a": 1})) + b"\x00\x00padding"
+    def test_gzip_trailing_nul_padding_tolerated(self):
+        # Pure NUL padding after a complete member is tolerated (non-NUL trailing
+        # garbage is rejected instead — see test_review_fixes).
+        body = gzip.compress(self._arr({"a": 1})) + b"\x00\x00\x00\x00"
         d = GzipJsonArrayDecoder()
         out = list(d.feed(body)) + list(d.flush())
         assert out == [{"a": 1}]

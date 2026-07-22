@@ -48,6 +48,10 @@ def exploit_search_query(query: str, *, lucene: bool = False) -> str:
     ``bulletinFamily:exploit`` filter.
     """
     query = query.strip()
+    if not query:
+        # Reject here, not after wrapping: otherwise "" becomes
+        # "bulletinFamily:exploit AND ()", which slips past query()'s non-empty check.
+        raise ValueError("query must not be empty")
     if not lucene and _BARE_CVE_RE.match(query):
         query = f'"{query}"'
     return f"bulletinFamily:exploit AND ({query})"

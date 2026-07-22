@@ -222,6 +222,14 @@ async def test_search_exploits_leaves_plain_query_unquoted(fake_client):
     assert args[0] == "bulletinFamily:exploit AND (wordpress)"
 
 
+async def test_search_exploits_rejects_empty_query(fake_client):
+    fake_client.search.query = AsyncMock(return_value=_FakePage([], total=0))
+    tool = await server.mcp.get_tool("search_exploits")
+    with pytest.raises(ValueError):
+        await tool.fn(query="")
+    fake_client.search.query.assert_not_awaited()  # rejected before any request
+
+
 async def test_cve_lookup_enriches_cve_fields(fake_client):
     row = construct_bulletin(
         {
@@ -270,11 +278,12 @@ async def test_audit_software_compacts_large_vuln_lists(fake_client):
     assert len(vulns["items"]) == server._MAX_ITEMS
 
 
-async def test_audit_software_empty_short_circuits(fake_client):
+async def test_audit_software_empty_raises(fake_client):
+    # An empty batch must not report a false "0 vulnerabilities" success.
     fake_client.audit.software = AsyncMock()
     tool = await server.mcp.get_tool("audit_software")
-    result = await tool.fn(software=[])
-    assert result == {"count": 0, "results": []}
+    with pytest.raises(ValueError):
+        await tool.fn(software=[])
     fake_client.audit.software.assert_not_awaited()
 
 

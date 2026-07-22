@@ -382,7 +382,10 @@ async def audit_software(software: list[str], match: str = "partial") -> dict[st
         its matched criteria and a capped list of affecting vulnerabilities.
     """
     if not software:
-        return {"count": 0, "results": []}
+        # Do not report a false "0 vulnerabilities" success for an empty batch —
+        # the SDK requires at least one item, and a silent no-op would let an agent
+        # confidently conclude nothing is vulnerable when nothing was audited.
+        raise ValueError("software must contain at least one entry")
     matching: Literal["partial", "full"] = "full" if match == "full" else "partial"
     results = await _get_client().audit.software(software, match=matching)
     return {"count": len(results), "results": _compact(results)}

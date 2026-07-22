@@ -76,10 +76,51 @@ overrides selected settings — handy for one slow endpoint:
         # `v` still uses its original timeout/retries
     ```
 
-## Corporate proxy (and any other httpx setting)
+## Proxies
 
-For a proxy, custom TLS, HTTP/2 or a mounted transport, build your own `httpx` client and
-inject it. You own its lifecycle — the SDK will not close a client you passed in:
+Route SDK traffic through a proxy with the `proxy=` argument — a URL string, or an
+`httpx.Proxy` for an authenticated proxy:
+
+=== "Sync"
+
+    ```python
+    import httpx
+    from vulners import Vulners
+
+    v = Vulners(proxy="http://proxy.corp.example:8080")
+
+    # authenticated proxy
+    v = Vulners(proxy=httpx.Proxy("http://proxy.corp.example:8080", auth=("user", "pass")))
+    ```
+
+=== "Async"
+
+    ```python
+    import httpx
+    from vulners import AsyncVulners
+
+    v = AsyncVulners(proxy="http://proxy.corp.example:8080")
+    v = AsyncVulners(proxy=httpx.Proxy("http://proxy.corp.example:8080", auth=("user", "pass")))
+    ```
+
+### From the environment
+
+With no explicit `proxy=` and `trust_env=True` (the default), the client honors the standard
+proxy environment variables — `HTTPS_PROXY`, `HTTP_PROXY` and `ALL_PROXY` — with `NO_PROXY`
+exemptions:
+
+```bash
+export HTTPS_PROXY="http://proxy.corp.example:8080"
+export NO_PROXY="localhost,127.0.0.1,.internal.example"
+```
+
+Pass an explicit `proxy=` to override them, or `trust_env=False` to ignore the environment.
+
+### A proxy together with custom TLS or transport
+
+For a proxy *plus* custom TLS, HTTP/2 tuning or a mounted transport, build your own `httpx`
+client and inject it. You own its lifecycle — the SDK will not close a client you passed in
+(and `proxy=`/`verify=` cannot be combined with `http_client=`):
 
 === "Sync"
 

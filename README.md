@@ -203,6 +203,29 @@ generated from live data — is browsable in the
 
 ---
 
+## Proxies
+
+Route traffic through a proxy with `proxy=`, or let the client pick up the standard proxy
+environment variables:
+
+```python
+from vulners import Vulners
+
+# explicit (a URL, or httpx.Proxy(..., auth=(user, pass)) for an authenticated proxy)
+v = Vulners(api_key="YOUR_API_KEY_HERE", proxy="http://proxy.corp.example:8080")
+
+# or from the environment — HTTPS_PROXY / HTTP_PROXY / ALL_PROXY, honoring NO_PROXY:
+#   export HTTPS_PROXY="http://proxy.corp.example:8080"
+v = Vulners(api_key="YOUR_API_KEY_HERE")
+```
+
+Environment proxies are used when you don't pass `proxy=` and leave `trust_env=True` (the
+default). See
+[Proxies, timeouts & retries](https://vulnersCom.github.io/api/how-to/proxy-timeout-retries/)
+for authenticated proxies and combining a proxy with custom TLS.
+
+---
+
 ## AI agents (MCP)
 
 Ship live Vulners intelligence to AI agents and copilots via the built-in

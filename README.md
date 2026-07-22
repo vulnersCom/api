@@ -54,6 +54,23 @@ transport — [`httpx`](https://www.python-httpx.org/), [`pydantic`](https://doc
 (`brotli`/`zstandard`), ISA-L-accelerated gzip (`isal`) and streaming archive decode
 (`ijson`/`stream-unzip`) — all with prebuilt wheels, so there is no build step.
 
+### From a branch checkout (unreleased)
+
+The latest pre-release lives on the **`v4.0`** branch (not yet on PyPI). Check the branch out
+and install it from source:
+
+```bash
+git clone -b v4.0 https://github.com/vulnersCom/api.git
+cd api
+pip install -e .        # editable install from the checkout
+```
+
+Or install that branch directly, without cloning:
+
+```bash
+pip install "git+https://github.com/vulnersCom/api.git@v4.0"
+```
+
 ---
 
 ## Quickstart

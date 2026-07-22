@@ -48,10 +48,10 @@ class TestSyncLifecycle:
         assert client.config.max_retries == 2
         # the clone shares the same underlying httpx client (connection pool)
         assert clone._api._client is client._api._client
-        # closing the clone must not close the shared, borrowed client
+        # closing a clone closes the shared pool for the owner too (one httpx client)
         clone.close()
-        assert not client.is_closed
-        client.close()
+        assert clone.is_closed
+        assert client.is_closed
 
     def test_with_options_shares_pacing_buckets(self):
         # The clone must share the parent's rate-limit buckets, or per-variant

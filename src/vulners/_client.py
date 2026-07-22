@@ -398,11 +398,19 @@ class Vulners:
         """Close the underlying connection pool.
 
         A no-op for an ``http_client`` you passed in; prefer the ``with`` context
-        manager. A ``with_options()`` clone shares (but does not own) its owner's
-        pool, so closing the clone leaves the pool open — close the owning client,
-        or let it be garbage-collected, to release it.
+        manager. A ``with_options()`` clone shares one httpx client with its owner
+        (and any sibling clones), so closing any of them closes that shared pool for
+        all — use separate clients if you need independent lifetimes.
         """
-        self._api.close()
+        owner = getattr(self, "_owner", None)
+        if owner is not None:
+            # Clone: close the shared pool through its owner (the clone's own _api
+            # treats the pool as borrowed and would no-op). Drop the ref so a second
+            # close is a safe no-op and the owner can be collected.
+            owner.close()
+            self._owner = None
+        else:
+            self._api.close()
 
     def __enter__(self) -> Self:
         return self
@@ -663,11 +671,16 @@ class AsyncVulners:
         """Close the underlying connection pool.
 
         A no-op for an ``http_client`` you passed in; prefer the ``async with``
-        context manager. A ``with_options()`` clone shares (but does not own) its
-        owner's pool, so closing the clone leaves the pool open — close the owning
-        client to release it (the clone keeps the owner alive until it is gone).
+        context manager. A ``with_options()`` clone shares one httpx client with its
+        owner (and any sibling clones), so closing any of them closes that shared
+        pool for all — use separate clients if you need independent lifetimes.
         """
-        await self._api.aclose()
+        owner = getattr(self, "_owner", None)
+        if owner is not None:
+            await owner.aclose()
+            self._owner = None
+        else:
+            await self._api.aclose()
 
     async def __aenter__(self) -> Self:
         return self

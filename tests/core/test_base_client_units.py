@@ -15,7 +15,13 @@ import httpx
 import orjson
 import pytest
 
-from vulners._base_client import BaseClient, RequestSpec, _clean_params
+from vulners._base_client import (
+    BaseClient,
+    RequestSpec,
+    _clean_params,
+    _is_proxy_auth_error,
+    _redact_proxy,
+)
 from vulners._config import (
     ARCHIVE_TIMEOUT,
     DEFAULT_TIMEOUT,
@@ -294,6 +300,54 @@ class TestBucketHeaderUpdate:
         resp = httpx.Response(200, headers={"X-Vulners-Ratelimit-Reqlimit": "0.5"})
         c._update_bucket_from_headers(bucket, resp)  # 0.5/60 < 1/60 -> ignored
         assert bucket._rate == 10.0
+
+
+class TestRedactProxy:
+    def test_str_proxy_with_port(self):
+        assert _redact_proxy("http://proxy.local:3128") == "http://proxy.local:3128"
+
+    def test_str_proxy_without_port(self):
+        # No explicit port -> host only, no trailing colon.
+        assert _redact_proxy("http://proxy.local") == "http://proxy.local"
+
+    def test_credentials_are_stripped(self):
+        # A proxy password must never reach a message/log via the redacted form.
+        redacted = _redact_proxy("http://user:secret@proxy.local:3128")
+        assert redacted == "http://proxy.local:3128"
+        assert "user" not in redacted
+        assert "secret" not in redacted
+
+    def test_httpx_proxy_instance(self):
+        proxy = httpx.Proxy("http://user:secret@proxy.local:8080")
+        assert _redact_proxy(proxy) == "http://proxy.local:8080"
+
+
+class TestIsProxyAuthError:
+    def test_407_proxy_error_is_terminal(self):
+        assert _is_proxy_auth_error(httpx.ProxyError("407 Proxy Authentication Required"))
+
+    def test_non_407_proxy_error_is_not(self):
+        # A 502 from the proxy is not the terminal auth case; still retryable.
+        assert not _is_proxy_auth_error(httpx.ProxyError("502 Bad Gateway"))
+
+    def test_non_proxy_error_is_not(self):
+        assert not _is_proxy_auth_error(httpx.ConnectError("refused"))
+
+
+class TestConnectionErrorMessage:
+    def test_names_proxy_when_configured(self):
+        c = _client()
+        c._proxy = "http://user:secret@proxy.local:3128"
+        message = c._connection_error_message(httpx.ConnectError("refused"))
+        assert message == "Connection error: refused (proxy http://proxy.local:3128)"
+        assert "secret" not in message
+
+    def test_plain_when_no_proxy(self):
+        c = _client()
+        assert c._proxy is None
+        assert c._connection_error_message(httpx.ConnectError("refused")) == (
+            "Connection error: refused"
+        )
 
 
 class TestRaiseStreamError:

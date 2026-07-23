@@ -10,7 +10,7 @@ import respx
 import vulners._transport_client_async as _tca
 import vulners._transport_client_sync as _tcs
 from vulners._base_client import RequestSpec
-from vulners._client import Vulners
+from vulners._client import AsyncVulners, Vulners
 from vulners._exceptions import APIConnectionError, APITimeoutError, InternalServerError
 
 KEY = "SYNTHETIC-TEST-KEY"
@@ -110,3 +110,42 @@ class TestTimeoutRetry:
                 client._api.request(spec, body={})
         # connection never delivered the request -> safe to retry
         assert route.call_count == 3
+
+
+class TestProxyErrorRetry:
+    @respx.mock
+    def test_407_proxy_auth_not_retried(self):
+        # A proxy that rejects the CONNECT with 407 will reject it identically on
+        # retry, so the failure is terminal: one attempt, no retries. The raised
+        # error names the proxy (credentials stripped) but keeps its type.
+        route = respx.post(SEARCH_URL).mock(
+            side_effect=httpx.ProxyError("407 Proxy Authentication Required")
+        )
+        with Vulners(KEY, proxy="http://user:secret@proxy.local:3128") as client:
+            with pytest.raises(APIConnectionError) as excinfo:
+                client.search.query("ssh")
+        assert route.call_count == 1
+        message = str(excinfo.value)
+        assert "407" in message
+        assert "(proxy http://proxy.local:3128)" in message
+        assert "secret" not in message
+
+    @respx.mock
+    def test_non_407_proxy_error_still_retried(self):
+        # Only 407 is terminal; other proxy errors stay retryable (idempotent GET).
+        route = respx.post(SEARCH_URL).mock(side_effect=httpx.ProxyError("502 Bad Gateway"))
+        with Vulners(KEY, proxy="http://proxy.local:3128") as client:
+            with pytest.raises(APIConnectionError):
+                client.search.query("ssh")
+        assert route.call_count == 3
+
+    @respx.mock
+    async def test_407_proxy_auth_not_retried_async(self):
+        route = respx.post(SEARCH_URL).mock(
+            side_effect=httpx.ProxyError("407 Proxy Authentication Required")
+        )
+        async with AsyncVulners(KEY, proxy="http://proxy.local:3128") as client:
+            with pytest.raises(APIConnectionError) as excinfo:
+                await client.search.query("ssh")
+        assert route.call_count == 1
+        assert "(proxy http://proxy.local:3128)" in str(excinfo.value)

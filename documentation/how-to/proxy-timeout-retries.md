@@ -116,6 +116,15 @@ export NO_PROXY="localhost,127.0.0.1,.internal.example"
 
 Pass an explicit `proxy=` to override them, or `trust_env=False` to ignore the environment.
 
+### When the proxy is the problem
+
+If a request cannot reach the API *through* the proxy, the `APIConnectionError` names the
+proxy hop (with any credentials stripped) — e.g. `Connection error: [Errno 111] Connection
+refused (proxy http://proxy.corp.example:8080)` — so a misconfigured or unreachable proxy is
+not mistaken for the API being down. A `407 Proxy Authentication Required` is treated as a
+terminal error and raised immediately: the same credentials would be rejected on every retry,
+so it is **not** subject to `max_retries`.
+
 ### A proxy together with custom TLS or transport
 
 For a proxy *plus* custom TLS, HTTP/2 tuning or a mounted transport, build your own `httpx`

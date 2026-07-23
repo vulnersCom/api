@@ -67,6 +67,10 @@ class AsyncAPIClient(BaseClient):
             # proxy/verify/trust_env ride on the inner transport: httpx ignores
             # client-level verify once an explicit transport is passed, and a
             # client-level proxy would mount an unguarded transport over ours.
+            # Explicit proxy=, else the env proxy for base_url when trust_env
+            # (the explicit transport bypasses httpx's client-level env mounts).
+            # Kept on the client so a connection failure can name the proxy hop.
+            self._proxy = resolve_proxy(config)
             transport = AsyncVulnersTransport(
                 httpx.AsyncHTTPTransport(
                     # retries=0: the SDK request loop is the single retry owner
@@ -75,9 +79,7 @@ class AsyncAPIClient(BaseClient):
                     # would multiply attempts (up to connect_retries x max_retries).
                     retries=0,
                     http2=config.http2,
-                    # Explicit proxy=, else the env proxy for base_url when trust_env
-                    # (the explicit transport bypasses httpx's client-level env mounts).
-                    proxy=resolve_proxy(config),
+                    proxy=self._proxy,
                     verify=config.verify,
                     trust_env=config.trust_env,
                 ),
@@ -147,7 +149,7 @@ class AsyncAPIClient(BaseClient):
                 await self._emit_error(error)
                 raise error from exc
             except httpx.TransportError as exc:
-                error = APIConnectionError(f"Connection error: {exc}")
+                error = APIConnectionError(self._connection_error_message(exc))
                 if attempt < retries and self._retryable_exc(exc, spec):
                     attempt += 1
                     await self._sleep(_retry_timeout(attempt))
@@ -252,7 +254,7 @@ class AsyncAPIClient(BaseClient):
                 await self._emit_error(error)
                 raise error from exc
             except httpx.TransportError as exc:
-                error = APIConnectionError(f"Connection error: {exc}")
+                error = APIConnectionError(self._connection_error_message(exc))
                 if attempt < retries and self._retryable_exc(exc, spec):
                     attempt += 1
                     await self._sleep(_retry_timeout(attempt))

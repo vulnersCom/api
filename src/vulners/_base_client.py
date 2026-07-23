@@ -94,6 +94,28 @@ def _mount_guard(client: Any, transport_cls: Any, origin: httpx.URL) -> None:
     }
 
 
+def _redact_proxy(proxy: str | httpx.Proxy) -> str:
+    """A credential-free ``scheme://host[:port]`` rendering of a proxy.
+
+    Safe to put in an error message or log: any userinfo (a proxy password) is
+    dropped, so naming the proxy that failed can never leak its credentials.
+    """
+    url = proxy.url if isinstance(proxy, httpx.Proxy) else httpx.URL(proxy)
+    netloc = url.host if url.port is None else f"{url.host}:{url.port}"
+    return f"{url.scheme}://{netloc}"
+
+
+def _is_proxy_auth_error(exc: BaseException) -> bool:
+    """True for a ``407 Proxy Authentication Required`` from the configured proxy.
+
+    httpx surfaces the proxy's CONNECT status only in the ``ProxyError`` message
+    (there is no numeric status attribute), so the 407 is matched on that text.
+    The failure is terminal — the same credentials are rejected on every attempt
+    — so the retry loop must treat it as non-retryable rather than repeating it.
+    """
+    return isinstance(exc, httpx.ProxyError) and str(exc).lstrip().startswith("407")
+
+
 def _json_loads_lenient(data: bytes | bytearray | str) -> Any:
     """Decode JSON with orjson, falling back to the stdlib decoder on its edges.
 
@@ -131,10 +153,27 @@ class BaseClient:
 
     def __init__(self, config: ClientConfig) -> None:
         self._config = config
+        # The proxy the SDK-owned transport actually uses (explicit ``proxy=`` or
+        # the one resolved from the environment); ``None`` for a bring-your-own
+        # client. Set by the I/O subclasses and used only to name the proxy in a
+        # connection-error message.
+        self._proxy: str | httpx.Proxy | None = None
 
     @property
     def config(self) -> ClientConfig:
         return self._config
+
+    def _connection_error_message(self, exc: Exception) -> str:
+        """``Connection error: ...``, naming the proxy when one is configured.
+
+        A failure to reach the API *through a proxy* otherwise surfaces as a bare
+        ``Connection refused`` / ``407 ...`` that gives no hint the proxy — not
+        the API host — is the unreachable/rejecting hop.
+        """
+        message = f"Connection error: {exc}"
+        if self._proxy is not None:
+            message = f"{message} (proxy {_redact_proxy(self._proxy)})"
+        return message
 
     # -- request building --------------------------------------------------
 
@@ -242,6 +281,10 @@ class BaseClient:
         return spec.ratelimit_group or spec.path
 
     def _retryable_exc(self, exc: Exception, spec: RequestSpec) -> bool:
+        # A 407 from the proxy is terminal (the credentials will not change
+        # between attempts), so it is never retried — even on an idempotent verb.
+        if _is_proxy_auth_error(exc):
+            return False
         # Connection-establishment failures never delivered the request, so they
         # are always safe to retry; read/write failures only on idempotent verbs.
         if isinstance(exc, (httpx.ConnectError, httpx.ConnectTimeout, httpx.PoolTimeout)):

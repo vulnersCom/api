@@ -90,6 +90,26 @@ class TestTransportConveniences:
         # trust_env=False ignores env proxies entirely
         assert resolve_proxy(cfg(trust_env=False)) is None
 
+    @respx.mock
+    def test_connection_error_names_configured_proxy(self):
+        # A connect failure through a configured proxy names the proxy hop
+        # (credentials stripped) so the message is not a bare "Connection refused".
+        respx.post(LUCENE).mock(side_effect=httpx.ConnectError("[Errno 111] refused"))
+        with Vulners(KEY, max_retries=0, proxy="http://user:secret@proxy.local:3128") as client:
+            with pytest.raises(APIConnectionError) as excinfo:
+                client.search.query("ssh")
+        message = str(excinfo.value)
+        assert "(proxy http://proxy.local:3128)" in message
+        assert "secret" not in message
+
+    @respx.mock
+    def test_connection_error_plain_without_proxy(self):
+        respx.post(LUCENE).mock(side_effect=httpx.ConnectError("[Errno 111] refused"))
+        with Vulners(KEY, max_retries=0) as client:
+            with pytest.raises(APIConnectionError) as excinfo:
+                client.search.query("ssh")
+        assert "proxy" not in str(excinfo.value)
+
     def test_sync_verify_false_disables_tls_verification(self):
         with Vulners(KEY, verify=False) as client:
             inner = client._api._client._transport._transport

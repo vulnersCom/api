@@ -303,6 +303,31 @@ def _redirect_then_fault_handler(counts: dict[str, int], exc: BaseException, *, 
     return handler
 
 
+def _redirect_then_connect_fault_handler(counts: dict[str, int], *, is_async: bool):
+    """Handler: vulners.com archive -> 302 to storage; the storage connect fails.
+
+    The connect fault fires only on the *first* storage leg, and the second storage
+    leg (reachable only if a buggy retry re-issued the whole request) would succeed.
+    A ConnectError here is post-302, post-bill: the vulners.com leg has already been
+    hit (and billed). If the retry treats connect errors as unconditionally safe it
+    re-issues the original request — vulners hit count 2 and a SILENT success — which
+    is the exact residual double-bill. A hit count of 1 and a raised error is the fix.
+    """
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.host == "vulners.com":
+            counts["vulners"] += 1
+            return httpx.Response(302, headers={"location": _GCS})
+        counts["gcs"] += 1
+        if counts["gcs"] == 1:
+            raise httpx.ConnectError("injected connect error on storage leg")
+        headers = {"content-type": "application/x-gzip-compressed"}
+        clean = _AsyncCleanBody(_ARCHIVE_BODY) if is_async else _CleanBody(_ARCHIVE_BODY)
+        return httpx.Response(200, headers=headers, stream=clean)
+
+    return handler
+
+
 class TestArchiveFetchNoSilentRebill:
     def test_sync_mid_download_read_error_not_reissued(self):
         counts = {"vulners": 0, "gcs": 0}
@@ -359,3 +384,57 @@ class TestArchiveFetchNoSilentRebill:
             with pytest.raises(APIConnectionError):
                 await client.archive.fetch_collection("cve")
         assert counts["vulners"] == 3
+
+    # A ConnectError/ConnectTimeout/PoolTimeout on the storage leg is post-302 and
+    # post-bill: unlike a first-hop connect error it must NOT be retried, because
+    # retrying re-issues the billable vulners.com open. Without the post-dispatch
+    # guard the connect branch of _retryable_exc returns True unconditionally, so
+    # the buffered fetch (and the stream open) would hit vulners.com twice and, with
+    # a healthy second storage leg, SILENTLY succeed — the worst form of the rebill.
+
+    def test_sync_connect_error_on_storage_leg_not_reissued(self, monkeypatch):
+        # No retry is expected; the zeroed backoff only keeps a regression fast.
+        monkeypatch.setattr(_tcs, "_retry_timeout", lambda *a, **k: 0.0)
+        counts = {"vulners": 0, "gcs": 0}
+        handler = _redirect_then_connect_fault_handler(counts, is_async=False)
+        byo = httpx.Client(transport=httpx.MockTransport(handler), follow_redirects=True)
+        with Vulners(KEY, http_client=byo) as client:
+            with pytest.raises(APIConnectionError):
+                client.archive.fetch_collection("cve")
+        assert counts["vulners"] == 1
+        assert counts["gcs"] == 1
+
+    async def test_async_connect_error_on_storage_leg_not_reissued(self, monkeypatch):
+        monkeypatch.setattr(_tca, "_retry_timeout", lambda *a, **k: 0.0)
+        counts = {"vulners": 0, "gcs": 0}
+        handler = _redirect_then_connect_fault_handler(counts, is_async=True)
+        byo = httpx.AsyncClient(transport=httpx.MockTransport(handler), follow_redirects=True)
+        async with AsyncVulners(KEY, http_client=byo) as client:
+            with pytest.raises(APIConnectionError):
+                await client.archive.fetch_collection("cve")
+        assert counts["vulners"] == 1
+        assert counts["gcs"] == 1
+
+    def test_sync_stream_connect_error_on_storage_leg_not_reissued(self, monkeypatch):
+        # The streaming open runs the redirect chain too, so a storage-leg connect
+        # error inside _open_stream must not re-issue the billable open either.
+        monkeypatch.setattr(_tcs, "_retry_timeout", lambda *a, **k: 0.0)
+        counts = {"vulners": 0, "gcs": 0}
+        handler = _redirect_then_connect_fault_handler(counts, is_async=False)
+        byo = httpx.Client(transport=httpx.MockTransport(handler), follow_redirects=True)
+        with Vulners(KEY, http_client=byo) as client:
+            with pytest.raises(APIConnectionError):
+                list(client.archive.iter_collection("cve"))
+        assert counts["vulners"] == 1
+        assert counts["gcs"] == 1
+
+    async def test_async_stream_connect_error_on_storage_leg_not_reissued(self, monkeypatch):
+        monkeypatch.setattr(_tca, "_retry_timeout", lambda *a, **k: 0.0)
+        counts = {"vulners": 0, "gcs": 0}
+        handler = _redirect_then_connect_fault_handler(counts, is_async=True)
+        byo = httpx.AsyncClient(transport=httpx.MockTransport(handler), follow_redirects=True)
+        async with AsyncVulners(KEY, http_client=byo) as client:
+            with pytest.raises(APIConnectionError):
+                _ = [record async for record in client.archive.aiter_collection("cve")]
+        assert counts["vulners"] == 1
+        assert counts["gcs"] == 1

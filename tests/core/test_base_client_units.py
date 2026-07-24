@@ -19,6 +19,7 @@ from vulners._base_client import (
     BaseClient,
     RequestSpec,
     _clean_params,
+    _failed_after_dispatch,
     _is_proxy_auth_error,
     _redact_proxy,
 )
@@ -332,6 +333,35 @@ class TestIsProxyAuthError:
 
     def test_non_proxy_error_is_not(self):
         assert not _is_proxy_auth_error(httpx.ConnectError("refused"))
+
+
+class TestFailedAfterDispatch:
+    def test_first_hop_failure_is_not_after_dispatch(self):
+        # httpx attaches the failing hop; on the first hop that is the original
+        # request object, so this is pre-dispatch (safe to retry).
+        request = httpx.Request("GET", "https://vulners.com/api/v4/archive/collection")
+        exc = httpx.ConnectError("refused", request=request)
+        assert not _failed_after_dispatch(exc, request)
+
+    def test_redirect_leg_failure_is_after_dispatch(self):
+        # A different failing request means a 30x was already received from the
+        # origin (the billable open ran) — retrying would re-issue and re-bill.
+        request = httpx.Request("GET", "https://vulners.com/api/v4/archive/collection")
+        storage = httpx.Request("GET", "https://storage.googleapis.com/x.json.gz")
+        exc = httpx.ConnectError("refused", request=storage)
+        assert _failed_after_dispatch(exc, request)
+
+    def test_non_request_error_is_not_after_dispatch(self):
+        # Defensive: a non-httpx error carries no failing-hop info; do not treat it
+        # as post-dispatch (the normal connect/idempotent policy decides instead).
+        request = httpx.Request("GET", "https://vulners.com/api/v4/archive/collection")
+        assert not _failed_after_dispatch(ValueError("boom"), request)
+
+    def test_request_error_without_attached_request_is_not_after_dispatch(self):
+        # A RequestError raised outside httpx's request_context has no .request
+        # (the property raises RuntimeError); treat it as first-hop, not dispatched.
+        request = httpx.Request("GET", "https://vulners.com/api/v4/archive/collection")
+        assert not _failed_after_dispatch(httpx.ConnectError("refused"), request)
 
 
 class TestConnectionErrorMessage:

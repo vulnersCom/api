@@ -11,8 +11,9 @@ the commit log. Only the v3 series is covered in detail.
 
 ## [Unreleased]
 
-Work in progress toward **4.0.0** — a ground-up modernization that keeps 100%
-backward compatibility with the v3 API.
+## [4.0.0] - 2026-07-24
+
+A ground-up modernization that keeps 100% backward compatibility with the v3 API.
 
 ### Added
 
@@ -22,7 +23,7 @@ backward compatibility with the v3 API.
   `from vulners import Vulners, AsyncVulners`.
 - Typed response models (bulletin family hierarchy), `SearchPage` pagination
   with auto-iteration bounded by the 10 000-document search window, and lazy
-  NDJSON/gzip streaming for archive downloads.
+  streaming of the gzip/zip-compressed JSON-array archive downloads.
 - A structured exception hierarchy (`VulnersError` → `APIError` → …) and
   `with_raw_response` / `with_streaming_response` accessors.
 - `audit.smart()` — the Smart Audit endpoint (`POST /api/v4/audit/smart`).
@@ -49,6 +50,9 @@ backward compatibility with the v3 API.
   dependencies with prebuilt wheels for CPython 3.10–3.14. The former `http2`,
   `stream-zip` extras are removed (their contents are now core); `mcp` and `otel`
   remain the only extras.
+- Proxy configuration via the `proxy=` argument (a URL or `httpx.Proxy`), plus
+  automatic support for the `HTTPS_PROXY` / `HTTP_PROXY` / `ALL_PROXY` environment
+  variables (honouring `NO_PROXY`) when `trust_env` is set.
 - License change to **MIT** for 4.0.0.
 
 ### Compatibility

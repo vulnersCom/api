@@ -1,0 +1,42 @@
+name: docs
+
+# Build the mkdocs site and deploy it to GitHub Pages. Runs on every push to the
+# default branch — docstrings feed the API reference via mkdocstrings, so a src
+# change can affect the docs too — and can be run by hand.
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+# Least privilege, plus what Pages deployment needs (OIDC + pages write).
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deploy at a time; never cancel a publish already in flight.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+        with:
+          enable-cache: true
+      - name: install (locked, docs group + project)
+        run: uv sync --locked --no-default-groups --group docs
+      - name: build docs (strict — any warning fails the build)
+        run: uv run --no-default-groups --group docs mkdocs build --strict
+      - uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
+      - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
+        with:
+          path: site
+      - id: deployment
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4

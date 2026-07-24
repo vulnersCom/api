@@ -142,7 +142,7 @@ class AsyncAPIClient(BaseClient):
                 response, content = await self._send(spec, request)
             except httpx.TimeoutException as exc:
                 error: APIConnectionError = APITimeoutError(f"Request timed out: {exc}")
-                if attempt < retries and self._retryable_exc(exc, spec):
+                if attempt < retries and self._retryable_exc(exc, spec, request):
                     attempt += 1
                     await self._sleep(_retry_timeout(attempt))
                     continue
@@ -150,7 +150,7 @@ class AsyncAPIClient(BaseClient):
                 raise error from exc
             except httpx.TransportError as exc:
                 error = APIConnectionError(self._connection_error_message(exc))
-                if attempt < retries and self._retryable_exc(exc, spec):
+                if attempt < retries and self._retryable_exc(exc, spec, request):
                     attempt += 1
                     await self._sleep(_retry_timeout(attempt))
                     continue
@@ -247,7 +247,7 @@ class AsyncAPIClient(BaseClient):
                 response = await self._client.send(request, stream=True)
             except httpx.TimeoutException as exc:
                 error: APIConnectionError = APITimeoutError(f"Request timed out: {exc}")
-                if attempt < retries and self._retryable_exc(exc, spec):
+                if attempt < retries and self._retryable_exc(exc, spec, request):
                     attempt += 1
                     await self._sleep(_retry_timeout(attempt))
                     continue
@@ -255,7 +255,7 @@ class AsyncAPIClient(BaseClient):
                 raise error from exc
             except httpx.TransportError as exc:
                 error = APIConnectionError(self._connection_error_message(exc))
-                if attempt < retries and self._retryable_exc(exc, spec):
+                if attempt < retries and self._retryable_exc(exc, spec, request):
                     attempt += 1
                     await self._sleep(_retry_timeout(attempt))
                     continue

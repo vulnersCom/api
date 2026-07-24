@@ -116,6 +116,31 @@ def _is_proxy_auth_error(exc: BaseException) -> bool:
     return isinstance(exc, httpx.ProxyError) and str(exc).lstrip().startswith("407")
 
 
+def _failed_after_dispatch(exc: Exception, request: httpx.Request) -> bool:
+    """True when *exc* was raised on a redirect leg, not the first (origin) hop.
+
+    Under ``follow_redirects`` the SDK origin can already have answered — an
+    archive open returns a 302 to a signed storage URL, and that open is the
+    billable step — before a *later* leg fails at the transport level. httpx
+    attaches the failing hop's ``Request`` to a ``RequestError`` (via its
+    ``request_context``) and builds a brand-new ``Request`` object for every
+    redirect target, so the failing hop is the original request object only on
+    the first hop. A different failing request therefore means at least one
+    response (a 30x) was already received from the origin, i.e. the request was
+    dispatched — and, for archive, billed — before this leg failed. Retrying such
+    an error would re-run the whole chain from the origin and re-bill the open.
+    """
+    if not isinstance(exc, httpx.RequestError):
+        return False
+    try:
+        failed = exc.request
+    except RuntimeError:
+        # httpx did not attach a request (raised outside request_context); treat
+        # as first-hop and let the normal connect/idempotent policy decide.
+        return False
+    return failed is not request
+
+
 def _json_loads_lenient(data: bytes | bytearray | str) -> Any:
     """Decode JSON with orjson, falling back to the stdlib decoder on its edges.
 
@@ -280,13 +305,22 @@ class BaseClient:
     def _ratelimit_key(self, spec: RequestSpec) -> str:
         return spec.ratelimit_group or spec.path
 
-    def _retryable_exc(self, exc: Exception, spec: RequestSpec) -> bool:
+    def _retryable_exc(self, exc: Exception, spec: RequestSpec, request: httpx.Request) -> bool:
         # A 407 from the proxy is terminal (the credentials will not change
         # between attempts), so it is never retried — even on an idempotent verb.
         if _is_proxy_auth_error(exc):
             return False
-        # Connection-establishment failures never delivered the request, so they
-        # are always safe to retry; read/write failures only on idempotent verbs.
+        # Once the origin has answered (a 302 to a signed storage URL is the
+        # billable archive-open), a transport error on a *later* redirect leg is
+        # post-dispatch: retrying re-runs the chain from the origin and re-bills.
+        # This is true even for a ConnectError/ConnectTimeout/PoolTimeout, whose
+        # "never delivered the request" reasoning only holds for the first hop.
+        # Refuse to retry any transport error raised after dispatch, so a
+        # post-redirect connect fault does not silently re-issue the billed open.
+        if _failed_after_dispatch(exc, request):
+            return False
+        # A first-hop connection-establishment failure never delivered the request,
+        # so it is always safe to retry; read/write failures only on idempotent verbs.
         if isinstance(exc, (httpx.ConnectError, httpx.ConnectTimeout, httpx.PoolTimeout)):
             return True
         return self._idempotent(spec)

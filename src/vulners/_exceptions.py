@@ -313,6 +313,11 @@ ERROR_CODE_MAP: dict[int, type[APIStatusError]] = {
     103: BadRequestError,
     # "Wrong/invalid parameter value".
     104: BadRequestError,
+    # "Api key scope violation" — the key is valid but not licensed for this
+    # endpoint; a scope violation is a permission denial. The server returns this
+    # in a v3 envelope that can arrive with HTTP 200, so mapping the errorCode
+    # (rather than only the status) is what makes it a PermissionDeniedError.
+    158: PermissionDeniedError,
 }
 
 

@@ -4,9 +4,11 @@
 
 The v4 subscription API with JSON delivery, reachable as ``client.subscriptions``
 (``client.subscriptions_v4`` remains a temporary alias of the same resource).
-``create`` sends the full subscription definition; ``update`` is a partial
-update — only the fields you pass are sent, everything else keeps its stored
-value.
+``create`` sends the full subscription definition. ``update`` is **not** a
+partial update: while the client omits any argument you leave unset, the server
+requires ``query``, ``delivery`` and ``send_empty_result`` on every call and
+rejects a request missing any of them with HTTP 400 — so pass those three (plus
+the subscription ``id``) on every update.
 """
 
 from __future__ import annotations
@@ -159,22 +161,27 @@ class SubscriptionsV4(_base.BaseResource):
         send_empty_result: bool | NotGiven = not_given,
         timeout: float | httpx.Timeout | NotGiven = not_given,
     ) -> Any:
-        """Update a subscription, sending only the fields you pass.
+        """Update a subscription.
 
-        This is a partial update: an argument you omit is left out of the
-        request entirely, so the stored value is kept. Pass a field explicitly
-        to change it.
+        This is **not** a partial update. The client omits any argument you
+        leave unset, but the server requires ``query``, ``delivery`` and
+        ``send_empty_result`` on every call and returns HTTP 400 if any of them
+        is missing — so pass all three on every update, even when you only mean
+        to change one other field.
 
         Args:
             id: The subscription to update.
             name: New subscription name.
-            query: New query definition (discriminated by ``type``).
+            query: New query definition (discriminated by ``type``). Required on
+                every call.
             delivery: New delivery definition (discriminated by ``type``).
+                Required on every call.
             license_id: License to bill against (``None`` clears it).
             bulletin_fields: Bulletin fields to include in results.
             is_active: Enable or disable the subscription.
             timestamp_source: Which timestamp drives incremental delivery.
             send_empty_result: Deliver even when there are no new results.
+                Required on every call.
         """
         body: dict[str, Any] = {"id": id}
         self._set(body, "name", name)

@@ -8,7 +8,9 @@ from __future__ import annotations
 
 import httpx
 import pytest
+import respx
 
+from vulners._client import Vulners
 from vulners._exceptions import (
     APIStatusError,
     AuthenticationError,
@@ -40,6 +42,30 @@ class TestExtractError:
         assert "bad param" in info.message
         # errorCode-first mapping wins over the (200) status fallback.
         assert isinstance(_make_error(info), BadRequestError)
+
+    def test_scope_violation_158_in_http_200_is_permission_denied(self):
+        # "Api key scope violation" arrives in a v3 envelope with HTTP 200; the
+        # errorCode-first mapping must classify it as a permission denial, not a
+        # generic APIStatusError from the (200) status fallback.
+        body = {
+            "result": "error",
+            "data": {"error": "Api key scope violation", "errorCode": 158},
+        }
+        info = _extract_error(200, _headers(), body)
+        assert info is not None
+        assert info.status_code == 200
+        assert info.error_code == 158
+        assert isinstance(_make_error(info), PermissionDeniedError)
+
+    def test_scope_violation_158_on_403_is_permission_denied(self):
+        # Same code delivered on an HTTP 403 also maps to PermissionDeniedError
+        # (which is the 403 status class too, so the mapping is consistent).
+        body = {"result": "error", "data": {"error": "Api key scope violation", "errorCode": 158}}
+        info = _extract_error(403, _headers(), body)
+        assert info is not None
+        assert info.status_code == 403
+        assert info.error_code == 158
+        assert isinstance(_make_error(info), PermissionDeniedError)
 
     def test_v4_validation_400_is_bad_request_and_redacts_input(self):
         body = {
@@ -107,6 +133,57 @@ class TestExtractError:
         err = _make_error(info)
         assert isinstance(err, APIStatusError)
         assert err.status_code == 418
+
+
+_SCOPE_KEY = "SYNTHETIC-TEST-KEY"
+_SCOPE_SEARCH_URL = "https://vulners.com/api/v3/search/lucene/"
+_SCOPE_ENVELOPE = {
+    "result": "error",
+    "data": {"error": "Api key scope violation", "errorCode": 158},
+}
+
+
+class TestScopeViolationEndToEnd:
+    """errorCode 158 (scope violation) reaches the caller as PermissionDeniedError."""
+
+    @respx.mock
+    def test_http_200_error_body_raises_permission_denied(self):
+        # The server returns the scope violation in a v3 envelope with HTTP 200.
+        route = respx.post(_SCOPE_SEARCH_URL).mock(
+            return_value=httpx.Response(200, json=_SCOPE_ENVELOPE)
+        )
+        with Vulners(_SCOPE_KEY) as client:
+            with pytest.raises(PermissionDeniedError) as excinfo:
+                client.search.query("ssh")
+        # A permission error is terminal: no retries.
+        assert route.call_count == 1
+        assert excinfo.value.error_code == 158
+        assert excinfo.value.status_code == 200
+
+    @respx.mock
+    def test_http_403_error_body_raises_permission_denied(self):
+        route = respx.post(_SCOPE_SEARCH_URL).mock(
+            return_value=httpx.Response(403, json=_SCOPE_ENVELOPE)
+        )
+        with Vulners(_SCOPE_KEY) as client:
+            with pytest.raises(PermissionDeniedError) as excinfo:
+                client.search.query("ssh")
+        assert route.call_count == 1
+        assert excinfo.value.error_code == 158
+        assert excinfo.value.status_code == 403
+
+    @respx.mock
+    def test_scope_violation_still_catchable_as_legacy_vulners_api_error(self):
+        # The v3-era co-hierarchy is preserved: a PermissionDeniedError is still a
+        # VulnersApiError, so migrating handlers keep catching it (BC unchanged).
+        from vulners.base import VulnersApiError
+
+        respx.post(_SCOPE_SEARCH_URL).mock(return_value=httpx.Response(200, json=_SCOPE_ENVELOPE))
+        with Vulners(_SCOPE_KEY) as client:
+            with pytest.raises(VulnersApiError) as excinfo:
+                client.search.query("ssh")
+        assert isinstance(excinfo.value, PermissionDeniedError)
+        assert excinfo.value.error_code == 158
 
 
 class TestRetryAfter:

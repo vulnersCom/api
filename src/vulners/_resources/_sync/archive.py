@@ -26,12 +26,24 @@ from ..._base_client import RequestSpec, _json_loads_lenient
 from ..._types import NotGiven, not_given
 from . import _base
 
+# The buffered fetch/get specs below are marked ``idempotent=False`` on purpose.
+# A buffered fetch reads the whole body inside the retry loop (``_send``), so a
+# mid-download ``ReadError``/``ReadTimeout`` on the storage leg would otherwise be
+# retried by re-issuing the ORIGINAL request — which re-runs the vulners.com
+# archive-open (the billable step) and charges a second time. ``idempotent=False``
+# makes ``_retryable_exc`` refuse to retry a post-dispatch read/timeout error while
+# still retrying pre-dispatch connect failures (never billed) and 408/429
+# (rejected before processing). This mirrors the streaming path, whose retry loop
+# (``_open_stream``) structurally covers only the pre-first-byte phase. The
+# streaming (``_STREAM_*``) and cheap state (``_*_STATE``) specs keep the GET
+# default: they either never re-issue after the first byte or do not bill.
 _FETCH_COLLECTION = RequestSpec(
     "GET",
     "/api/v4/archive/collection",
     body_mode="query",
     response_mode="bytes",
     timeout_profile="archive",
+    idempotent=False,
 )
 _STREAM_COLLECTION = RequestSpec(
     "GET",
@@ -53,6 +65,7 @@ _FETCH_COLLECTION_UPDATE = RequestSpec(
     body_mode="query",
     response_mode="bytes",
     timeout_profile="archive",
+    idempotent=False,
 )
 _COLLECTION_STATE = RequestSpec(
     "GET", "/api/v4/archive/collection-state", body_mode="query", unwrap=("result",)
@@ -63,6 +76,7 @@ _FETCH_FAMILY = RequestSpec(
     body_mode="query",
     response_mode="bytes",
     timeout_profile="archive",
+    idempotent=False,
 )
 _STREAM_FAMILY = RequestSpec(
     "GET",
@@ -77,6 +91,7 @@ _FETCH_FAMILY_UPDATE = RequestSpec(
     body_mode="query",
     response_mode="bytes",
     timeout_profile="archive",
+    idempotent=False,
 )
 _STREAM_FAMILY_UPDATE = RequestSpec(
     "GET",
@@ -94,6 +109,7 @@ _GET_COLLECTION = RequestSpec(
     body_mode="query",
     response_mode="bytes",
     timeout_profile="archive",
+    idempotent=False,
 )
 _GET_DISTRIBUTIVE = RequestSpec(
     "GET",
@@ -101,6 +117,7 @@ _GET_DISTRIBUTIVE = RequestSpec(
     body_mode="query",
     response_mode="bytes",
     timeout_profile="archive",
+    idempotent=False,
 )
 _GETSPLOIT = RequestSpec(
     "GET",
@@ -108,6 +125,7 @@ _GETSPLOIT = RequestSpec(
     body_mode="query",
     response_mode="bytes",
     timeout_profile="archive",
+    idempotent=False,
 )
 
 

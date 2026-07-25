@@ -26,6 +26,7 @@ jobs:
       - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
         with:
           enable-cache: true
+          version: "0.11.30" # pin so setup-uv never queries the GitHub "latest" API
       - name: verify tag matches package version
         run: |
           TAG="${GITHUB_REF_NAME#v}"

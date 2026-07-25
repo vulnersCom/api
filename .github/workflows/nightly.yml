@@ -20,6 +20,7 @@ jobs:
       - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
         with:
           enable-cache: true
+          version: "0.11.30" # pin so setup-uv never queries the GitHub "latest" API
       - name: install (locked, test group only)
         run: uv sync --locked --no-default-groups --group test --python ${{ matrix.python-version }}
       - name: import smoke
@@ -40,6 +41,7 @@ jobs:
       - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
         with:
           enable-cache: true
+          version: "0.11.30" # pin so setup-uv never queries the GitHub "latest" API
       - name: resolve newest deps incl. pre-releases (overrides the lock)
         # --exclude-newer "now" overrides the reproducibility cutoff pinned in
         # [tool.uv] exclude-newer, so the probe really sees today's releases.
@@ -66,6 +68,7 @@ jobs:
         if: env.VULNERS_API_KEY != ''
         with:
           enable-cache: true
+          version: "0.11.30" # pin so setup-uv never queries the GitHub "latest" API
       - name: install (locked, test group only)
         if: env.VULNERS_API_KEY != ''
         run: uv sync --locked --no-default-groups --group test --python 3.12

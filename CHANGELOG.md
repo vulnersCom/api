@@ -11,6 +11,27 @@ the commit log. Only the v3 series is covered in detail.
 
 ## [Unreleased]
 
+## [4.0.1] - 2026-08-14
+
+Maintenance release. The public API is unchanged from 4.0.0.
+
+### Changed
+
+- Raised the minimum supported versions of the runtime dependencies to the
+  currently tested lines: pydantic >=2.13, typing-extensions >=4.16,
+  typing-inspection >=0.4.4, h2 >=4.4, stream-unzip >=0.0.101, brotli >=1.2,
+  zstandard >=0.25, isal >=1.8, ijson >=3.5. Upper bounds are unchanged. Installs
+  pinned below these versions now resolve up to the new minimums.
+- Reordered `None` to the end of type-union annotations (ruff 0.16 RUF036); no
+  runtime effect.
+
+### Internal
+
+- Refreshed the development lockfile to the latest dependency versions, made the
+  MCP test suite reproducible against the lockfile, bumped the pinned GitHub
+  Actions (the Pages actions now run on Node 24), and enabled documentation
+  auto-deploy to GitHub Pages.
+
 ## [4.0.0] - 2026-07-24
 
 A ground-up modernization that keeps 100% backward compatibility with the v3 API.

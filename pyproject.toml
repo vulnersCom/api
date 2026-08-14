@@ -1,6 +1,6 @@
 [project]
 name = "vulners"
-version = "4.0.0"
+version = "4.0.1"
 description = "Python SDK for the Vulners vulnerability intelligence API (https://vulners.com)"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -38,32 +38,32 @@ classifiers = [
 ]
 dependencies = [
     "httpx>=0.28,<1",
-    "pydantic>=2.11,<3",
+    "pydantic>=2.13,<3",
     "orjson>=3.11,<4",
-    "typing-extensions>=4.12",
+    "typing-extensions>=4.16",
     # base.py (legacy shim layer) imports typing_inspection directly; keep it
     # explicit so a pydantic that drops the transitive dep can't break imports.
-    "typing-inspection>=0.4",
+    "typing-inspection>=0.4.4",
     # HTTP/2 transport, on by default. Pure-Python, so no wheel/build concern.
-    "h2>=4,<5",
+    "h2>=4.4,<5",
     # Streaming multi-member zip archive decode (used by _streaming). Pure-Python.
-    "stream-unzip>=0.0.100,<0.1",
+    "stream-unzip>=0.0.101,<0.1",
     # Response compression: httpx advertises br/zstd and decompresses them
     # transparently only when these decoders are importable, so they are core
     # (an extra would be opt-in and never help the default `pip install vulners`).
     # Both ship cp310–cp314 wheels, so `pip install vulners` never builds from source.
     # Upper-capped at the next major so a wheel/ABI-breaking release can't be
     # pulled in silently; bump the cap deliberately when validated.
-    "brotli>=1.1,<2",
-    "zstandard>=0.22,<1",
+    "brotli>=1.2,<2",
+    "zstandard>=0.25,<1",
     # ISA-L accelerated gzip inflate on the multi-GB archive hot path (drop-in
     # zlib/gzip replacement). Ships cp310–cp314 wheels.
-    "isal>=1.7,<2",
+    "isal>=1.8,<2",
     # Streaming JSON-array parser for the bulk archive path (a collection is one
     # big JSON array): yields elements without buffering the whole array. Pure
     # Python with optional C backends; the pure-Python backend needs no wheel, so
     # `pip install vulners` / `uv sync` never builds from source on any 3.10–3.14.
-    "ijson>=3.2,<4",
+    "ijson>=3.5,<4",
 ]
 
 [project.optional-dependencies]

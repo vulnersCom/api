@@ -285,7 +285,7 @@ class AsyncVscannerProjects(_base.AsyncBaseResource):
         name: str,
         license_id: uuid.UUID,
         notification: Mapping[str, Any],
-        result_expire_in: int | None | NotGiven = not_given,
+        result_expire_in: int | NotGiven | None = not_given,
         timeout: float | httpx.Timeout | NotGiven = not_given,
     ) -> Any:
         """Create a project.

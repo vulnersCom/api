@@ -183,7 +183,7 @@ class AsyncAPIClient(BaseClient):
         body: Any = None,
         files: Any = None,
         headers: Mapping[str, str | Omit] | None = None,
-        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+        timeout: float | httpx.Timeout | NotGiven | None = not_given,
         max_retries: int | None = None,
     ) -> Any:
         retries = self._config.max_retries if max_retries is None else max_retries
@@ -202,7 +202,7 @@ class AsyncAPIClient(BaseClient):
         body: Any = None,
         files: Any = None,
         headers: Mapping[str, str | Omit] | None = None,
-        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+        timeout: float | httpx.Timeout | NotGiven | None = not_given,
         max_retries: int | None = None,
     ) -> APIResponse[Any]:
         retries = self._config.max_retries if max_retries is None else max_retries
@@ -286,7 +286,7 @@ class AsyncAPIClient(BaseClient):
         *,
         params: Mapping[str, Any] | None = None,
         body: Any = None,
-        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+        timeout: float | httpx.Timeout | NotGiven | None = not_given,
     ) -> AsyncIterator[Any]:
         """Lazily yield the elements of a streamed bulk-archive JSON array."""
         request = self._build_request(spec, params=params, body=body, timeout=timeout)
@@ -330,7 +330,7 @@ class AsyncAPIClient(BaseClient):
         params: Mapping[str, Any] | None = None,
         body: Any = None,
         files: Any = None,
-        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+        timeout: float | httpx.Timeout | NotGiven | None = not_given,
     ) -> AsyncStreamContext:
         """A context manager yielding a live :class:`AsyncStreamedAPIResponse`."""
         request = self._build_request(

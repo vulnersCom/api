@@ -96,7 +96,7 @@ class BaseResource:
         params: Mapping[str, Any] | None = None,
         body: Any = None,
         files: Any = None,
-        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+        timeout: float | httpx.Timeout | NotGiven | None = not_given,
     ) -> Any:
         if self._wrap == "raw":
             return self._client.request_with_response(

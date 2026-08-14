@@ -221,7 +221,7 @@ class BaseClient:
         }
 
     def _resolve_timeout(
-        self, spec: RequestSpec, timeout: float | httpx.Timeout | None | NotGiven
+        self, spec: RequestSpec, timeout: float | httpx.Timeout | NotGiven | None
     ) -> httpx.Timeout:
         if isinstance(timeout, NotGiven):
             return self._config.timeout_for(spec.timeout_profile)
@@ -235,7 +235,7 @@ class BaseClient:
         body: Any = None,
         files: Any = None,
         headers: Mapping[str, str | Omit] | None = None,
-        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+        timeout: float | httpx.Timeout | NotGiven | None = not_given,
     ) -> httpx.Request:
         url = self._config.base_url.join(spec.path)
 

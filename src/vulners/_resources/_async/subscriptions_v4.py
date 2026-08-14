@@ -152,7 +152,7 @@ class AsyncSubscriptionsV4(_base.AsyncBaseResource):
         name: str | NotGiven = not_given,
         query: SubscriptionQuery | Mapping[str, Any] | NotGiven = not_given,
         delivery: SubscriptionDelivery | Mapping[str, Any] | NotGiven = not_given,
-        license_id: str | None | NotGiven = not_given,
+        license_id: str | NotGiven | None = not_given,
         bulletin_fields: Sequence[str] | NotGiven = not_given,
         is_active: bool | NotGiven = not_given,
         timestamp_source: TimestampSource | NotGiven = not_given,

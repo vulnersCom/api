@@ -129,16 +129,16 @@ def _check_byo_conflicts(
         )
 
 
-def _timeout_change(timeout: float | httpx.Timeout | None | NotGiven) -> dict[str, Any]:
+def _timeout_change(timeout: float | httpx.Timeout | NotGiven | None) -> dict[str, Any]:
     if isinstance(timeout, NotGiven):
         return {}
     return {"timeout": _coerce_timeout(timeout)}
 
 
 def _option_changes(
-    timeout: float | httpx.Timeout | None | NotGiven,
+    timeout: float | httpx.Timeout | NotGiven | None,
     max_retries: int | NotGiven,
-    max_response_bytes: int | None | NotGiven,
+    max_response_bytes: int | NotGiven | None,
 ) -> dict[str, Any]:
     """Assemble the config-override dict for ``with_options`` (shared sync/async)."""
     changes: dict[str, Any] = _timeout_change(timeout)
@@ -329,7 +329,7 @@ class Vulners:
         path: str,
         *,
         params: Mapping[str, Any] | None = None,
-        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+        timeout: float | httpx.Timeout | NotGiven | None = not_given,
     ) -> Any:
         """GET an arbitrary API ``path``; ``params`` become the query string."""
         return self._api.get(path, params=params, timeout=timeout)
@@ -340,7 +340,7 @@ class Vulners:
         *,
         json: Any = None,
         params: Mapping[str, Any] | None = None,
-        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+        timeout: float | httpx.Timeout | NotGiven | None = not_given,
     ) -> Any:
         """POST ``json`` to an arbitrary API ``path``; ``params`` add query args."""
         return self._api.post(path, body=json, params=params, timeout=timeout)
@@ -351,7 +351,7 @@ class Vulners:
         *,
         json: Any = None,
         params: Mapping[str, Any] | None = None,
-        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+        timeout: float | httpx.Timeout | NotGiven | None = not_given,
     ) -> Any:
         """PUT ``json`` to an arbitrary API ``path``; ``params`` add query args."""
         return self._api.put(path, body=json, params=params, timeout=timeout)
@@ -361,7 +361,7 @@ class Vulners:
         path: str,
         *,
         params: Mapping[str, Any] | None = None,
-        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+        timeout: float | httpx.Timeout | NotGiven | None = not_given,
     ) -> Any:
         """DELETE an arbitrary API ``path``; ``params`` become the query string."""
         return self._api.delete(path, params=params, timeout=timeout)
@@ -369,9 +369,9 @@ class Vulners:
     def with_options(
         self,
         *,
-        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+        timeout: float | httpx.Timeout | NotGiven | None = not_given,
         max_retries: int | NotGiven = not_given,
-        max_response_bytes: int | None | NotGiven = not_given,
+        max_response_bytes: int | NotGiven | None = not_given,
     ) -> Vulners:
         """A copy of this client sharing the same connection pool, with overrides."""
         changes = _option_changes(timeout, max_retries, max_response_bytes)
@@ -604,7 +604,7 @@ class AsyncVulners:
         path: str,
         *,
         params: Mapping[str, Any] | None = None,
-        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+        timeout: float | httpx.Timeout | NotGiven | None = not_given,
     ) -> Any:
         """GET an arbitrary API ``path``; ``params`` become the query string."""
         return await self._api.get(path, params=params, timeout=timeout)
@@ -615,7 +615,7 @@ class AsyncVulners:
         *,
         json: Any = None,
         params: Mapping[str, Any] | None = None,
-        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+        timeout: float | httpx.Timeout | NotGiven | None = not_given,
     ) -> Any:
         """POST ``json`` to an arbitrary API ``path``; ``params`` add query args."""
         return await self._api.post(path, body=json, params=params, timeout=timeout)
@@ -626,7 +626,7 @@ class AsyncVulners:
         *,
         json: Any = None,
         params: Mapping[str, Any] | None = None,
-        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+        timeout: float | httpx.Timeout | NotGiven | None = not_given,
     ) -> Any:
         """PUT ``json`` to an arbitrary API ``path``; ``params`` add query args."""
         return await self._api.put(path, body=json, params=params, timeout=timeout)
@@ -636,7 +636,7 @@ class AsyncVulners:
         path: str,
         *,
         params: Mapping[str, Any] | None = None,
-        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+        timeout: float | httpx.Timeout | NotGiven | None = not_given,
     ) -> Any:
         """DELETE an arbitrary API ``path``; ``params`` become the query string."""
         return await self._api.delete(path, params=params, timeout=timeout)
@@ -644,9 +644,9 @@ class AsyncVulners:
     def with_options(
         self,
         *,
-        timeout: float | httpx.Timeout | None | NotGiven = not_given,
+        timeout: float | httpx.Timeout | NotGiven | None = not_given,
         max_retries: int | NotGiven = not_given,
-        max_response_bytes: int | None | NotGiven = not_given,
+        max_response_bytes: int | NotGiven | None = not_given,
     ) -> AsyncVulners:
         """A copy of this client sharing the same connection pool, with overrides."""
         changes = _option_changes(timeout, max_retries, max_response_bytes)

@@ -56,13 +56,23 @@ class SearchPage(Generic[T]):
     fetch: SyncFetch[T] | None = None
 
     def has_next_page(self) -> bool:
-        """True when a further page exists and stays within the 10k window."""
+        """Report whether another page can be fetched.
+
+        Returns:
+            ``True`` when a further page exists and its offset stays within the
+            10 000-document search window; ``False`` otherwise, including when
+            this page has no fetch callback or already reaches ``total``.
+        """
         if self.fetch is None or _window_blocked(self.offset, self.limit):
             return False
         return not _short_page(len(self.data), self.limit, self.offset, self.total)
 
     def next_page(self) -> SearchPage[T]:
-        """Fetch the next page.
+        """Fetch the page after this one.
+
+        Returns:
+            The next :class:`SearchPage`, positioned ``limit`` documents further
+            into the results.
 
         Raises:
             SearchWindowExceeded: the next page would cross the 10 000-document
@@ -109,13 +119,23 @@ class AsyncSearchPage(Generic[T]):
     fetch: AsyncFetch[T] | None = None
 
     def has_next_page(self) -> bool:
-        """True when a further page exists and stays within the 10k window."""
+        """Report whether another page can be fetched.
+
+        Returns:
+            ``True`` when a further page exists and its offset stays within the
+            10 000-document search window; ``False`` otherwise, including when
+            this page has no fetch callback or already reaches ``total``.
+        """
         if self.fetch is None or _window_blocked(self.offset, self.limit):
             return False
         return not _short_page(len(self.data), self.limit, self.offset, self.total)
 
     async def next_page(self) -> AsyncSearchPage[T]:
-        """Fetch the next page.
+        """Fetch the page after this one.
+
+        Returns:
+            The next :class:`AsyncSearchPage`, positioned ``limit`` documents
+            further into the results.
 
         Raises:
             SearchWindowExceeded: the next page would cross the 10 000-document

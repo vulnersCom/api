@@ -61,6 +61,10 @@ class SyncAPIClient(BaseClient):
         # Account-scoped pacing buckets. A clone (with_options) passes the parent's
         # dict so client-side rate-limit pacing is shared, not reset per variant.
         self._buckets: dict[str, RateLimitBucket] = {} if buckets is None else buckets
+        # Dedicated HTTP/1.1 client for bulk storage transfers, built lazily for an
+        # SDK-owned client on first parallel download (see _storage_client); stays
+        # None for a bring-your-own client (which is reused as-is).
+        self._storage_http_client: httpx.Client | None = None
         if http_client is not None:
             self._client = http_client
             self._owns_client = False
@@ -68,7 +72,6 @@ class SyncAPIClient(BaseClient):
             # set-cookie drop and SSRF redirect guard run on a BYO client too.
             _mount_guard(http_client, VulnersTransport, config.base_url)
         else:
-            # h2 is a core dependency, so http2=True always works; no guard needed.
             # proxy/verify/trust_env ride on the inner transport: httpx ignores
             # client-level verify once an explicit transport is passed, and a
             # client-level proxy would mount an unguarded transport over ours.
@@ -76,33 +79,59 @@ class SyncAPIClient(BaseClient):
             # (the explicit transport bypasses httpx's client-level env mounts).
             # Kept on the client so a connection failure can name the proxy hop.
             self._proxy = resolve_proxy(config)
-            transport = VulnersTransport(
-                httpx.HTTPTransport(
-                    # retries=0: the SDK request loop is the single retry owner
-                    # (idempotency rules, Retry-After, exponential backoff, on_error
-                    # hooks). Letting the transport also retry the connect phase
-                    # would multiply attempts (up to connect_retries x max_retries).
-                    retries=0,
-                    http2=config.http2,
-                    proxy=self._proxy,
-                    verify=config.verify,
-                    trust_env=config.trust_env,
-                ),
-                origin=config.base_url,
-            )
-            self._client = httpx.Client(
-                base_url=config.base_url,
-                transport=transport,
-                timeout=config.timeout,
-                limits=config.limits,
-                follow_redirects=config.follow_redirects,
-                trust_env=config.trust_env,
-                event_hooks={
-                    "request": list(config.before_request),
-                    "response": list(config.after_response),
-                },
-            )
+            self._client = self._new_httpx_client(http2=config.http2)
             self._owns_client = True
+
+    def _new_httpx_client(self, *, http2: bool) -> httpx.Client:
+        """Build an SDK-owned httpx client over the guarded transport.
+
+        Used for the main client (``config.http2``) and, with ``http2=False``, for the
+        dedicated storage client so a parallel download opens real per-connection TCP
+        sockets rather than multiplexing every range onto one h2 connection.
+        """
+        transport = VulnersTransport(
+            httpx.HTTPTransport(
+                # retries=0: the SDK request loop is the single retry owner
+                # (idempotency rules, Retry-After, exponential backoff, on_error
+                # hooks). Letting the transport also retry the connect phase
+                # would multiply attempts (up to connect_retries x max_retries).
+                retries=0,
+                http2=http2,
+                proxy=self._proxy,
+                verify=self._config.verify,
+                trust_env=self._config.trust_env,
+            ),
+            origin=self._config.base_url,
+        )
+        return httpx.Client(
+            base_url=self._config.base_url,
+            transport=transport,
+            timeout=self._config.timeout,
+            limits=self._config.limits,
+            follow_redirects=self._config.follow_redirects,
+            trust_env=self._config.trust_env,
+            event_hooks={
+                "request": list(self._config.before_request),
+                "response": list(self._config.after_response),
+            },
+        )
+
+    @property
+    def _storage_client(self) -> httpx.Client:
+        """HTTP client for bulk storage transfers (the parallel range download).
+
+        An SDK-owned client gets a dedicated HTTP/1.1 client so ``connections=N`` opens
+        N real TCP connections and saturates the link; HTTP/2 would multiplex every
+        range onto a single connection, throttling throughput and concentrating the
+        whole transfer's failure risk on one socket. A bring-your-own ``http_client``
+        is reused as-is (its own ``http2`` setting stands — pass ``http2=False`` on it
+        for the same benefit).
+        """
+        if not self._owns_client:
+            return self._client
+        if self._storage_http_client is None:
+            self._storage_http_client = self._new_httpx_client(http2=False)
+        return self._storage_http_client
 
     def _bucket_for(self, key: str) -> RateLimitBucket:
         bucket = self._buckets.get(key)
@@ -367,6 +396,8 @@ class SyncAPIClient(BaseClient):
     def close(self) -> None:
         if self._owns_client and not self._client.is_closed:
             self._client.close()
+        if self._storage_http_client is not None and not self._storage_http_client.is_closed:
+            self._storage_http_client.close()
 
     def __enter__(self) -> Self:
         return self

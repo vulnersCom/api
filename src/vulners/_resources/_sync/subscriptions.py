@@ -48,7 +48,12 @@ class Subscriptions(_base.BaseResource):
         *,
         timeout: float | httpx.Timeout | NotGiven = not_given,
     ) -> Any:
-        """List the account's email subscriptions."""
+        """List the email subscriptions registered under the client's API key.
+
+        Returns:
+            The account's email subscriptions; each entry carries the
+            subscription id used by :meth:`edit` and :meth:`delete`.
+        """
         return self._request(_LIST, timeout=timeout)
 
     def add(

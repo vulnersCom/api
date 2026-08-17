@@ -154,10 +154,19 @@ class Search(_base.BaseResource):
         """Iterate every matching :class:`Bulletin`, auto-paginating.
 
         Fetches pages of ``page_size`` documents and yields their rows lazily,
-        stopping at the 10000-document search window. When ``fields`` is
-        omitted, the compact :data:`DEFAULT_SEARCH_FIELDS` projection is used
-        (heavy fields like ``sourceData``/``description`` are opt-in via
-        ``fields=["*"]`` or an explicit list).
+        stopping at the 10000-document search window.
+
+        Args:
+            query: A Vulners Lucene query (see https://vulners.com/help).
+            page_size: Number of documents to fetch per underlying page request.
+            fields: Restrict the returned fields, as in :meth:`query`. When
+                omitted the compact :data:`DEFAULT_SEARCH_FIELDS` projection is
+                used; the heavy document fields (``sourceData``, ``description``)
+                are opt-in via ``fields=["*"]`` or an explicit list.
+
+        Yields:
+            Each matching :class:`Bulletin`, in result order, across every page
+            up to the 10000-document search window.
         """
         page = self.query(query, limit=page_size, offset=0, fields=fields, timeout=timeout)
         while True:
@@ -295,6 +304,13 @@ class Search(_base.BaseResource):
         """Return possible completions for a partial Lucene query.
 
         Same endpoint as :meth:`Misc.query_autocomplete`.
+
+        Args:
+            query: The partial Lucene query to complete.
+
+        Returns:
+            Ordered completions: each element is a completion string, or a
+            ``list[str]`` when the server groups several related completions.
         """
         return self._request(
             _AUTOCOMPLETE, cast=_autocomplete, body={"query": query}, timeout=timeout
@@ -348,6 +364,11 @@ class Search(_base.BaseResource):
         """Return the Vulners web-application (burp) detection rule set.
 
         Same endpoint as :meth:`Misc.get_web_application_rules`.
+
+        Returns:
+            The web-application (burp) detection rule set: the software
+            signatures used to detect web applications and their known
+            vulnerabilities.
         """
         return self._request(_BURP_RULES, timeout=timeout)
 

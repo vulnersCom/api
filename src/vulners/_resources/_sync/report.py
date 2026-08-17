@@ -52,7 +52,17 @@ class Report(_base.BaseResource):
         sort: str = "",
         timeout: float | httpx.Timeout | NotGiven = not_given,
     ) -> Any:
-        """Summary of every found vulnerability (id, title, score, severity...)."""
+        """Summarise every found vulnerability (id, title, score, severity...).
+
+        Args:
+            limit: Maximum number of rows to return in this page.
+            offset: Number of rows to skip.
+            filter: Additional report filter, if any.
+            sort: Sort field; prefix with ``-`` for descending.
+
+        Returns:
+            The vulnerability-summary report payload: one row per distinct vulnerability.
+        """
         return self._report("vulnssummary", limit, offset, filter, sort, timeout)
 
     def vulns_list(
@@ -64,7 +74,17 @@ class Report(_base.BaseResource):
         sort: str = "",
         timeout: float | httpx.Timeout | NotGiven = not_given,
     ) -> Any:
-        """List of vulnerabilities found on hosts, with host information."""
+        """List vulnerabilities found on hosts, with host information.
+
+        Args:
+            limit: Maximum number of rows to return in this page.
+            offset: Number of rows to skip.
+            filter: Additional report filter, if any.
+            sort: Sort field; prefix with ``-`` for descending.
+
+        Returns:
+            The vulnerability-list report payload: one row per vulnerability occurrence on a host.
+        """
         return self._report("vulnslist", limit, offset, filter, sort, timeout)
 
     def ip_summary(
@@ -76,7 +96,17 @@ class Report(_base.BaseResource):
         sort: str = "",
         timeout: float | httpx.Timeout | NotGiven = not_given,
     ) -> Any:
-        """Per-host summary (agent id, ip, fqdn, os, vulnerability counts)."""
+        """Summarise results per host (agent id, ip, fqdn, os, vulnerability counts).
+
+        Args:
+            limit: Maximum number of rows to return in this page.
+            offset: Number of rows to skip.
+            filter: Additional report filter, if any.
+            sort: Sort field; prefix with ``-`` for descending.
+
+        Returns:
+            The per-host summary report payload: one row per host.
+        """
         return self._report("ipsummary", limit, offset, filter, sort, timeout)
 
     def scan_list(
@@ -88,7 +118,17 @@ class Report(_base.BaseResource):
         sort: str = "",
         timeout: float | httpx.Timeout | NotGiven = not_given,
     ) -> Any:
-        """List of scans (host ip/fqdn, os, scan date, cvss score)."""
+        """List scans (host ip/fqdn, os, scan date, cvss score).
+
+        Args:
+            limit: Maximum number of rows to return in this page.
+            offset: Number of rows to skip.
+            filter: Additional report filter, if any.
+            sort: Sort field; prefix with ``-`` for descending.
+
+        Returns:
+            The scan-list report payload: one row per scan.
+        """
         return self._report("scanlist", limit, offset, filter, sort, timeout)
 
     def host_vulns(
@@ -100,7 +140,18 @@ class Report(_base.BaseResource):
         sort: str = "",
         timeout: float | httpx.Timeout | NotGiven = not_given,
     ) -> Any:
-        """List of hosts with their cumulative fix and vulnerability ids."""
+        """List hosts with their cumulative fix and vulnerability ids.
+
+        Args:
+            limit: Maximum number of rows to return in this page.
+            offset: Number of rows to skip.
+            filter: Additional report filter, if any.
+            sort: Sort field; prefix with ``-`` for descending.
+
+        Returns:
+            The host-vulnerabilities report payload: one row per host with its
+            fix and vulnerability ids.
+        """
         return self._report("hostvulns", limit, offset, filter, sort, timeout)
 
     def vuln_info(

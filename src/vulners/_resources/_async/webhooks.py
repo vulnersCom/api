@@ -58,7 +58,9 @@ class AsyncWebhooks(_base.AsyncBaseResource):
         """List the account's webhook subscriptions.
 
         Scoped to the client's own key: the server reads this endpoint from the
-        ``X-Api-Key`` header only, so there is no owner-key override here.
+        ``X-Api-Key`` header only, so there is no owner-key override here. Pair
+        with :meth:`add` to create a subscription and :meth:`read` to poll one
+        for pending payloads.
         """
         return await self._request(_LIST, timeout=timeout)
 

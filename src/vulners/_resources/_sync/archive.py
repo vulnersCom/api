@@ -11,17 +11,14 @@ collections can be gigabytes, so they use the archive timeout profile.
 
 from __future__ import annotations
 
-import contextlib
 import os
-import tempfile
 from collections.abc import Iterator
 from datetime import datetime
-from typing import Any, BinaryIO
+from typing import Any
 
 import httpx
 
-import vulners._base_client
-
+from ... import _download
 from ..._base_client import RequestSpec, _json_loads_lenient
 from ..._types import NotGiven, not_given
 from . import _base
@@ -127,6 +124,15 @@ _GETSPLOIT = RequestSpec(
     timeout_profile="archive",
     idempotent=False,
 )
+# Used only to resolve the storage redirect for the parallel/streaming download
+# (response_mode is irrelevant there — the download bypasses the buffered loop).
+_STREAM_GETSPLOIT = RequestSpec(
+    "GET",
+    "/api/v3/archive/getsploit/",
+    body_mode="query",
+    response_mode="stream",
+    timeout_profile="archive",
+)
 
 
 def _decode_archive(value: Any) -> Any:
@@ -159,28 +165,6 @@ def _distributive(value: Any) -> list[Any]:
     return [item["_source"] for item in value if isinstance(item, dict) and "_source" in item]
 
 
-def _open_temp_beside(dest: str) -> tuple[BinaryIO, str]:
-    # Open a temp file in the destination's own directory so a later os.replace()
-    # onto dest is an atomic same-filesystem rename. Blocking, so the async source
-    # runs it off the event loop (the sync mirror calls it inline).
-    directory = os.path.dirname(os.path.abspath(dest)) or "."
-    fd, tmp_path = tempfile.mkstemp(prefix=".vulners-dl-", dir=directory)
-    return os.fdopen(fd, "wb"), tmp_path
-
-
-def _flush_and_close(handle: BinaryIO) -> None:
-    handle.flush()
-    os.fsync(handle.fileno())
-    handle.close()
-
-
-def _cleanup_temp(handle: BinaryIO, tmp_path: str) -> None:
-    with contextlib.suppress(OSError):
-        handle.close()
-    with contextlib.suppress(OSError):
-        os.unlink(tmp_path)
-
-
 class Archive(_base.BaseResource):
     """Download bulk archives of the Vulners database."""
 
@@ -190,7 +174,19 @@ class Archive(_base.BaseResource):
         *,
         timeout: float | httpx.Timeout | NotGiven = not_given,
     ) -> Any:
-        """Download an entire collection archive by ``type`` (e.g. ``"cve"``)."""
+        """Download an entire collection archive by ``type`` (e.g. ``"cve"``).
+
+        Buffers and decodes the whole archive in memory. For large collections
+        prefer :meth:`iter_collection` (lazy, per-element) or
+        :meth:`download_collection` (parallel, straight to disk).
+
+        Args:
+            type: The collection type to download (e.g. ``"cve"``).
+
+        Returns:
+            The decoded collection — parsed JSON (typically a list of records)
+            when the body decodes, otherwise the raw archive bytes.
+        """
         return self._request(
             _FETCH_COLLECTION, cast=_decode_archive, body={"type": type}, timeout=timeout
         )
@@ -206,9 +202,14 @@ class Archive(_base.BaseResource):
         Unlike :meth:`fetch_collection` (which buffers and decodes the whole
         archive), this follows the archive redirect to storage, decompresses the
         body as a stream and yields each array element lazily, so a multi-gigabyte
-        collection never has to be held in memory. Each element is a ``dict``;
-        records delivered as raw Elasticsearch hits are normalized to their
-        ``"_source"`` document.
+        collection never has to be held in memory. Records delivered as raw
+        Elasticsearch hits are normalized to their ``"_source"`` document.
+
+        Args:
+            type: The collection type to stream (e.g. ``"cve"``).
+
+        Yields:
+            Each collection element as a ``dict``.
         """
         for record in self._client.stream_records(
             _STREAM_COLLECTION, params={"type": type}, timeout=timeout
@@ -221,48 +222,48 @@ class Archive(_base.BaseResource):
         path: str | os.PathLike[str],
         *,
         update_from: datetime | None = None,
+        connections: int = 8,
         timeout: float | httpx.Timeout | NotGiven = not_given,
     ) -> int:
-        """Stream a collection archive straight to ``path``; return bytes written.
+        """Download a collection archive to ``path``, in parallel; return bytes written.
 
-        The raw (still-compressed) archive bytes are written to ``path`` chunk by
-        chunk — nothing is buffered in memory and nothing is decompressed — so a
-        multi-gigabyte collection downloads in constant memory. Pass
-        ``update_from`` to fetch only the entries changed after that moment (the
-        collection-update endpoint) instead of the whole collection.
+        The endpoint redirects to storage that supports HTTP range requests, so the
+        raw (still-compressed) archive is pulled over ``connections`` concurrent
+        connections and written straight to disk — saturating the link in constant
+        memory — with an automatic fallback to a single stream when the storage does
+        not offer ranges. Nothing is decompressed, so a multi-gigabyte collection
+        downloads without ever being held in memory. Pass ``update_from`` to fetch
+        only the entries changed after that moment (the collection-update endpoint).
+        The write is atomic: an interrupted download never clobbers an existing file.
 
         Args:
             collection: The collection type to download (e.g. ``"cve"``).
-            path: Destination file path; an existing file is overwritten.
+            path: Destination file path; an existing file is overwritten atomically.
             update_from: When given, download the collection update since this
                 moment instead of the full archive.
+            connections: Number of parallel range connections (default 8). The
+                SDK-owned client runs them over HTTP/1.1 so each opens a real socket
+                and saturates the link; with your own ``http_client`` pass
+                ``http2=False`` for the same throughput.
 
         Returns:
             The number of bytes written to ``path``.
         """
+        if connections < 1:
+            raise ValueError("connections must be >= 1")
         spec = _STREAM_COLLECTION
         params: dict[str, Any] = {"type": collection}
         if update_from is not None:
             spec = _STREAM_COLLECTION_UPDATE
             params["after"] = update_from.isoformat()
-        dest = os.fspath(path)
-        # Atomic write: stream into a temp file beside the destination, fsync, then
-        # os.replace() (an atomic same-filesystem rename). A timeout, cancellation,
-        # disconnect or ENOSPC mid-download leaves any existing archive at `path`
-        # intact instead of clobbering it with a half-written file.
-        handle, tmp_path = vulners._base_client._call_blocking(_open_temp_beside, dest)
-        written = 0
-        try:
-            with self._client.stream_response(spec, params=params, timeout=timeout) as resp:
-                for chunk in resp.iter_bytes():
-                    vulners._base_client._call_blocking(handle.write, chunk)
-                    written += len(chunk)
-            vulners._base_client._call_blocking(_flush_and_close, handle)
-            vulners._base_client._call_blocking(os.replace, tmp_path, dest)
-        except BaseException:
-            vulners._base_client._call_blocking(_cleanup_temp, handle, tmp_path)
-            raise
-        return written
+        return _download.parallel_download_sync(
+            self._client,
+            spec,
+            os.fspath(path),
+            params=params,
+            connections=connections,
+            timeout=timeout,
+        )
 
     def fetch_collection_update(
         self,
@@ -271,7 +272,20 @@ class Archive(_base.BaseResource):
         *,
         timeout: float | httpx.Timeout | NotGiven = not_given,
     ) -> Any:
-        """Download only the collection entries changed after ``after``."""
+        """Download only the collection entries changed after ``after``.
+
+        The incremental counterpart of :meth:`fetch_collection`, buffered and
+        decoded in memory. Use :meth:`collection_state` to obtain the cursor to
+        resume from.
+
+        Args:
+            type: The collection type to download (e.g. ``"cve"``).
+            after: Only entries changed after this moment are included.
+
+        Returns:
+            The decoded update — parsed JSON (typically a list of records) when
+            the body decodes, otherwise the raw archive bytes.
+        """
         body = {"type": type, "after": after.isoformat()}
         return self._request(
             _FETCH_COLLECTION_UPDATE, cast=_decode_archive, body=body, timeout=timeout
@@ -302,7 +316,15 @@ class Archive(_base.BaseResource):
 
         Same shape as :meth:`fetch_collection`, keyed by a family name (e.g.
         ``"exploit"``, ``"unix"``, ``"software"``) instead of a single
-        collection type.
+        collection type. Buffered and decoded in memory; for large families
+        prefer :meth:`iter_family` (lazy, per-element).
+
+        Args:
+            name: The collection family to download (e.g. ``"exploit"``).
+
+        Returns:
+            The decoded family archive — parsed JSON (typically a list of
+            records) when the body decodes, otherwise the raw archive bytes.
         """
         return self._request(
             _FETCH_FAMILY, cast=_decode_archive, body={"name": name}, timeout=timeout
@@ -315,7 +337,20 @@ class Archive(_base.BaseResource):
         *,
         timeout: float | httpx.Timeout | NotGiven = not_given,
     ) -> Any:
-        """Download only the family entries changed after ``after`` (max 25h ago)."""
+        """Download only the family entries changed after ``after`` (max 25h ago).
+
+        The incremental counterpart of :meth:`family`. Use :meth:`family_state`
+        to obtain the cursor to resume from.
+
+        Args:
+            name: The collection family to download (e.g. ``"exploit"``).
+            after: Only entries changed after this moment are included; must be
+                at most 25 hours ago.
+
+        Returns:
+            The decoded update — parsed JSON (typically a list of records) when
+            the body decodes, otherwise the raw archive bytes.
+        """
         body = {"name": name, "after": after.isoformat()}
         return self._request(
             _FETCH_FAMILY_UPDATE, cast=_decode_archive, body=body, timeout=timeout
@@ -349,9 +384,15 @@ class Archive(_base.BaseResource):
 
         Follows the archive redirect to storage, decompresses the body as a
         stream and yields each element lazily, so a multi-gigabyte family
-        archive never has to be held in memory. Pass ``update_from`` to stream
-        only the entries changed after that moment (must be at most 25 hours
-        ago) instead of the whole family.
+        archive never has to be held in memory.
+
+        Args:
+            name: The collection family to stream (e.g. ``"exploit"``).
+            update_from: When given, stream only the entries changed after this
+                moment (at most 25 hours ago) instead of the whole family.
+
+        Yields:
+            Each family element as a ``dict``.
         """
         spec = _STREAM_FAMILY
         params: dict[str, Any] = {"name": name}
@@ -369,7 +410,20 @@ class Archive(_base.BaseResource):
         dateto: str = "2199-01-01",
         timeout: float | httpx.Timeout | NotGiven = not_given,
     ) -> Any:
-        """Download a collection over a date range (legacy v3 endpoint)."""
+        """Download a collection over a date range (legacy v3 endpoint).
+
+        Buffered and decoded in memory. Prefer the v4 :meth:`fetch_collection` /
+        :meth:`download_collection` where available.
+
+        Args:
+            type: The collection type to download (e.g. ``"cve"``).
+            datefrom: Start date (``YYYY-MM-DD``) of the range.
+            dateto: End date (``YYYY-MM-DD``) of the range.
+
+        Returns:
+            The decoded collection — parsed JSON (typically a list of records)
+            when the body decodes, otherwise the raw archive bytes.
+        """
         body = {"type": type, "datefrom": datefrom, "dateto": dateto}
         return self._request(_GET_COLLECTION, cast=_decode_archive, body=body, timeout=timeout)
 
@@ -380,7 +434,16 @@ class Archive(_base.BaseResource):
         *,
         timeout: float | httpx.Timeout | NotGiven = not_given,
     ) -> list[Any]:
-        """Download the vulnerability distributive for an OS/version (legacy v3)."""
+        """Download the vulnerability distributive for an OS/version (legacy v3).
+
+        Args:
+            os: The operating system identifier (e.g. ``"debian"``, ``"centos"``).
+            version: The OS version (e.g. ``"11"``).
+
+        Returns:
+            A list of the distributive's vulnerability documents (each the
+            ``"_source"`` of a record).
+        """
         body = {"os": os, "version": version}
         return self._request(_GET_DISTRIBUTIVE, cast=_distributive, body=body, timeout=timeout)
 
@@ -389,8 +452,59 @@ class Archive(_base.BaseResource):
         *,
         timeout: float | httpx.Timeout | NotGiven = not_given,
     ) -> bytes:
-        """Download the raw getsploit exploit database archive (legacy v3)."""
+        """Download the raw getsploit exploit database archive (legacy v3).
+
+        Buffers the whole archive in memory; for the full database prefer
+        :meth:`download_getsploit`, which streams it to disk in parallel.
+
+        Returns:
+            The raw archive bytes (a single-member zip whose member is the
+            getsploit SQLite database).
+        """
         return self._request(_GETSPLOIT, timeout=timeout)
+
+    def download_getsploit(
+        self,
+        path: str | os.PathLike[str],
+        *,
+        connections: int = 8,
+        timeout: float | httpx.Timeout | NotGiven = not_given,
+    ) -> int:
+        """Stream the getsploit database archive to ``path``, in parallel; return bytes written.
+
+        The endpoint redirects to storage that supports HTTP range requests, so the
+        archive is pulled over ``connections`` concurrent connections and written
+        straight to disk — saturating the link and using constant memory — instead
+        of buffering the whole database in RAM like :meth:`getsploit`. Prefer this
+        for the full database; use :meth:`getsploit` only for the raw bytes in memory.
+        The write is atomic (an interrupted download never clobbers an existing file),
+        and the tool falls back to a single stream if the storage does not offer ranges.
+
+        The written file is the raw archive (a single-member zip whose member is the
+        getsploit SQLite database); unzip it to obtain ``getsploit.db``.
+
+        Legacy v3 endpoint; there is no v4 equivalent and the server may retire it
+        during the 4.x lifetime.
+
+        Args:
+            path: Destination file path; an existing file is overwritten atomically.
+            connections: Number of parallel range connections (default 8). The
+                SDK-owned client runs them over HTTP/1.1 so each opens a real socket
+                and saturates the link; with your own ``http_client`` pass
+                ``http2=False`` for the same throughput.
+
+        Returns:
+            The number of bytes written to ``path``.
+        """
+        if connections < 1:
+            raise ValueError("connections must be >= 1")
+        return _download.parallel_download_sync(
+            self._client,
+            _STREAM_GETSPLOIT,
+            os.fspath(path),
+            connections=connections,
+            timeout=timeout,
+        )
 
 
 __all__ = []

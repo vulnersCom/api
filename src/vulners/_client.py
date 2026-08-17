@@ -185,12 +185,15 @@ class Vulners:
             base_url: Override the API base URL. If omitted, falls back to the
                 ``VULNERS_BASE_URL`` environment variable, then to
                 ``https://vulners.com``.
-            timeout: Per-request timeout, in seconds or as an ``httpx.Timeout``.
-                ``None`` (the default) uses the built-in timeout profiles (a 60s
-                read budget for normal calls, 300s for archive/bulk streams).
-            max_retries: How many times to retry a failed request (connection
-                errors and retryable status codes, honouring ``Retry-After``).
-                ``None`` uses the built-in default (2).
+            timeout: Default per-request timeout. A float is seconds applied to
+                every phase; pass an ``httpx.Timeout`` for per-phase control.
+                Defaults to connect 5s / read 60s / write 30s / pool 10s (a
+                longer read budget is used automatically for archive downloads).
+                Override it per call via a method's ``timeout=``.
+            max_retries: How many times to retry a failed request — connection
+                errors, timeouts, and retryable statuses (408/429, and 5xx on
+                idempotent calls) — with exponential backoff and ``Retry-After``
+                support. Defaults to 2.
             max_response_bytes: Optional cap on the decoded/decompressed response
                 size, in bytes. ``None`` (the default) leaves decompression
                 unbounded so legitimate multi-gigabyte archive downloads succeed;
@@ -264,26 +267,32 @@ class Vulners:
 
     @cached_property
     def search(self) -> Search:
+        """Search the Vulners database."""
         return Search(self._api)
 
     @cached_property
     def documents(self) -> Documents:
+        """Fetch Vulners documents (bulletins) by id."""
         return Documents(self._api)
 
     @cached_property
     def audit(self) -> Audit:
+        """Audit software inventories and identifiers against Vulners intelligence."""
         return Audit(self._api)
 
     @cached_property
     def archive(self) -> Archive:
+        """Download bulk archives of the Vulners database."""
         return Archive(self._api)
 
     @cached_property
     def misc(self) -> Misc:
+        """Miscellaneous search and metadata helpers."""
         return Misc(self._api)
 
     @cached_property
     def report(self) -> Report:
+        """Reports over Linux-audit results."""
         return Report(self._api)
 
     @property
@@ -293,6 +302,7 @@ class Vulners:
 
     @cached_property
     def stix(self) -> Stix:
+        """Build STIX bundles from Vulners bulletins."""
         return Stix(self._api)
 
     @cached_property
@@ -302,7 +312,7 @@ class Vulners:
 
     @property
     def subscriptions_v4(self) -> SubscriptionsV4:
-        # Deprecated alias of `subscriptions`, kept for the pre-release window.
+        """Deprecated alias of :attr:`subscriptions`, kept for the pre-release window."""
         return self.subscriptions
 
     @cached_property
@@ -312,10 +322,12 @@ class Vulners:
 
     @cached_property
     def webhooks(self) -> Webhooks:
+        """Manage webhook subscriptions."""
         return Webhooks(self._api)
 
     @cached_property
     def vscanner(self) -> Vscanner:
+        """The VScanner product namespace (tasks, results and licenses)."""
         return Vscanner(self._api)
 
     # -- escape hatches ----------------------------------------------------
@@ -331,7 +343,15 @@ class Vulners:
         params: Mapping[str, Any] | None = None,
         timeout: float | httpx.Timeout | NotGiven | None = not_given,
     ) -> Any:
-        """GET an arbitrary API ``path``; ``params`` become the query string."""
+        """GET an arbitrary API ``path`` and return the parsed response body.
+
+        Args:
+            path: API path to request, relative to the client's base URL.
+            params: Query-string parameters to send with the request.
+
+        Returns:
+            The parsed response body.
+        """
         return self._api.get(path, params=params, timeout=timeout)
 
     def post(
@@ -342,7 +362,16 @@ class Vulners:
         params: Mapping[str, Any] | None = None,
         timeout: float | httpx.Timeout | NotGiven | None = not_given,
     ) -> Any:
-        """POST ``json`` to an arbitrary API ``path``; ``params`` add query args."""
+        """POST ``json`` to an arbitrary API ``path`` and return the parsed response body.
+
+        Args:
+            path: API path to request, relative to the client's base URL.
+            json: Request body, serialized as JSON.
+            params: Additional query-string parameters to send with the request.
+
+        Returns:
+            The parsed response body.
+        """
         return self._api.post(path, body=json, params=params, timeout=timeout)
 
     def put(
@@ -353,7 +382,16 @@ class Vulners:
         params: Mapping[str, Any] | None = None,
         timeout: float | httpx.Timeout | NotGiven | None = not_given,
     ) -> Any:
-        """PUT ``json`` to an arbitrary API ``path``; ``params`` add query args."""
+        """PUT ``json`` to an arbitrary API ``path`` and return the parsed response body.
+
+        Args:
+            path: API path to request, relative to the client's base URL.
+            json: Request body, serialized as JSON.
+            params: Additional query-string parameters to send with the request.
+
+        Returns:
+            The parsed response body.
+        """
         return self._api.put(path, body=json, params=params, timeout=timeout)
 
     def delete(
@@ -363,7 +401,15 @@ class Vulners:
         params: Mapping[str, Any] | None = None,
         timeout: float | httpx.Timeout | NotGiven | None = not_given,
     ) -> Any:
-        """DELETE an arbitrary API ``path``; ``params`` become the query string."""
+        """DELETE an arbitrary API ``path`` and return the parsed response body.
+
+        Args:
+            path: API path to request, relative to the client's base URL.
+            params: Query-string parameters to send with the request.
+
+        Returns:
+            The parsed response body.
+        """
         return self._api.delete(path, params=params, timeout=timeout)
 
     def with_options(
@@ -373,7 +419,19 @@ class Vulners:
         max_retries: int | NotGiven = not_given,
         max_response_bytes: int | NotGiven | None = not_given,
     ) -> Vulners:
-        """A copy of this client sharing the same connection pool, with overrides."""
+        """Return a copy of this client that shares the same connection pool, with overrides.
+
+        Args:
+            timeout: Override the default per-request timeout (float seconds or an
+                ``httpx.Timeout``).
+            max_retries: Override how many times a failed request is retried.
+            max_response_bytes: Override the cap on decoded response size, in bytes.
+
+        Returns:
+            A new :class:`Vulners` sharing this client's connection pool and
+            rate-limit pacing; closing any client that shares the pool closes it
+            for all.
+        """
         changes = _option_changes(timeout, max_retries, max_response_bytes)
         clone = object.__new__(type(self))
         # The shared httpx client is injected, so the clone's own api treats the
@@ -460,12 +518,15 @@ class AsyncVulners:
             base_url: Override the API base URL. If omitted, falls back to the
                 ``VULNERS_BASE_URL`` environment variable, then to
                 ``https://vulners.com``.
-            timeout: Per-request timeout, in seconds or as an ``httpx.Timeout``.
-                ``None`` (the default) uses the built-in timeout profiles (a 60s
-                read budget for normal calls, 300s for archive/bulk streams).
-            max_retries: How many times to retry a failed request (connection
-                errors and retryable status codes, honouring ``Retry-After``).
-                ``None`` uses the built-in default (2).
+            timeout: Default per-request timeout. A float is seconds applied to
+                every phase; pass an ``httpx.Timeout`` for per-phase control.
+                Defaults to connect 5s / read 60s / write 30s / pool 10s (a
+                longer read budget is used automatically for archive downloads).
+                Override it per call via a method's ``timeout=``.
+            max_retries: How many times to retry a failed request — connection
+                errors, timeouts, and retryable statuses (408/429, and 5xx on
+                idempotent calls) — with exponential backoff and ``Retry-After``
+                support. Defaults to 2.
             max_response_bytes: Optional cap on the decoded/decompressed response
                 size, in bytes. ``None`` (the default) leaves decompression
                 unbounded so legitimate multi-gigabyte archive downloads succeed;
@@ -539,26 +600,32 @@ class AsyncVulners:
 
     @cached_property
     def search(self) -> AsyncSearch:
+        """Search the Vulners database."""
         return AsyncSearch(self._api)
 
     @cached_property
     def documents(self) -> AsyncDocuments:
+        """Fetch Vulners documents (bulletins) by id."""
         return AsyncDocuments(self._api)
 
     @cached_property
     def audit(self) -> AsyncAudit:
+        """Audit software inventories and identifiers against Vulners intelligence."""
         return AsyncAudit(self._api)
 
     @cached_property
     def archive(self) -> AsyncArchive:
+        """Download bulk archives of the Vulners database."""
         return AsyncArchive(self._api)
 
     @cached_property
     def misc(self) -> AsyncMisc:
+        """Miscellaneous search and metadata helpers."""
         return AsyncMisc(self._api)
 
     @cached_property
     def report(self) -> AsyncReport:
+        """Reports over Linux-audit results."""
         return AsyncReport(self._api)
 
     @property
@@ -568,6 +635,7 @@ class AsyncVulners:
 
     @cached_property
     def stix(self) -> AsyncStix:
+        """Build STIX bundles from Vulners bulletins."""
         return AsyncStix(self._api)
 
     @cached_property
@@ -577,7 +645,7 @@ class AsyncVulners:
 
     @property
     def subscriptions_v4(self) -> AsyncSubscriptionsV4:
-        # Deprecated alias of `subscriptions`, kept for the pre-release window.
+        """Deprecated alias of :attr:`subscriptions`, kept for the pre-release window."""
         return self.subscriptions
 
     @cached_property
@@ -587,10 +655,12 @@ class AsyncVulners:
 
     @cached_property
     def webhooks(self) -> AsyncWebhooks:
+        """Manage webhook subscriptions."""
         return AsyncWebhooks(self._api)
 
     @cached_property
     def vscanner(self) -> AsyncVscanner:
+        """The VScanner product namespace (tasks, results and licenses)."""
         return AsyncVscanner(self._api)
 
     # -- escape hatches ----------------------------------------------------
@@ -606,7 +676,15 @@ class AsyncVulners:
         params: Mapping[str, Any] | None = None,
         timeout: float | httpx.Timeout | NotGiven | None = not_given,
     ) -> Any:
-        """GET an arbitrary API ``path``; ``params`` become the query string."""
+        """GET an arbitrary API ``path`` and return the parsed response body.
+
+        Args:
+            path: API path to request, relative to the client's base URL.
+            params: Query-string parameters to send with the request.
+
+        Returns:
+            The parsed response body.
+        """
         return await self._api.get(path, params=params, timeout=timeout)
 
     async def post(
@@ -617,7 +695,16 @@ class AsyncVulners:
         params: Mapping[str, Any] | None = None,
         timeout: float | httpx.Timeout | NotGiven | None = not_given,
     ) -> Any:
-        """POST ``json`` to an arbitrary API ``path``; ``params`` add query args."""
+        """POST ``json`` to an arbitrary API ``path`` and return the parsed response body.
+
+        Args:
+            path: API path to request, relative to the client's base URL.
+            json: Request body, serialized as JSON.
+            params: Additional query-string parameters to send with the request.
+
+        Returns:
+            The parsed response body.
+        """
         return await self._api.post(path, body=json, params=params, timeout=timeout)
 
     async def put(
@@ -628,7 +715,16 @@ class AsyncVulners:
         params: Mapping[str, Any] | None = None,
         timeout: float | httpx.Timeout | NotGiven | None = not_given,
     ) -> Any:
-        """PUT ``json`` to an arbitrary API ``path``; ``params`` add query args."""
+        """PUT ``json`` to an arbitrary API ``path`` and return the parsed response body.
+
+        Args:
+            path: API path to request, relative to the client's base URL.
+            json: Request body, serialized as JSON.
+            params: Additional query-string parameters to send with the request.
+
+        Returns:
+            The parsed response body.
+        """
         return await self._api.put(path, body=json, params=params, timeout=timeout)
 
     async def delete(
@@ -638,7 +734,15 @@ class AsyncVulners:
         params: Mapping[str, Any] | None = None,
         timeout: float | httpx.Timeout | NotGiven | None = not_given,
     ) -> Any:
-        """DELETE an arbitrary API ``path``; ``params`` become the query string."""
+        """DELETE an arbitrary API ``path`` and return the parsed response body.
+
+        Args:
+            path: API path to request, relative to the client's base URL.
+            params: Query-string parameters to send with the request.
+
+        Returns:
+            The parsed response body.
+        """
         return await self._api.delete(path, params=params, timeout=timeout)
 
     def with_options(
@@ -648,7 +752,19 @@ class AsyncVulners:
         max_retries: int | NotGiven = not_given,
         max_response_bytes: int | NotGiven | None = not_given,
     ) -> AsyncVulners:
-        """A copy of this client sharing the same connection pool, with overrides."""
+        """Return a copy of this client that shares the same connection pool, with overrides.
+
+        Args:
+            timeout: Override the default per-request timeout (float seconds or an
+                ``httpx.Timeout``).
+            max_retries: Override how many times a failed request is retried.
+            max_response_bytes: Override the cap on decoded response size, in bytes.
+
+        Returns:
+            A new :class:`AsyncVulners` sharing this client's connection pool and
+            rate-limit pacing; closing any client that shares the pool closes it
+            for all.
+        """
         changes = _option_changes(timeout, max_retries, max_response_bytes)
         clone = object.__new__(type(self))
         # The shared httpx client is injected, so the clone's own api treats the

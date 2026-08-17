@@ -148,9 +148,37 @@ class ClientConfig:
             )
 
     def timeout_for(self, profile: TimeoutProfile) -> httpx.Timeout:
+        """Select the timeout budget for a request profile.
+
+        Args:
+            profile: ``"archive"`` for the extended read budget used by
+                archive/bulk streaming downloads, or ``"default"`` for the
+                standard per-request budget.
+
+        Returns:
+            The :attr:`archive_timeout` for ``"archive"``, otherwise
+            :attr:`timeout`.
+        """
         return self.archive_timeout if profile == "archive" else self.timeout
 
     def replace(self, **changes: object) -> ClientConfig:
+        """Return a copy of this config with selected fields overridden.
+
+        Backs ``client.with_options(...)``. The overrides are re-validated by
+        ``__post_init__``, so an invalid combination fails fast here rather than
+        later inside httpx.
+
+        Args:
+            **changes: :class:`ClientConfig` field names mapped to new values;
+                unspecified fields are carried over unchanged.
+
+        Returns:
+            A new :class:`ClientConfig`; this instance is left unmodified.
+
+        Raises:
+            ValueError: an override produces an invalid configuration (for
+                example a negative ``max_retries`` or a non-HTTP ``base_url``).
+        """
         return dataclasses.replace(self, **changes)  # type: ignore[arg-type]
 
     def __repr__(self) -> str:

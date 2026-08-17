@@ -66,6 +66,10 @@ class Misc(_base.BaseResource):
             product: Product string to search a CPE for.
             vendor: Optional vendor to narrow the match.
             size: Maximum number of results (0..10000, ``0`` means all).
+
+        Returns:
+            The CPE search result for ``product``. Also reachable as
+            :meth:`Search.cpe`.
         """
         body: dict[str, Any] = {"product": product}
         self._set(body, "vendor", vendor)
@@ -82,6 +86,13 @@ class Misc(_base.BaseResource):
 
         Most suggestions are strings; the server occasionally returns a group of
         related completions, which arrives as a ``list[str]`` element.
+
+        Args:
+            query: The partial Lucene query to complete.
+
+        Returns:
+            The completions, each a single string or a ``list[str]`` of related
+            completions. Also reachable as :meth:`Search.autocomplete`.
         """
         return self._request(
             _AUTOCOMPLETE, cast=_autocomplete, body={"query": query}, timeout=timeout
@@ -99,6 +110,10 @@ class Misc(_base.BaseResource):
         Args:
             field_name: The document field to suggest values for.
             type: Suggestion type; only ``"distinct"`` is supported.
+
+        Returns:
+            The distinct values observed for ``field_name``. Also reachable as
+            :meth:`Search.suggest`.
         """
         body = {"fieldName": field_name, "type": type}
         return self._request(_SUGGEST, body=body, timeout=timeout)
@@ -108,7 +123,12 @@ class Misc(_base.BaseResource):
         *,
         timeout: float | httpx.Timeout | NotGiven = not_given,
     ) -> Any:
-        """Return the Vulners web-application (burp) detection rule set."""
+        """Return the Vulners web-application (burp) detection rule set.
+
+        Returns:
+            The web-application (burp) detection rules. Also reachable as
+            :meth:`Search.web_vulns`.
+        """
         return self._request(_BURP_RULES, timeout=timeout)
 
 

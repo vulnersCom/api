@@ -1,6 +1,6 @@
 [project]
 name = "vulners"
-version = "4.0.1"
+version = "4.1.0"
 description = "Python SDK for the Vulners vulnerability intelligence API (https://vulners.com)"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -134,6 +134,11 @@ dev = [
 # be seen as stale). Dev/build tooling only — end users are unaffected.
 exclude-newer = "2026-08-14T00:00:00Z"
 
+# anyio 4.14.x has a broken Path.parent (passes an unsupported limiter= kwarg) that
+# crashes unasyncd's write path (make unasync). Cap below it until a fixed release
+# lands. Transitive (via httpx) and lock-only, so end users are unaffected.
+constraint-dependencies = ["anyio<4.14"]
+
 [tool.unasyncd]
 # Build-time generation of the sync mirror from the async source of truth. Both
 # the async source and the generated sync output are committed; `unasyncd --check`
@@ -175,6 +180,9 @@ AsyncVscannerResults = "VscannerResults"
 AsyncVscannerTasks = "VscannerTasks"
 AsyncAPIClient = "SyncAPIClient"
 AsyncVulners = "Vulners"
+# The parallel downloader is hand-written per flavour (async gather vs sync thread
+# pool can't be auto-translated); map the archive method's call + import to the sync twin.
+parallel_download_async = "parallel_download_sync"
 
 # I/O-client-only replacements, scoped to the transport client so the httpx
 # response-method and transport renames can't leak into resource generation.

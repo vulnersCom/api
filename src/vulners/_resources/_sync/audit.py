@@ -370,7 +370,22 @@ class Audit(_base.BaseResource):
         catalog: Literal["official", "extended"] = "official",
         timeout: float | httpx.Timeout | NotGiven = not_given,
     ) -> list[dict[str, Any]]:
-        """Audit a host: its software plus optional application/OS/hardware CPEs."""
+        """Audit a whole host: its software plus optional application, OS and hardware CPEs.
+
+        Like :meth:`software`, but also accepts CPEs describing the host's
+        application, operating system and hardware.
+
+        Args:
+            software: Installed software as :class:`AuditItem` dicts
+                (``{"product": ...}``) or plain CPE-like strings.
+            application: Optional application CPE narrowing the audit.
+            operating_system: Optional operating-system CPE.
+            hardware: Optional hardware CPE.
+            match: ``"partial"`` or ``"full"`` CPE matching.
+            fields: Vulnerability fields to include; server default when omitted.
+            config: Optional configuration entries.
+            catalog: ``"official"`` or ``"extended"`` product catalog.
+        """
         body: dict[str, Any] = {
             "software": _require_count(software, "software"),
             "match": match,
@@ -492,7 +507,11 @@ class Audit(_base.BaseResource):
         *,
         timeout: float | httpx.Timeout | NotGiven = not_given,
     ) -> dict[str, Any]:
-        """Audit a single CVE identifier."""
+        """Audit a single CVE identifier.
+
+        Args:
+            cve: The CVE identifier to audit, e.g. ``"CVE-2021-44228"``.
+        """
         return self._request(_CVE, body={"cve": cve}, timeout=timeout)
 
     def cve_batch_audit(
@@ -501,7 +520,15 @@ class Audit(_base.BaseResource):
         *,
         timeout: float | httpx.Timeout | NotGiven = not_given,
     ) -> list[dict[str, Any]]:
-        """Audit a batch of CVE identifiers (at least one)."""
+        """Audit a batch of CVE identifiers.
+
+        Args:
+            cve: CVE identifiers to audit; at least one, e.g.
+                ``["CVE-2021-44228", "CVE-2017-0144"]``.
+
+        Returns:
+            A list of audit results for the submitted CVEs.
+        """
         return self._request(
             _CVES, body={"cve": _require_count(cve, "cve", strings=True)}, timeout=timeout
         )

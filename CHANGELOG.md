@@ -11,6 +11,34 @@ the commit log. Only the v3 series is covered in detail.
 
 ## [Unreleased]
 
+## [4.1.0] - 2026-08-17
+
+### Added
+
+- `archive.download_getsploit(path, *, connections=8, timeout=...)` — download the
+  getsploit exploit database archive to disk over multiple parallel HTTP range
+  connections, saturating the link while using constant memory, with an automatic
+  fallback to a single stream when the storage does not offer ranges. The write is
+  atomic and the raw archive (a single-member zip containing `getsploit.db`) is what
+  lands on disk. The SDK-owned client transfers the ranges over a dedicated HTTP/1.1
+  connection pool so each connection opens a real socket (HTTP/2 would multiplex them
+  onto one, throttling throughput); with your own `http_client`, set `http2=False` for
+  the same benefit. Legacy v3 endpoint.
+
+### Changed
+
+- `archive.download_collection(...)` now downloads over multiple parallel range
+  connections (new `connections=8` argument) instead of a single stream, sharing the
+  same engine as `download_getsploit`. It falls back to a single stream when the
+  storage does not offer ranges; the output (the raw compressed archive) and the
+  atomic-write behavior are unchanged.
+
+### Documentation
+
+- Every public client, resource and model method now carries a complete reference
+  docstring (arguments, return values and errors), rendered on the documentation site
+  at https://vulnersCom.github.io/api/ and in `api.md`.
+
 ## [4.0.1] - 2026-08-14
 
 Maintenance release. The public API is unchanged from 4.0.0.

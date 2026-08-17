@@ -67,6 +67,49 @@ held in memory:
     Archive decode is ISA-L accelerated (`isal`) and multi-member zip streaming
     (`stream-unzip`) works out of the box — both ship with the core package, no extra needed.
 
+## Download an archive to disk in parallel
+
+When you want the raw archive **on disk** as fast as possible (to seed a mirror, or for the
+getsploit SQLite database), `download_collection` and `download_getsploit` pull the archive over
+several HTTP range connections at once and write each chunk straight to its offset in the file.
+The link is saturated, memory stays constant, and the write is **atomic** — an interrupted
+download never clobbers an existing file. If the storage does not offer range requests, both
+transparently fall back to a single stream.
+
+=== "Sync"
+
+    ```python
+    from vulners import Vulners
+
+    with Vulners() as v:
+        # A whole collection archive (still compressed) straight to disk:
+        n = v.archive.download_collection("cve", "cve.archive", connections=8)
+        print(n, "bytes written")
+
+        # The getsploit exploit database (a single-member zip of getsploit.db):
+        v.archive.download_getsploit("getsploit.db.zip", connections=8)
+    ```
+
+=== "Async"
+
+    ```python
+    from vulners import AsyncVulners
+
+    async with AsyncVulners() as v:
+        n = await v.archive.download_collection("cve", "cve.archive", connections=8)
+        print(n, "bytes written")
+        await v.archive.download_getsploit("getsploit.db.zip", connections=8)
+    ```
+
+`connections` is the number of parallel range connections (default 8). To keep an existing mirror
+current, pass `update_from` to `download_collection` to fetch only the changed entries.
+
+!!! tip "Maximum throughput"
+    The SDK-owned client transfers the ranges over a dedicated **HTTP/1.1** connection pool so each
+    connection opens a real socket and saturates the link (HTTP/2 would multiplex every range onto a
+    single connection). If you bring your own `http_client`, pass `http2=False` on it for the same
+    benefit.
+
 ## Sync only what changed
 
 To keep a mirror up to date, fetch just the entries changed since your last sync with

@@ -46,6 +46,11 @@ class Stix(_base.BaseResource):
         Args:
             id: The bulletin id to build a bundle for.
             opencti_id: Existing OpenCTI object id to reuse, if any.
+
+        Returns:
+            The decoded STIX bundle; when the server returns it as a JSON
+            string the SDK re-parses it, so the result is always a decoded
+            object.
         """
         body: dict[str, Any] = {"id": id}
         if opencti_id is not None:

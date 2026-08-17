@@ -63,7 +63,11 @@ class AsyncSubscriptionsV4(_base.AsyncBaseResource):
         *,
         timeout: float | httpx.Timeout | NotGiven = not_given,
     ) -> Any:
-        """List every subscription on the account."""
+        """List every subscription on the account.
+
+        Returns:
+            The account's subscriptions, one record per subscription.
+        """
         return await self._request(_LIST, timeout=timeout)
 
     async def get_list(
@@ -198,7 +202,14 @@ class AsyncSubscriptionsV4(_base.AsyncBaseResource):
         *,
         timeout: float | httpx.Timeout | NotGiven = not_given,
     ) -> Any:
-        """Delete a subscription by id."""
+        """Delete a subscription by id.
+
+        Args:
+            id: The subscription to delete.
+
+        Returns:
+            The server's delete acknowledgement.
+        """
         return await self._request(_DELETE, body={"id": id}, timeout=timeout)
 
 

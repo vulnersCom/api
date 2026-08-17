@@ -49,13 +49,13 @@ Audit software inventories and identifiers against Vulners intelligence.
 |---|---|---|---|
 | `supported_os(*, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `dict[str, str]` | `GET /api/v3/audit/getSupportedOS/` | List the operating systems accepted by the Linux-package audits |
 | `software(software: Sequence[AuditItem \| str], *, match: Literal['partial', 'full'] = 'partial', fields: Sequence[str] \| NotGiven = NOT_GIVEN, config: Sequence[str] \| NotGiven = NOT_GIVEN, catalog: Literal['official', 'extended'] = 'official', timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `list[dict[str, Any]]` | `POST /api/v4/audit/software/` | Audit a list of software (CPE dicts or strings) for vulnerabilities |
-| `host(software: Sequence[AuditItem \| str], *, application: AuditItem \| str \| NotGiven = NOT_GIVEN, operating_system: AuditItem \| str \| NotGiven = NOT_GIVEN, hardware: AuditItem \| str \| NotGiven = NOT_GIVEN, match: Literal['partial', 'full'] = 'partial', fields: Sequence[str] \| NotGiven = NOT_GIVEN, config: Sequence[str] \| NotGiven = NOT_GIVEN, catalog: Literal['official', 'extended'] = 'official', timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `list[dict[str, Any]]` | `POST /api/v4/audit/host/` | Audit a host: its software plus optional application/OS/hardware CPEs |
+| `host(software: Sequence[AuditItem \| str], *, application: AuditItem \| str \| NotGiven = NOT_GIVEN, operating_system: AuditItem \| str \| NotGiven = NOT_GIVEN, hardware: AuditItem \| str \| NotGiven = NOT_GIVEN, match: Literal['partial', 'full'] = 'partial', fields: Sequence[str] \| NotGiven = NOT_GIVEN, config: Sequence[str] \| NotGiven = NOT_GIVEN, catalog: Literal['official', 'extended'] = 'official', timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `list[dict[str, Any]]` | `POST /api/v4/audit/host/` | Audit a whole host: its software plus optional application, OS and hardware CPEs |
 | `os_audit(os: str, version: str, packages: Sequence[str], *, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `dict[str, Any]` | `POST /api/v3/audit/audit/` | Audit an OS package list (legacy v3 endpoint; prefer :meth:`linux_audit`) |
 | `linux_audit(os_name: str, os_version: str, packages: Sequence[str], *, os_arch: str \| None = None, include_unofficial: bool = False, include_candidates: bool = False, include_any_version: bool = False, cvelist_metrics: bool = False, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `dict[str, Any]` | `POST /api/v4/audit/linux` | Audit RPM/DEB/APK package lists for a Linux host |
 | `library_audit(packages: Sequence[str], *, include_unofficial: bool = False, include_candidates: bool = False, include_any_version: bool = False, cvelist_metrics: bool = False, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `dict[str, Any]` | `POST /api/v4/audit/library` | Audit a list of packages in PURL format |
 | `sbom_audit(file: str \| os.PathLike[str], *, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `dict[str, Any]` | `POST /api/v4/audit/sbom` | Audit an SBOM file (SPDX or CycloneDX) for vulnerabilities |
 | `cve_audit(cve: str, *, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `dict[str, Any]` | `POST /api/v4/audit/cve` | Audit a single CVE identifier |
-| `cve_batch_audit(cve: Sequence[str], *, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `list[dict[str, Any]]` | `POST /api/v4/audit/cves` | Audit a batch of CVE identifiers (at least one) |
+| `cve_batch_audit(cve: Sequence[str], *, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `list[dict[str, Any]]` | `POST /api/v4/audit/cves` | Audit a batch of CVE identifiers |
 | `kb_audit(os: str, kb_list: Sequence[str], *, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `dict[str, Any]` | `POST /api/v3/audit/kb/` | Audit a Windows host by its installed KB list |
 | `win_audit(os: str, os_version: str, kb_list: Sequence[str], software: Sequence[WinAuditItem], *, platform: str \| NotGiven = NOT_GIVEN, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `dict[str, Any]` | `POST /api/v3/audit/winaudit/` | Audit a Windows host by installed KBs and software |
 | `smart(software: Sequence[str], *, catalog: Literal['official', 'extended'] = 'official', timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `list[dict[str, Any]]` | `POST /api/v4/audit/smart` | Resolve free-form software strings to CPE/PURLs and their vulnerabilities |
@@ -82,7 +82,7 @@ Download bulk archives of the Vulners database.
 |---|---|---|---|
 | `fetch_collection(type: str, *, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `GET /api/v4/archive/collection` | Download an entire collection archive by ``type`` (e.g. ``"cve"``) |
 | `iter_collection(type: str, *, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Iterator[dict[str, Any]]` | `GET /api/v4/archive/collection` | Stream a collection archive element by element (a JSON array) |
-| `download_collection(collection: str, path: str \| os.PathLike[str], *, update_from: datetime \| None = None, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `int` | - | Stream a collection archive straight to ``path``; return bytes written |
+| `download_collection(collection: str, path: str \| os.PathLike[str], *, update_from: datetime \| None = None, connections: int = 8, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `int` | - | Download a collection archive to ``path``, in parallel; return bytes written |
 | `fetch_collection_update(type: str, after: datetime, *, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `GET /api/v4/archive/collection-update` | Download only the collection entries changed after ``after`` |
 | `collection_state(type: str, *, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `GET /api/v4/archive/collection-state` | Read the sync cursor and counters for a collection |
 | `family(name: str, *, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `GET /api/v4/archive/family` | Download an entire collection-family archive by ``name`` |
@@ -92,6 +92,7 @@ Download bulk archives of the Vulners database.
 | `get_collection(type: str, *, datefrom: str = '1976-01-01', dateto: str = '2199-01-01', timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `GET /api/v3/archive/collection/` | Download a collection over a date range (legacy v3 endpoint) |
 | `get_distributive(os: str, version: str, *, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `list[Any]` | `GET /api/v3/archive/distributive/` | Download the vulnerability distributive for an OS/version (legacy v3) |
 | `getsploit(*, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `bytes` | `GET /api/v3/archive/getsploit/` | Download the raw getsploit exploit database archive (legacy v3) |
+| `download_getsploit(path: str \| os.PathLike[str], *, connections: int = 8, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `int` | - | Stream the getsploit database archive to ``path``, in parallel; return bytes written |
 
 ## `client.misc`
 
@@ -110,11 +111,11 @@ Reports over Linux-audit results.
 
 | Method | Returns | HTTP route | Summary |
 |---|---|---|---|
-| `vulns_summary(*, limit: int = 30, offset: int = 0, filter: dict[str, Any] \| None = None, sort: str = '', timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `POST /api/v3/reports/vulnsreport` | Summary of every found vulnerability (id, title, score, severity...) |
-| `vulns_list(*, limit: int = 30, offset: int = 0, filter: dict[str, Any] \| None = None, sort: str = '', timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `POST /api/v3/reports/vulnsreport` | List of vulnerabilities found on hosts, with host information |
-| `ip_summary(*, limit: int = 30, offset: int = 0, filter: dict[str, Any] \| None = None, sort: str = '', timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `POST /api/v3/reports/vulnsreport` | Per-host summary (agent id, ip, fqdn, os, vulnerability counts) |
-| `scan_list(*, limit: int = 30, offset: int = 0, filter: dict[str, Any] \| None = None, sort: str = '', timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `POST /api/v3/reports/vulnsreport` | List of scans (host ip/fqdn, os, scan date, cvss score) |
-| `host_vulns(*, limit: int = 30, offset: int = 0, filter: dict[str, Any] \| None = None, sort: str = '', timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `POST /api/v3/reports/vulnsreport` | List of hosts with their cumulative fix and vulnerability ids |
+| `vulns_summary(*, limit: int = 30, offset: int = 0, filter: dict[str, Any] \| None = None, sort: str = '', timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `POST /api/v3/reports/vulnsreport` | Summarise every found vulnerability (id, title, score, severity...) |
+| `vulns_list(*, limit: int = 30, offset: int = 0, filter: dict[str, Any] \| None = None, sort: str = '', timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `POST /api/v3/reports/vulnsreport` | List vulnerabilities found on hosts, with host information |
+| `ip_summary(*, limit: int = 30, offset: int = 0, filter: dict[str, Any] \| None = None, sort: str = '', timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `POST /api/v3/reports/vulnsreport` | Summarise results per host (agent id, ip, fqdn, os, vulnerability counts) |
+| `scan_list(*, limit: int = 30, offset: int = 0, filter: dict[str, Any] \| None = None, sort: str = '', timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `POST /api/v3/reports/vulnsreport` | List scans (host ip/fqdn, os, scan date, cvss score) |
+| `host_vulns(*, limit: int = 30, offset: int = 0, filter: dict[str, Any] \| None = None, sort: str = '', timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `POST /api/v3/reports/vulnsreport` | List hosts with their cumulative fix and vulnerability ids |
 | `vuln_info(ip_address: str, bulletin_id: str, *, limit: int = 30, offset: int = 0, filter: dict[str, Any] \| None = None, sort: str = '', timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `POST /api/v3/reports/vulnsreport` | Detail of one vulnerability on one host |
 
 ## `client.stix`
@@ -136,7 +137,7 @@ Manage v4 subscriptions.
 | `get_list(*, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `GET /api/v4/subscriptions/list/` | Alias of :meth:`list`, kept for the pre-release naming window |
 | `get(id: str \| None = None, *, subscription_id: str \| None = None, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `GET /api/v4/subscriptions/get/` | Fetch a single subscription by id |
 | `create(*, name: str, query: SubscriptionQuery \| Mapping[str, Any], delivery: SubscriptionDelivery \| Mapping[str, Any], license_id: str \| None = None, bulletin_fields: Sequence[str] \| None = None, is_active: bool = True, timestamp_source: TimestampSource = 'modified', send_empty_result: bool = False, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `POST /api/v4/subscriptions/create/` | Create a subscription |
-| `update(id: str, *, name: str \| NotGiven = NOT_GIVEN, query: SubscriptionQuery \| Mapping[str, Any] \| NotGiven = NOT_GIVEN, delivery: SubscriptionDelivery \| Mapping[str, Any] \| NotGiven = NOT_GIVEN, license_id: str \| None \| NotGiven = NOT_GIVEN, bulletin_fields: Sequence[str] \| NotGiven = NOT_GIVEN, is_active: bool \| NotGiven = NOT_GIVEN, timestamp_source: TimestampSource \| NotGiven = NOT_GIVEN, send_empty_result: bool \| NotGiven = NOT_GIVEN, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `PUT /api/v4/subscriptions/update/` | Update a subscription, sending only the fields you pass |
+| `update(id: str, *, name: str \| NotGiven = NOT_GIVEN, query: SubscriptionQuery \| Mapping[str, Any] \| NotGiven = NOT_GIVEN, delivery: SubscriptionDelivery \| Mapping[str, Any] \| NotGiven = NOT_GIVEN, license_id: str \| NotGiven \| None = NOT_GIVEN, bulletin_fields: Sequence[str] \| NotGiven = NOT_GIVEN, is_active: bool \| NotGiven = NOT_GIVEN, timestamp_source: TimestampSource \| NotGiven = NOT_GIVEN, send_empty_result: bool \| NotGiven = NOT_GIVEN, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `PUT /api/v4/subscriptions/update/` | Update a subscription |
 | `delete(id: str, *, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `DELETE /api/v4/subscriptions/delete/` | Delete a subscription by id |
 
 ## `client.subscriptions_email`
@@ -145,10 +146,10 @@ Manage v3 email subscriptions.
 
 | Method | Returns | HTTP route | Summary |
 |---|---|---|---|
-| `list(*, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `GET /api/v3/subscriptions/listEmailSubscriptions/` | List the account's email subscriptions |
-| `add(*, query: str, email: str, format: Literal['html', 'json', 'pdf'] = 'html', crontab: str \| NotGiven = NOT_GIVEN, query_type: str = 'lucene', timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `POST /api/v3/subscriptions/addEmailSubscription/` | Create an email subscription for a query |
-| `edit(subscription_id: str, *, format: Literal['html', 'json', 'pdf'] \| NotGiven = NOT_GIVEN, crontab: str \| NotGiven = NOT_GIVEN, active: Literal['yes', 'no', 'true', 'false'] \| NotGiven = NOT_GIVEN, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `POST /api/v3/subscriptions/editEmailSubscription/` | Edit an existing email subscription |
-| `delete(subscription_id: str, *, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `POST /api/v3/subscriptions/removeEmailSubscription/` | Delete an email subscription |
+| `list(*, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `GET /api/v3/subscriptions/listEmailSubscriptions/` | List the email subscriptions registered under the client's API key |
+| `add(*, query: str, email: str, format: Literal['html', 'json', 'pdf'] = 'html', crontab: str \| NotGiven = NOT_GIVEN, query_type: str = 'lucene', api_key: str \| None = None, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `POST /api/v3/subscriptions/addEmailSubscription/` | Create an email subscription for a query |
+| `edit(subscription_id: str, *, format: Literal['html', 'json', 'pdf'] \| NotGiven = NOT_GIVEN, crontab: str \| NotGiven = NOT_GIVEN, active: Literal['yes', 'no', 'true', 'false'] \| NotGiven = NOT_GIVEN, api_key: str \| None = None, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `POST /api/v3/subscriptions/editEmailSubscription/` | Edit an existing email subscription |
+| `delete(subscription_id: str, *, api_key: str \| None = None, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `POST /api/v3/subscriptions/removeEmailSubscription/` | Delete an email subscription |
 
 ## `client.webhooks`
 
@@ -157,12 +158,12 @@ Manage webhook subscriptions.
 | Method | Returns | HTTP route | Summary |
 |---|---|---|---|
 | `list(*, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `GET /api/v3/subscriptions/listWebhookSubscriptions/` | List the account's webhook subscriptions |
-| `add(query: str, *, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `POST /api/v3/subscriptions/addWebhookSubscription/` | Create a webhook subscription for a query |
-| `create(query: str, *, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `POST /api/v3/subscriptions/addWebhookSubscription/` | Alias of :meth:`add` (the primary CRUD-style name) |
-| `enable(id: str, active: bool, *, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `POST /api/v3/subscriptions/editWebhookSubscription/` | Enable or disable a webhook subscription |
-| `set_enabled(id: str, active: bool, *, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `POST /api/v3/subscriptions/editWebhookSubscription/` | Alias of :meth:`enable` (the explicit setter-style name) |
-| `read(id: str, *, newest_only: bool = True, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `GET /api/v3/subscriptions/webhook` | Read pending webhook payloads for a subscription |
-| `delete(id: str, *, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `POST /api/v3/subscriptions/removeWebhookSubscription/` | Delete a webhook subscription |
+| `add(query: str, *, api_key: str \| None = None, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `POST /api/v3/subscriptions/addWebhookSubscription/` | Create a webhook subscription for a query |
+| `create(query: str, *, api_key: str \| None = None, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `POST /api/v3/subscriptions/addWebhookSubscription/` | Alias of :meth:`add` (the primary CRUD-style name) |
+| `enable(id: str, active: bool, *, api_key: str \| None = None, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `POST /api/v3/subscriptions/editWebhookSubscription/` | Enable or disable a webhook subscription |
+| `set_enabled(id: str, active: bool, *, api_key: str \| None = None, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `POST /api/v3/subscriptions/editWebhookSubscription/` | Alias of :meth:`enable` (the explicit setter-style name) |
+| `read(id: str, *, newest_only: bool = True, api_key: str \| None = None, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `GET /api/v3/subscriptions/webhook` | Read pending webhook payloads for a subscription |
+| `delete(id: str, *, api_key: str \| None = None, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `POST /api/v3/subscriptions/removeWebhookSubscription/` | Delete a webhook subscription |
 
 ## `client.vscanner`
 
@@ -171,7 +172,7 @@ VScanner product namespace on the client.
 | Method | Returns | HTTP route | Summary |
 |---|---|---|---|
 | `notification(period: Literal['disabled', 'asap', 'hourly', 'daily'], emails: Sequence[str] \| None = None, slack_webhooks: Sequence[str] \| None = None)` | `dict[str, Any]` | - | Build a notification object for a project |
-| `disabled_notification()` | `dict[str, Any]` | - | Build a stub notification object with ``"disabled"`` period |
+| `disabled_notification()` | `dict[str, Any]` | - | Build a notification object with delivery turned off |
 
 ## `client.vscanner.licenses`
 
@@ -179,7 +180,7 @@ VScanner license ids.
 
 | Method | Returns | HTTP route | Summary |
 |---|---|---|---|
-| `list(*, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `GET /api/v3/useraction/licenseids` | Return the account's VScanner license ids |
+| `list(*, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `GET /api/v3/useraction/licenseids` | List the account's VScanner license ids |
 
 ## `client.vscanner.projects`
 
@@ -187,10 +188,10 @@ VScanner projects, plus their tasks and results namespaces.
 
 | Method | Returns | HTTP route | Summary |
 |---|---|---|---|
-| `list(*, offset: int = 0, limit: int = 50, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `GET /api/v3/proxy/vscanner/v2/projects/` | List the account's projects |
-| `create(*, name: str, license_id: uuid.UUID, notification: Mapping[str, Any], result_expire_in: int \| None \| NotGiven = NOT_GIVEN, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `POST /api/v3/proxy/vscanner/v2/projects/` | Create a project |
-| `update(project_id: uuid.UUID, *, name: str, license_id: uuid.UUID, notification: Mapping[str, Any], result_expire_in: int \| None, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `PUT /api/v3/proxy/vscanner/v2/projects/{project_id}` | Update a project (full replace) |
-| `delete(project_id: uuid.UUID, *, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `DELETE /api/v3/proxy/vscanner/v2/projects/{project_id}` | Delete a project |
+| `list(*, offset: int = 0, limit: int = 50, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `GET /api/v3/proxy/vscanner/v2/projects/` | List the account's VScanner projects |
+| `create(*, name: str, license_id: uuid.UUID, notification: Mapping[str, Any], result_expire_in: int \| NotGiven \| None = NOT_GIVEN, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `POST /api/v3/proxy/vscanner/v2/projects/` | Create a project |
+| `update(project_id: uuid.UUID, *, name: str, license_id: uuid.UUID, notification: Mapping[str, Any], result_expire_in: int \| None, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `PUT /api/v3/proxy/vscanner/v2/projects/{project_id}` | Replace a project's configuration in full |
+| `delete(project_id: uuid.UUID, *, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `DELETE /api/v3/proxy/vscanner/v2/projects/{project_id}` | Delete a project and its scan data |
 | `statistics(project_id: uuid.UUID, *, stat: Sequence[Literal['total_hosts', 'vulnerable_hosts', 'unique_cve', 'min_max_cvss', 'vulnerabilities_rank', 'vulnerable_hosts_rank']], timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `GET /api/v3/proxy/vscanner/v2/projects/{project_id}/statistic` | Return project statistics for the requested aggregations |
 
 ## `client.vscanner.projects.tasks`
@@ -199,11 +200,11 @@ Scan tasks within a VScanner project.
 
 | Method | Returns | HTTP route | Summary |
 |---|---|---|---|
-| `list(project_id: uuid.UUID, *, offset: int = 0, limit: int = 50, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `GET /api/v3/proxy/vscanner/v2/projects/{project_id}/tasks` | List a project's tasks |
+| `list(project_id: uuid.UUID, *, offset: int = 0, limit: int = 50, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `GET /api/v3/proxy/vscanner/v2/projects/{project_id}/tasks` | List the scan tasks defined in a project |
 | `create(project_id: uuid.UUID, *, name: str, networks: Sequence[str], ports: Sequence[str], schedule: str, timing: str, enabled: bool, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `POST /api/v3/proxy/vscanner/v2/projects/{project_id}/tasks` | Create a scan task in a project |
-| `update(project_id: uuid.UUID, task_id: uuid.UUID, *, name: str, networks: Sequence[str], ports: Sequence[str], schedule: str, timing: str, enabled: bool, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `PUT /api/v3/proxy/vscanner/v2/projects/{project_id}/tasks/{task_id}` | Update a scan task (full replace) |
-| `start(project_id: uuid.UUID, task_id: uuid.UUID, *, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `POST /api/v3/proxy/vscanner/v2/projects/{project_id}/tasks/{task_id}/start` | Start a task as soon as possible |
-| `delete(project_id: uuid.UUID, task_id: uuid.UUID, *, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `DELETE /api/v3/proxy/vscanner/v2/projects/{project_id}/tasks/{task_id}` | Delete a task |
+| `update(project_id: uuid.UUID, task_id: uuid.UUID, *, name: str, networks: Sequence[str], ports: Sequence[str], schedule: str, timing: str, enabled: bool, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `PUT /api/v3/proxy/vscanner/v2/projects/{project_id}/tasks/{task_id}` | Replace a scan task's configuration in full |
+| `start(project_id: uuid.UUID, task_id: uuid.UUID, *, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `POST /api/v3/proxy/vscanner/v2/projects/{project_id}/tasks/{task_id}/start` | Queue a task to run as soon as possible, ignoring its schedule |
+| `delete(project_id: uuid.UUID, task_id: uuid.UUID, *, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `DELETE /api/v3/proxy/vscanner/v2/projects/{project_id}/tasks/{task_id}` | Delete a scan task from a project |
 
 ## `client.vscanner.projects.results`
 
@@ -212,5 +213,5 @@ Scan results and screenshots within a VScanner project.
 | Method | Returns | HTTP route | Summary |
 |---|---|---|---|
 | `list(project_id: uuid.UUID, *, search: str \| NotGiven = NOT_GIVEN, in_port: Sequence[str] \| NotGiven = NOT_GIVEN, ex_port: Sequence[str] \| NotGiven = NOT_GIVEN, min_cvss: float \| NotGiven = NOT_GIVEN, max_cvss: float \| NotGiven = NOT_GIVEN, last_seen: int \| NotGiven = NOT_GIVEN, first_seen: int \| NotGiven = NOT_GIVEN, last_seen_port: int \| NotGiven = NOT_GIVEN, first_seen_port: int \| NotGiven = NOT_GIVEN, sort: Literal['ip', 'name', 'last_seen', 'first_seen', 'resolved', 'min_cvss', 'max_cvss'] = 'last_seen', sort_dir: Literal['asc', 'desc'] = 'asc', offset: int = 0, limit: int = 50, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `GET /api/v3/proxy/vscanner/v2/projects/{project_id}/results` | List a project's scan results, with optional filtering and sorting |
-| `delete(project_id: uuid.UUID, result_id: uuid.UUID, *, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `DELETE /api/v3/proxy/vscanner/v2/projects/{project_id}/results/{result_id}` | Delete a single scan result |
+| `delete(project_id: uuid.UUID, result_id: uuid.UUID, *, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Any` | `DELETE /api/v3/proxy/vscanner/v2/projects/{project_id}/results/{result_id}` | Delete a single scan result from a project |
 | `screenshot(image_uri: str, *, as_base64: bool = False, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `bytes` | `GET /vscanner/screen/{image_uri}` | Download a result screenshot as bytes |

@@ -61,7 +61,11 @@ class TestAuditAsyncFull:
         route = respx.post(f"{BASE}/api/v4/audit/software/").mock(return_value=_v4([]))
         async with AsyncVulners(KEY) as client:
             await client.audit.software(
-                ["curl 8.11.1"], fields=["cvss"], config=["c1"], catalog="extended"
+                ["curl 8.11.1"],
+                fields=["cvss"],
+                config=["c1"],
+                catalog="extended",
+                cvelist_metrics=True,
             )
         body = orjson.loads(route.calls.last.request.content)
         assert body == {
@@ -70,6 +74,7 @@ class TestAuditAsyncFull:
             "catalog": "extended",
             "fields": ["cvss"],
             "config": ["c1"],
+            "cvelistMetrics": True,
         }
 
     @respx.mock
@@ -84,6 +89,7 @@ class TestAuditAsyncFull:
                 match="full",
                 fields=["cvss"],
                 config=["c1"],
+                cvelist_metrics=True,
             )
         body = orjson.loads(route.calls.last.request.content)
         assert body["application"] == "app"
@@ -91,6 +97,7 @@ class TestAuditAsyncFull:
         assert body["hardware"] == "hw"
         assert body["fields"] == ["cvss"]
         assert body["config"] == ["c1"]
+        assert body["cvelistMetrics"] is True
 
     @respx.mock
     async def test_os_audit(self):
@@ -113,10 +120,12 @@ class TestAuditAsyncFull:
                 os_version="22.04",
                 packages=["bash-5.1-1.amd64"],
                 os_arch="amd64",
+                fields=["metrics"],
             )
         body = orjson.loads(route.calls.last.request.content)
         assert body["osName"] == "ubuntu"
         assert body["osArch"] == "amd64"
+        assert body["fields"] == ["metrics"]
 
     @respx.mock
     async def test_library_audit(self):
@@ -135,9 +144,11 @@ class TestAuditAsyncFull:
         sbom = tmp_path / "sbom.json"
         sbom.write_bytes(b'{"bomFormat":"CycloneDX"}')
         async with AsyncVulners(KEY) as client:
-            out = await client.audit.sbom_audit(sbom)
+            out = await client.audit.sbom_audit(sbom, cvelist_metrics=True)
         assert out == {"data": []}
-        assert b'name="file"' in route.calls.last.request.content
+        req = route.calls.last.request
+        assert b'name="file"' in req.content
+        assert req.url.params["cvelistMetrics"] == "true"
 
     @respx.mock
     async def test_cve_and_batch(self):
@@ -155,10 +166,14 @@ class TestAuditAsyncFull:
     async def test_kb_audit(self):
         route = respx.post(f"{BASE}/api/v4/audit/kb").mock(return_value=_v4({"items": []}))
         async with AsyncVulners(KEY) as client:
-            await client.audit.kb_audit("Windows 10", ["KB5028166"])
+            await client.audit.kb_audit(
+                "Windows 10", ["KB5028166"], os_version="10.0.19045", fields=["metrics"]
+            )
         assert orjson.loads(route.calls.last.request.content) == {
             "osName": "Windows 10",
             "kbList": ["KB5028166"],
+            "osVersion": "10.0.19045",
+            "fields": ["metrics"],
         }
 
     @respx.mock
@@ -188,10 +203,17 @@ class TestAuditAsyncFull:
 
     @respx.mock
     async def test_smart_validation(self):
-        respx.post(f"{BASE}/api/v4/audit/smart").mock(return_value=_v4([{"input": "nginx"}]))
+        route = respx.post(f"{BASE}/api/v4/audit/smart").mock(
+            return_value=_v4([{"input": "nginx"}])
+        )
         async with AsyncVulners(KEY) as client:
-            out = await client.audit.smart(["nginx 1.25"], catalog="extended")
+            out = await client.audit.smart(["nginx 1.25"], catalog="extended", fields=["metrics"])
             assert out[0]["input"] == "nginx"
+            assert orjson.loads(route.calls.last.request.content) == {
+                "software": ["nginx 1.25"],
+                "catalog": "extended",
+                "fields": ["metrics"],
+            }
             with pytest.raises(ValueError):
                 await client.audit.smart([])
             with pytest.raises(ValueError):

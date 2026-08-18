@@ -57,8 +57,16 @@ for doc in v.search.query("type:cve", limit=10).data:
 | `api.audit.host(...)` | `v.audit.host(...)` |
 | `api.audit.os_audit(os=, version=, packages=)` | `v.audit.os_audit(os=, version=, packages=)` |
 | `api.audit.linux_audit(os_name=, os_version=, packages=)` | `v.audit.linux_audit(os_name=, os_version=, packages=)` |
-| `api.audit.kb_audit(os=, kb_list=)` | `v.audit.kb_audit(os=, kb_list=)` |
+| `api.audit.kb_audit(os=, kb_list=)` | `v.audit.kb_audit_v3(os=, kb_list=)` |
 | `api.audit.win_audit(...)` | `v.audit.win_audit(...)` |
+
+!!! note "`kb_audit` moved to the v4 endpoint"
+    On the v4 client, `v.audit.kb_audit(os_name=, kb_list=, os_version=, fields=)` now calls the
+    new `/api/v4/audit/kb` endpoint and returns per-update advisories — a result with `items`
+    (each carrying the fixing package `fixedPackage` and the update `advisories`, which list the
+    KBs they `supersedes`) — **not** the flat v3 CVE list. For a drop-in replacement of the old
+    flat shape (`kbLatest`/`kbMissed`/`cvelist`), use `v.audit.kb_audit_v3(os=, kb_list=)` as
+    mapped above. Note the parameter rename: v3 took `os=`, v4 `kb_audit` takes `os_name=`.
 
 !!! note "Return shape"
     Some v4 audit endpoints unwrap the response envelope for you, so where v3 returned

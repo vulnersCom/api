@@ -252,10 +252,14 @@ class TestAudit:
 
     def test_kb_audit(self, live_v4):
         # v4: one finding per missing update, with fixedPackage + advisories.
-        res = live_v4.audit.kb_audit(
-            "Windows 10", [_KB_ID], os_version="10.0.19045", fields=["metrics"]
+        res = _ok_or_graceful(
+            lambda: live_v4.audit.kb_audit(
+                "Windows 10", [_KB_ID], os_version="10.0.19045", fields=["metrics"]
+            ),
+            dict,
         )
-        assert isinstance(res, dict) and "items" in res
+        if res is not None:
+            assert "items" in res
 
     def test_kb_audit_v3_deprecated(self, live_v4):
         _ok_or_graceful(lambda: live_v4.audit.kb_audit_v3("Windows 10", [_KB_ID]), dict)

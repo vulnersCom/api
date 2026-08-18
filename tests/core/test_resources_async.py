@@ -153,12 +153,22 @@ class TestAuditAsyncFull:
 
     @respx.mock
     async def test_kb_audit(self):
+        route = respx.post(f"{BASE}/api/v4/audit/kb").mock(return_value=_v4({"items": []}))
+        async with AsyncVulners(KEY) as client:
+            await client.audit.kb_audit("Windows 10", ["KB5028166"])
+        assert orjson.loads(route.calls.last.request.content) == {
+            "osName": "Windows 10",
+            "kbList": ["KB5028166"],
+        }
+
+    @respx.mock
+    async def test_kb_audit_v3_deprecated(self):
         route = respx.post(f"{BASE}/api/v3/audit/kb/").mock(return_value=_v3({}))
         async with AsyncVulners(KEY) as client:
-            await client.audit.kb_audit(os="Windows Server 2012 R2", kb_list=["KB1"])
+            await client.audit.kb_audit_v3("Windows 10", ["KB5028166"])
         assert orjson.loads(route.calls.last.request.content) == {
-            "os": "Windows Server 2012 R2",
-            "kbList": ["KB1"],
+            "os": "Windows 10",
+            "kbList": ["KB5028166"],
         }
 
     @respx.mock

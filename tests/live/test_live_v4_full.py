@@ -225,14 +225,20 @@ class TestAudit:
         res = live_v4.audit.host(
             ["cpe:2.3:a:apache:http_server:2.4.49"],
             operating_system="cpe:2.3:o:canonical:ubuntu_linux:22.04:*:*:*:*:*:*:*",
+            cvelist_metrics=True,
         )
         assert isinstance(res, (list, dict))
 
     def test_linux_audit(self, live_v4):
         res = live_v4.audit.linux_audit(
-            os_name="ubuntu", os_version="22.04", packages=["bash 5.1-6ubuntu1 amd64"]
+            os_name="ubuntu",
+            os_version="22.04",
+            packages=["bash 5.1-6ubuntu1 amd64"],
+            fields=["metrics"],
         )
         assert isinstance(res, dict)
+        # v4 reports which enrichment options took effect and any warnings.
+        assert "appliedOptions" in res and "warnings" in res
 
     def test_os_audit(self, live_v4):
         res = live_v4.audit.os_audit("ubuntu", "22.04", ["bash 5.1-6ubuntu1 amd64"])
@@ -245,7 +251,14 @@ class TestAudit:
         assert isinstance(res, dict)
 
     def test_kb_audit(self, live_v4):
-        _ok_or_graceful(lambda: live_v4.audit.kb_audit("Windows 10", [_KB_ID]), dict)
+        # v4: one finding per missing update, with fixedPackage + advisories.
+        res = live_v4.audit.kb_audit(
+            "Windows 10", [_KB_ID], os_version="10.0.19045", fields=["metrics"]
+        )
+        assert isinstance(res, dict) and "items" in res
+
+    def test_kb_audit_v3_deprecated(self, live_v4):
+        _ok_or_graceful(lambda: live_v4.audit.kb_audit_v3("Windows 10", [_KB_ID]), dict)
 
     def test_cve_audit(self, live_v4, live_cve):
         _ok_or_graceful(lambda: live_v4.audit.cve_audit(live_cve), dict)
@@ -254,7 +267,11 @@ class TestAudit:
         _ok_or_graceful(lambda: live_v4.audit.cve_batch_audit([live_cve]), dict, list)
 
     def test_library_audit(self, live_v4):
-        _ok_or_graceful(lambda: live_v4.audit.library_audit(["pkg:pypi/django@3.0"]), dict, list)
+        _ok_or_graceful(
+            lambda: live_v4.audit.library_audit(["pkg:pypi/django@3.0"], fields=["metrics"]),
+            dict,
+            list,
+        )
 
     def test_sbom_audit(self, live_v4, tmp_path):
         import orjson
@@ -277,11 +294,13 @@ class TestAudit:
                 }
             )
         )
-        _ok_or_graceful(lambda: live_v4.audit.sbom_audit(sbom), dict, list)
+        _ok_or_graceful(lambda: live_v4.audit.sbom_audit(sbom, cvelist_metrics=True), dict, list)
 
     def test_smart(self, live_v4):
         # Preview endpoint — billing is per submitted string, so keep it to one.
-        _ok_or_graceful(lambda: live_v4.audit.smart(["nginx 1.18.0"]), dict, list)
+        _ok_or_graceful(
+            lambda: live_v4.audit.smart(["nginx 1.18.0"], fields=["metrics"]), dict, list
+        )
 
     def test_supported_os(self, live_v4):
         _ok_or_graceful(lambda: live_v4.audit.supported_os(), dict)

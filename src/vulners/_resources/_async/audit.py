@@ -54,7 +54,8 @@ _LIBRARY = RequestSpec("POST", "/api/v4/audit/library", body_mode="json", unwrap
 _SBOM = RequestSpec("POST", "/api/v4/audit/sbom", body_mode="multipart", unwrap=("result",))
 _CVE = RequestSpec("POST", "/api/v4/audit/cve", body_mode="json", unwrap=("result",))
 _CVES = RequestSpec("POST", "/api/v4/audit/cves", body_mode="json", unwrap=("result",))
-_KB = RequestSpec("POST", "/api/v3/audit/kb/", body_mode="json", unwrap=("data",))
+_KB_V4 = RequestSpec("POST", "/api/v4/audit/kb", body_mode="json", unwrap=("result",))
+_KB_V3 = RequestSpec("POST", "/api/v3/audit/kb/", body_mode="json", unwrap=("data",))
 _WINAUDIT = RequestSpec("POST", "/api/v3/audit/winaudit/", body_mode="json", unwrap=("data",))
 _SMART = RequestSpec("POST", "/api/v4/audit/smart", body_mode="json", unwrap=("result",))
 _SUPPORTED_OS = RequestSpec(
@@ -333,9 +334,15 @@ class AsyncAudit(_base.AsyncBaseResource):
         fields: Sequence[str] | NotGiven = not_given,
         config: Sequence[str] | NotGiven = not_given,
         catalog: Literal["official", "extended"] = "official",
+        cvelist_metrics: bool | NotGiven = not_given,
         timeout: float | httpx.Timeout | NotGiven = not_given,
     ) -> list[dict[str, Any]]:
         """Audit a list of software (CPE dicts or strings) for vulnerabilities.
+
+        Each result carries the input, the matched CPE criteria, the
+        ``fixed_version`` that resolves every finding, and the vulnerabilities.
+        The applied field projection is echoed in the ``X-Vulners-Applied-Options``
+        response header (read it via :attr:`with_raw_response`).
 
         Args:
             software: Entries as :class:`AuditItem` dicts (``{"product": ...}``)
@@ -344,6 +351,8 @@ class AsyncAudit(_base.AsyncBaseResource):
             fields: Vulnerability fields to include; server default when omitted.
             config: Optional configuration entries.
             catalog: ``"official"`` or ``"extended"`` product catalog.
+            cvelist_metrics: When ``True``, enrich each finding with per-CVE
+                ``cvelist`` and ``cvelistMetrics`` (CVSS/EPSS per CVE).
         """
         body: dict[str, Any] = {
             "software": _require_count(software, "software"),
@@ -352,6 +361,7 @@ class AsyncAudit(_base.AsyncBaseResource):
         }
         self._set(body, "fields", fields, list)
         self._set(body, "config", config, list)
+        self._set(body, "cvelistMetrics", cvelist_metrics)
         return await self._request(_SOFTWARE, body=body, timeout=timeout)
 
     async def host(
@@ -365,12 +375,14 @@ class AsyncAudit(_base.AsyncBaseResource):
         fields: Sequence[str] | NotGiven = not_given,
         config: Sequence[str] | NotGiven = not_given,
         catalog: Literal["official", "extended"] = "official",
+        cvelist_metrics: bool | NotGiven = not_given,
         timeout: float | httpx.Timeout | NotGiven = not_given,
     ) -> list[dict[str, Any]]:
         """Audit a whole host: its software plus optional application, OS and hardware CPEs.
 
         Like :meth:`software`, but also accepts CPEs describing the host's
-        application, operating system and hardware.
+        application, operating system and hardware; at least one of
+        ``application``/``operating_system``/``hardware`` must be set.
 
         Args:
             software: Installed software as :class:`AuditItem` dicts
@@ -382,6 +394,8 @@ class AsyncAudit(_base.AsyncBaseResource):
             fields: Vulnerability fields to include; server default when omitted.
             config: Optional configuration entries.
             catalog: ``"official"`` or ``"extended"`` product catalog.
+            cvelist_metrics: When ``True``, enrich each finding with per-CVE
+                ``cvelist`` and ``cvelistMetrics`` (CVSS/EPSS per CVE).
         """
         body: dict[str, Any] = {
             "software": _require_count(software, "software"),
@@ -393,6 +407,7 @@ class AsyncAudit(_base.AsyncBaseResource):
         self._set(body, "hardware", hardware)
         self._set(body, "fields", fields, list)
         self._set(body, "config", config, list)
+        self._set(body, "cvelistMetrics", cvelist_metrics)
         return await self._request(_HOST, body=body, timeout=timeout)
 
     async def os_audit(
@@ -424,9 +439,15 @@ class AsyncAudit(_base.AsyncBaseResource):
         include_candidates: bool = False,
         include_any_version: bool = False,
         cvelist_metrics: bool = False,
+        fields: Sequence[str] | NotGiven = not_given,
         timeout: float | httpx.Timeout | NotGiven = not_given,
     ) -> dict[str, Any]:
         """Audit RPM/DEB/APK package lists for a Linux host.
+
+        Each issue carries the package, its ``fixedVersion`` and ``fixedPackage``,
+        and the ``applicableAdvisories`` that match it. The result also reports the
+        ``appliedOptions`` that took effect and any ``warnings`` (for example an
+        unsupported ``fields`` option).
 
         Args:
             os_name: OS name or id (``ubuntu``, ``debian``, ``rhel``, ``alpine``...).
@@ -436,9 +457,12 @@ class AsyncAudit(_base.AsyncBaseResource):
             include_unofficial: Include unofficial packages.
             include_candidates: Include ``candidate`` vulnerabilities.
             include_any_version: Include ``any`` version vulnerabilities.
-            cvelist_metrics: Add cvelist metrics (non-free licenses only).
+            cvelist_metrics: Add cvelist metrics.
+            fields: Advisory enrichment options to apply; this endpoint supports
+                ``"metrics"`` and ``"cvelistMetrics"`` (an unsupported option is
+                echoed back under the result's ``warnings``).
         """
-        body = {
+        body: dict[str, Any] = {
             "osName": os_name,
             "osVersion": os_version,
             "packages": _require_count(
@@ -450,6 +474,7 @@ class AsyncAudit(_base.AsyncBaseResource):
             "includeAnyVersion": include_any_version,
             "cvelistMetrics": cvelist_metrics,
         }
+        self._set(body, "fields", fields, list)
         return await self._request(_LINUX, body=body, timeout=timeout)
 
     async def library_audit(
@@ -460,18 +485,27 @@ class AsyncAudit(_base.AsyncBaseResource):
         include_candidates: bool = False,
         include_any_version: bool = False,
         cvelist_metrics: bool = False,
+        fields: Sequence[str] | NotGiven = not_given,
         timeout: float | httpx.Timeout | NotGiven = not_given,
     ) -> dict[str, Any]:
         """Audit a list of packages in PURL format.
+
+        Each issue carries the package, its ``fixedVersion`` and the
+        ``applicableAdvisories`` that match it (with ``metrics`` and
+        ``exploitation``). The result also reports the ``appliedOptions`` that took
+        effect and any ``warnings`` (for example an unsupported ``fields`` option).
 
         Args:
             packages: Packages in PURL format (1..2500 entries).
             include_unofficial: Include unofficial packages.
             include_candidates: Include ``candidate`` vulnerabilities.
             include_any_version: Include ``any`` version vulnerabilities.
-            cvelist_metrics: Add cvelist metrics (non-free licenses only).
+            cvelist_metrics: Add cvelist metrics.
+            fields: Advisory enrichment options to apply; this endpoint supports
+                ``"metrics"`` and ``"cvelistMetrics"`` (an unsupported option is
+                echoed back under the result's ``warnings``).
         """
-        body = {
+        body: dict[str, Any] = {
             "packages": _require_count(
                 packages, "packages", hi=_AUDIT_MAX_PACKAGES, strings=True
             ),
@@ -480,23 +514,33 @@ class AsyncAudit(_base.AsyncBaseResource):
             "includeAnyVersion": include_any_version,
             "cvelistMetrics": cvelist_metrics,
         }
+        self._set(body, "fields", fields, list)
         return await self._request(_LIBRARY, body=body, timeout=timeout)
 
     async def sbom_audit(
         self,
         file: str | os.PathLike[str],
         *,
+        cvelist_metrics: bool | NotGiven = not_given,
         timeout: float | httpx.Timeout | NotGiven = not_given,
     ) -> dict[str, Any]:
         """Audit an SBOM file (SPDX or CycloneDX) for vulnerabilities.
 
+        The result reports the ``appliedOptions`` that took effect and any
+        ``warnings`` alongside the audit ``data``.
+
         Args:
             file: Path to the SBOM file to upload.
+            cvelist_metrics: When ``True``, enrich each finding with per-CVE
+                cvelist metrics. Sent as a query option (the request body carries
+                the uploaded file).
         """
         path = os.fspath(file)
         content = await asyncio.to_thread(_read_file_bytes, path)
         files = {"file": (os.path.basename(path), content, "application/json")}
-        return await self._request(_SBOM, files=files, timeout=timeout)
+        params: dict[str, Any] = {}
+        self._set(params, "cvelistMetrics", cvelist_metrics)
+        return await self._request(_SBOM, files=files, params=params, timeout=timeout)
 
     async def cve_audit(
         self,
@@ -532,19 +576,59 @@ class AsyncAudit(_base.AsyncBaseResource):
 
     async def kb_audit(
         self,
+        os_name: str,
+        kb_list: Sequence[str],
+        *,
+        os_version: str | NotGiven = not_given,
+        fields: Sequence[str] | NotGiven = not_given,
+        timeout: float | httpx.Timeout | NotGiven = not_given,
+    ) -> dict[str, Any]:
+        """Audit a Windows host for missing security updates (``/api/v4/audit/kb``).
+
+        Reports one finding per missing update: the result's ``items`` list holds a
+        package with the ``fixedPackage`` (the KB that fixes it) and the
+        ``advisories`` for that update — each advisory carrying the KBs it
+        ``supersedes`` alongside its severity, family and affected products. This
+        replaces the flat CVE list of the deprecated v3 endpoint
+        (:meth:`kb_audit_v3`).
+
+        Args:
+            os_name: Windows OS name, e.g. ``"Windows 10"`` /
+                ``"Windows Server 2012 R2"``.
+            kb_list: Installed KBs, e.g. ``["KB5028166"]``.
+            os_version: Optional OS build (e.g. ``"10.0.19045"``) to disambiguate
+                the edition.
+            fields: Advisory fields to include; server default when omitted.
+
+        Returns:
+            A result mapping with ``items`` (one entry per package, each with its
+            ``fixedPackage`` and ``advisories``) and ``totalPackages``.
+        """
+        body: dict[str, Any] = {"osName": os_name, "kbList": list(kb_list)}
+        self._set(body, "osVersion", os_version)
+        self._set(body, "fields", fields, list)
+        return await self._request(_KB_V4, body=body, timeout=timeout)
+
+    async def kb_audit_v3(
+        self,
         os: str,
         kb_list: Sequence[str],
         *,
         timeout: float | httpx.Timeout | NotGiven = not_given,
     ) -> dict[str, Any]:
-        """Audit a Windows host by its installed KB list.
+        """Audit a Windows host by its installed KBs (deprecated v3 endpoint).
+
+        .. deprecated::
+            Uses the legacy ``/api/v3/audit/kb/`` endpoint, which returns a flat
+            result (``kbLatest``, ``kbMissed``, ``cvelist``). Prefer :meth:`kb_audit`,
+            which uses ``/api/v4/audit/kb`` and returns richer per-update advisories.
 
         Args:
             os: Windows OS name, e.g. ``"Windows Server 2012 R2"``.
             kb_list: Installed KBs, e.g. ``["KB2918614", "KB2918616"]``.
         """
         body = {"os": os, "kbList": list(kb_list)}
-        return await self._request(_KB, body=body, timeout=timeout)
+        return await self._request(_KB_V3, body=body, timeout=timeout)
 
     async def win_audit(
         self,
@@ -581,12 +665,14 @@ class AsyncAudit(_base.AsyncBaseResource):
         software: Sequence[str],
         *,
         catalog: Literal["official", "extended"] = "official",
+        fields: Sequence[str] | NotGiven = not_given,
         timeout: float | httpx.Timeout | NotGiven = not_given,
     ) -> list[dict[str, Any]]:
         """Resolve free-form software strings to CPE/PURLs and their vulnerabilities.
 
         Each input string is matched heuristically to a CPE and/or PURLs, returning
-        ``{"input", "cpe"?, "purls", "confidence", "vulnerabilities"}`` per entry.
+        ``{"input", "cpe"?, "purls", "confidence", "fixedVersion", "vulnerabilities"}``
+        per entry.
 
         Note:
             This is a preview endpoint. **Billing is per submitted string** (every
@@ -595,6 +681,11 @@ class AsyncAudit(_base.AsyncBaseResource):
         Args:
             software: 1..500 strings, each at most 512 characters.
             catalog: ``"official"`` or ``"extended"`` product catalog.
+            fields: Fields to include on each vulnerability (a projection). Valid
+                values include ``"metrics"``, ``"exploitation"``, ``"cvelist"``,
+                ``"cvelistMetrics"``, ``"epss"``, ``"description"`` and the other
+                bulletin fields; the server rejects an unknown value with ``400``.
+                Server default projection when omitted.
 
         Raises:
             ValueError: ``software`` is empty, has more than 500 entries, or any
@@ -612,6 +703,7 @@ class AsyncAudit(_base.AsyncBaseResource):
                     f"each software entry must be at most {_SMART_MAX_LEN} characters"
                 )
         body: dict[str, Any] = {"software": items, "catalog": catalog}
+        self._set(body, "fields", fields, list)
         return await self._request(_SMART, body=body, timeout=timeout)
 
 

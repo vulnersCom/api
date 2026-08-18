@@ -1,6 +1,6 @@
 [project]
 name = "vulners"
-version = "4.1.0"
+version = "4.2.0"
 description = "Python SDK for the Vulners vulnerability intelligence API (https://vulners.com)"
 readme = "README.md"
 requires-python = ">=3.10"

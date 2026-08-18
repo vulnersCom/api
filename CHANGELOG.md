@@ -11,6 +11,37 @@ the commit log. Only the v3 series is covered in detail.
 
 ## [Unreleased]
 
+## [4.2.0] - 2026-08-18
+
+Support for the Vulners v4 audit API updates.
+
+### Added
+
+- `audit.kb_audit(os_name, kb_list, *, os_version=..., fields=...)` now targets the new
+  `/api/v4/audit/kb` endpoint and returns one finding per missing update: a result with
+  `items` (each carrying the fixing package `fixedPackage` and the update `advisories`, which
+  list the KBs they `supersedes`) plus `totalPackages`. The deprecated v3 endpoint (flat
+  `kbLatest`/`kbMissed`/`cvelist`) is preserved as `audit.kb_audit_v3(os, kb_list)`.
+- `audit.smart(..., fields=[...])` — project which fields each vulnerability carries (e.g.
+  `metrics`, `exploitation`, `cvelist`, `cvelistMetrics`, `epss`); an unknown field is rejected
+  by the server with `400`. Each result now also includes `fixedVersion`.
+- `audit.software(..., cvelist_metrics=True)` and `audit.host(..., cvelist_metrics=True)` —
+  enrich each finding with per-CVE `cvelist`/`cvelistMetrics`. Results carry the resolving
+  `fixed_version`, and the applied projection is echoed in the `X-Vulners-Applied-Options`
+  response header.
+- `audit.linux_audit(..., fields=[...])` and `audit.library_audit(..., fields=[...])` — apply
+  advisory enrichment options (`metrics`, `cvelistMetrics`); the result reports the
+  `appliedOptions` that took effect and any `warnings` for unsupported ones.
+- `audit.sbom_audit(..., cvelist_metrics=True)` — sent as a query option (the request body
+  carries the uploaded file); the result carries `appliedOptions` and `warnings`.
+
+### Changed
+
+- **Breaking:** `audit.kb_audit` moved from the v3 endpoint to `/api/v4/audit/kb`. Its request
+  now uses `os_name` (not `os`) and its response shape changed from a flat CVE list to
+  per-update advisories (see Added). Callers that need the old flat shape should use the new
+  `audit.kb_audit_v3`.
+
 ## [4.1.0] - 2026-08-17
 
 ### Added

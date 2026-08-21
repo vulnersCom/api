@@ -54,6 +54,17 @@ by its `version`.
       show_root_heading: true
       members: []
 
+## Package metadata
+
+`audit.metadata` returns a `PackageMetadata`: a package's declared `license` (always a list),
+its `version` and the `range` the metadata covers. Use `found` to tell a package the registry
+does not know (empty `range`) apart from a known package with no recorded license.
+
+::: vulners._models.audit.PackageMetadata
+    options:
+      heading_level: 3
+      show_root_heading: true
+
 ## Pagination
 
 `search.query` returns a `SearchPage` (async: `AsyncSearchPage`). It knows its place in the

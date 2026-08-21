@@ -31,6 +31,7 @@ EXPECTED_TOOLS = {
     "audit_software",
     "audit_linux",
     "smart_audit",
+    "audit_metadata",
 }
 
 
@@ -375,6 +376,21 @@ async def test_audit_linux_passes_through(fake_client):
         os_name="ubuntu", os_version="22.04", packages=["openssl 1.1.1"]
     )
     assert result["result"] == [{"package": "openssl", "vulnerabilities": []}]
+
+
+async def test_audit_metadata_passes_through_and_surfaces_found(fake_client):
+    from vulners import PackageMetadata
+
+    fake_client.audit.metadata = AsyncMock(
+        return_value=PackageMetadata(
+            name="requests", version="2.28.0", range=">=, <", license=["ISC"]
+        )
+    )
+    tool = await server.mcp.get_tool("audit_metadata")
+    result = await tool.fn(registry="pypi", name="requests", version="2.28.0")
+    fake_client.audit.metadata.assert_awaited_once_with("pypi", "requests", "2.28.0")
+    assert result["result"]["license"] == ["ISC"]
+    assert result["found"] is True
 
 
 def test_main_runs_server(monkeypatch):

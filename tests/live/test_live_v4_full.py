@@ -306,6 +306,28 @@ class TestAudit:
             lambda: live_v4.audit.smart(["nginx 1.18.0"], fields=["metrics"]), dict, list
         )
 
+    def test_metadata(self, live_v4):
+        from vulners import PackageMetadata
+
+        m = _ok_or_graceful(
+            lambda: live_v4.audit.metadata("pypi", "requests", "2.28.0"), PackageMetadata
+        )
+        if m is not None:
+            assert m.found is True
+            assert isinstance(m.license, list)
+        # empty-license (known) and not-found are distinguishable via .found
+        s = _ok_or_graceful(
+            lambda: live_v4.audit.metadata("pypi", "sniffio", "1.3.1"), PackageMetadata
+        )
+        if s is not None:
+            assert s.found is True and s.license == []
+        n = _ok_or_graceful(
+            lambda: live_v4.audit.metadata("pypi", "zzz-no-such-pkg-000", "9.9.9"),
+            PackageMetadata,
+        )
+        if n is not None:
+            assert n.found is False
+
     def test_supported_os(self, live_v4):
         _ok_or_graceful(lambda: live_v4.audit.supported_os(), dict)
 

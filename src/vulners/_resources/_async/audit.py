@@ -17,9 +17,16 @@ from typing import IO, Any, Literal
 import httpx
 
 from ..._base_client import RequestSpec
+from ..._models import construct_type
+from ..._models.audit import PackageMetadata
 from ..._types import NotGiven, not_given
 from ..._types.audit import AuditItem, WinAuditItem
 from . import _base
+
+
+def _package_metadata(value: Any) -> PackageMetadata:
+    """Cast the unwrapped ``metadata`` payload into a typed :class:`PackageMetadata`."""
+    return construct_type(value, PackageMetadata)
 
 
 def _read_file_bytes(path: str) -> bytes:
@@ -58,6 +65,7 @@ _KB_V4 = RequestSpec("POST", "/api/v4/audit/kb", body_mode="json", unwrap=("resu
 _KB_V3 = RequestSpec("POST", "/api/v3/audit/kb/", body_mode="json", unwrap=("data",))
 _WINAUDIT = RequestSpec("POST", "/api/v3/audit/winaudit/", body_mode="json", unwrap=("data",))
 _SMART = RequestSpec("POST", "/api/v4/audit/smart", body_mode="json", unwrap=("result",))
+_METADATA = RequestSpec("POST", "/api/v4/audit/metadata", body_mode="json", unwrap=("result",))
 _SUPPORTED_OS = RequestSpec(
     "GET", "/api/v3/audit/getSupportedOS/", body_mode="query", unwrap=("data", "supportedOS")
 )
@@ -705,6 +713,52 @@ class AsyncAudit(_base.AsyncBaseResource):
         body: dict[str, Any] = {"software": items, "catalog": catalog}
         self._set(body, "fields", fields, list)
         return await self._request(_SMART, body=body, timeout=timeout)
+
+    async def metadata(
+        self,
+        registry: str,
+        name: str,
+        version: str,
+        *,
+        timeout: float | httpx.Timeout | NotGiven = not_given,
+    ) -> PackageMetadata:
+        """Look up a single package's license and version-range metadata.
+
+        Returns the package's declared licenses (as a list) along with the version
+        ``range`` the metadata covers. The endpoint is public and available on all
+        plans.
+
+        Two inputs are normalized for you: ``registry`` is lower-cased, and for
+        Maven the ``name`` is the ``groupId:artifactId`` coordinate — a ``"/"`` is
+        converted to the required ``":"``.
+
+        Distinguishing outcomes (see :class:`~vulners.PackageMetadata`):
+
+        - **Known package with licenses** — :attr:`~vulners.PackageMetadata.license`
+          is a non-empty list.
+        - **Known package, no recorded license** —
+          :attr:`~vulners.PackageMetadata.found` is ``True`` but ``license`` is ``[]``.
+        - **Package unknown to the registry** —
+          :attr:`~vulners.PackageMetadata.found` is ``False`` (the endpoint returns
+          an empty ``range``).
+        - **API / network error** — a :class:`~vulners.VulnersError` is raised; an
+          empty license list is never a silent stand-in for an error.
+
+        Args:
+            registry: Package registry, e.g. ``"pypi"``, ``"npm"``, ``"maven"``
+                (case is normalized).
+            name: Package name. For Maven, ``"groupId:artifactId"`` (a ``"/"`` is
+                converted to ``":"``).
+            version: Package version, e.g. ``"2.28.0"``.
+
+        Returns:
+            A :class:`~vulners.PackageMetadata` with ``name``, ``version``,
+            ``range`` and ``license`` (a list).
+        """
+        reg = registry.lower()
+        pkg = name.replace("/", ":") if reg == "maven" else name
+        body = {"registry": reg, "name": pkg, "version": version}
+        return await self._request(_METADATA, body=body, cast=_package_metadata, timeout=timeout)
 
 
 __all__ = ["AsyncAudit", "AuditPackages"]

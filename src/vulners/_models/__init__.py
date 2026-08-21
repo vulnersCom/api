@@ -18,6 +18,7 @@ from ._nested import Cvss4 as Cvss4
 from ._nested import Enchantments as Enchantments
 from ._nested import EpssScore as EpssScore
 from ._nested import Timestamps as Timestamps
+from .audit import PackageMetadata as PackageMetadata
 from .bulletin import FAMILY_MODELS as FAMILY_MODELS
 from .bulletin import TYPE_MODELS as TYPE_MODELS
 from .bulletin import bulletin_class_for as bulletin_class_for

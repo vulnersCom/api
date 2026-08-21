@@ -65,6 +65,7 @@ if TYPE_CHECKING:
     # nested value objects — static view; the runtime resolves them lazily in
     # __getattr__ so `import vulners` never eagerly builds the pydantic models.
     from ._models._nested import *  # noqa: F403
+    from ._models.audit import PackageMetadata as PackageMetadata
     from ._models.bulletins import *  # noqa: F403
     from ._pagination import AsyncSearchPage as AsyncSearchPage
     from ._pagination import SearchPage as SearchPage
@@ -147,6 +148,7 @@ __all__ = [  # noqa: RUF022
     "AsyncStreamedAPIResponse",
     "AuditItem",
     "WinAuditItem",
+    "PackageMetadata",
     # deprecation tiers
     "RemovedInVulners5Warning",
     # v3 legacy
@@ -187,6 +189,8 @@ def __getattr__(name: str) -> Any:
         mod = "._models.bulletins"
     elif name in _NESTED_NAMES:
         mod = "._models._nested"
+    elif name == "PackageMetadata":
+        mod = "._models.audit"
     else:
         raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
     # import OUTSIDE the getattr guard, so an error while building the model layer

@@ -11,6 +11,20 @@ the commit log. Only the v3 series is covered in detail.
 
 ## [Unreleased]
 
+## [4.3.0] - 2026-08-18
+
+### Added
+
+- `audit.metadata(registry, name, version)` — look up a package's license and version-range
+  metadata via `POST /api/v4/audit/metadata` (public on all plans). Returns a typed
+  `PackageMetadata` with `name`, `version`, `range` and `license` (always a list). The SDK
+  normalizes the two footguns callers previously handled by hand: `registry` is lower-cased, and
+  for Maven the `name` is the `groupId:artifactId` coordinate (a `/` is converted to the required
+  `:`). `PackageMetadata.found` distinguishes a package the registry does not know (empty `range`)
+  from a known package with no recorded license (`found` true, `license == []`); API and network
+  errors raise `VulnersError` rather than returning a silent empty result. Exposed on the MCP
+  server as the `audit_metadata` tool, and importable as `from vulners import PackageMetadata`.
+
 ## [4.2.0] - 2026-08-18
 
 Support for the Vulners v4 audit API updates.

@@ -434,6 +434,27 @@ async def smart_audit(software: list[str]) -> dict[str, Any]:
     return {"count": len(results), "results": _compact(results)}
 
 
+@mcp.tool
+async def audit_metadata(registry: str, name: str, version: str) -> dict[str, Any]:
+    """Look up a single package's license and version-range metadata.
+
+    Public on all plans. ``registry`` case is normalized; for Maven, ``name`` is the
+    ``groupId:artifactId`` coordinate (a ``"/"`` is converted to ``":"``).
+
+    Args:
+        registry: Package registry, e.g. ``"pypi"``, ``"npm"``, ``"maven"``.
+        name: Package name (for Maven, ``"groupId:artifactId"``).
+        version: Package version, e.g. ``"2.28.0"``.
+
+    Returns:
+        ``{result, found}`` — ``result`` holds ``name``/``version``/``range``/``license``
+        (a list); ``found`` is ``False`` when the registry does not know the package
+        name (an empty license list with ``found`` true means "no recorded license").
+    """
+    result = await _get_client().audit.metadata(registry, name, version)
+    return {"result": _compact(result), "found": result.found}
+
+
 def main() -> None:
     """Run the server over stdio (the default MCP transport)."""
     mcp.run()

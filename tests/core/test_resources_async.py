@@ -18,6 +18,7 @@ import orjson
 import pytest
 import respx
 
+from vulners import PackageMetadata
 from vulners._client import AsyncVulners
 
 KEY = "SYNTHETIC-TEST-KEY"
@@ -185,6 +186,35 @@ class TestAuditAsyncFull:
             "os": "Windows 10",
             "kbList": ["KB5028166"],
         }
+
+    @respx.mock
+    async def test_metadata_wire_and_parse(self):
+        route = respx.post(f"{BASE}/api/v4/audit/metadata").mock(
+            return_value=_v4(
+                {"name": "com.google.guava:guava", "range": ">=, <", "license": ["Apache-2.0"]}
+            )
+        )
+        async with AsyncVulners(KEY) as client:
+            # PyPI upper-case + maven slash exercise both normalizations in one path
+            out = await client.audit.metadata("maven", "com.google.guava/guava", "30.0-jre")
+        assert isinstance(out, PackageMetadata)
+        assert out.license == ["Apache-2.0"]
+        assert out.found is True
+        assert orjson.loads(route.calls.last.request.content) == {
+            "registry": "maven",
+            "name": "com.google.guava:guava",
+            "version": "30.0-jre",
+        }
+
+    @respx.mock
+    async def test_metadata_registry_lowercased(self):
+        route = respx.post(f"{BASE}/api/v4/audit/metadata").mock(
+            return_value=_v4({"name": "requests", "range": "", "license": []})
+        )
+        async with AsyncVulners(KEY) as client:
+            out = await client.audit.metadata("PyPI", "requests", "2.28.0")
+        assert out.found is False
+        assert orjson.loads(route.calls.last.request.content)["registry"] == "pypi"
 
     @respx.mock
     async def test_win_audit_echoes_key(self):

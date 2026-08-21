@@ -150,6 +150,26 @@ for issue in report["issues"]:
     print(issue["package"])
 ```
 
+### Look up a package's license
+
+```python
+from vulners import Vulners
+
+with Vulners(api_key="YOUR_API_KEY_HERE") as v:
+    meta = v.audit.metadata("pypi", "requests", "2.28.0")
+    print(meta.license)          # ['ISC']  — always a list, never a bare string
+
+    # An empty license with meta.found is True means "known, but no recorded license".
+    # meta.found is False when the registry does not know the package name at all.
+    unknown = v.audit.metadata("pypi", "no-such-package", "9.9.9")
+    print(unknown.found)         # False
+
+    # For Maven the name is the "groupId:artifactId" coordinate; the registry name is
+    # lower-cased for you, so you never touch the colon-vs-slash / casing details.
+    guava = v.audit.metadata("maven", "com.google.guava:guava", "30.0-jre")
+    print(guava.license)         # ['Apache-2.0']
+```
+
 ### Stream the archive (lazily, without buffering gigabytes)
 
 ```python

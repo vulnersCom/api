@@ -60,6 +60,7 @@ Audit software inventories and identifiers against Vulners intelligence.
 | `kb_audit_v3(os: str, kb_list: Sequence[str], *, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `dict[str, Any]` | `POST /api/v3/audit/kb/` | Audit a Windows host by its installed KBs (deprecated v3 endpoint) |
 | `win_audit(os: str, os_version: str, kb_list: Sequence[str], software: Sequence[WinAuditItem], *, platform: str \| NotGiven = NOT_GIVEN, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `dict[str, Any]` | `POST /api/v3/audit/winaudit/` | Audit a Windows host by installed KBs and software |
 | `smart(software: Sequence[str], *, catalog: Literal['official', 'extended'] = 'official', fields: Sequence[str] \| NotGiven = NOT_GIVEN, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `list[dict[str, Any]]` | `POST /api/v4/audit/smart` | Resolve free-form software strings to CPE/PURLs and their vulnerabilities |
+| `metadata(registry: str, name: str, version: str, *, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `PackageMetadata` | `POST /api/v4/audit/metadata` | Look up a single package's license and version-range metadata |
 
 ## `client.audit.packages`
 

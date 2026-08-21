@@ -9,6 +9,7 @@ import orjson
 import pytest
 import respx
 
+from vulners import PackageMetadata
 from vulners._client import AsyncVulners, Vulners
 
 KEY = "SYNTHETIC-TEST-KEY"
@@ -192,6 +193,52 @@ class TestAuditWire:
         with Vulners(KEY) as client:
             client.audit.sbom_audit(sbom, cvelist_metrics=True)
         assert route.calls.last.request.url.params["cvelistMetrics"] == "true"
+
+    @respx.mock
+    def test_metadata_wire_and_parse(self):
+        route = respx.post(f"{BASE}/api/v4/audit/metadata").mock(
+            return_value=_v4(
+                {
+                    "name": "requests",
+                    "version": "2.28.0",
+                    "range": ">=, <0.11.2",
+                    "license": ["ISC"],
+                }
+            )
+        )
+        with Vulners(KEY) as client:
+            out = client.audit.metadata("PyPI", "requests", "2.28.0")
+        assert isinstance(out, PackageMetadata)
+        assert out.license == ["ISC"]
+        assert out.found is True
+        # registry lower-cased for the caller
+        assert orjson.loads(route.calls.last.request.content) == {
+            "registry": "pypi",
+            "name": "requests",
+            "version": "2.28.0",
+        }
+
+    @respx.mock
+    def test_metadata_maven_colon_normalization(self):
+        route = respx.post(f"{BASE}/api/v4/audit/metadata").mock(
+            return_value=_v4(
+                {"name": "com.google.guava:guava", "range": ">=, <", "license": ["Apache-2.0"]}
+            )
+        )
+        with Vulners(KEY) as client:
+            client.audit.metadata("maven", "com.google.guava/guava", "30.0-jre")
+        # groupId/artifactId slash -> the required colon
+        assert orjson.loads(route.calls.last.request.content)["name"] == "com.google.guava:guava"
+
+    @respx.mock
+    def test_metadata_not_found_has_empty_range(self):
+        respx.post(f"{BASE}/api/v4/audit/metadata").mock(
+            return_value=_v4({"name": "nope", "version": "9.9.9", "range": "", "license": []})
+        )
+        with Vulners(KEY) as client:
+            out = client.audit.metadata("pypi", "nope", "9.9.9")
+        assert out.found is False
+        assert out.license == []
 
     @respx.mock
     def test_win_audit_echoes_api_key_in_body(self):

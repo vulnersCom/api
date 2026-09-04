@@ -48,6 +48,29 @@ Both return a **list**, one entry per input item, each with the affecting vulner
 `host` items use the raw CPE string as `"input"` instead of a `{product, version}` object; the
 rest is identical. `sbom_audit` returns the same per-component shape.
 
+Request enrichment (`cvelist_metrics=True`, or `fields=["metrics", "cvelistMetrics"]` on
+`software`/`host`/`smart`/`library_audit`; `sbom_audit` also accepts `cvelist_metrics=True`) and
+each vulnerability gains a `metrics` rollup and a `cvelistMetrics` list:
+
+```json
+{
+  "id": "CVE-2019-10744",
+  "metrics": {
+    "cvss": {"score": 9.8, "severity": "CRITICAL", "version": "3.1", "vector": "…", "source": "osv"},
+    "epss": [{"cve": "CVE-2019-10744", "epss": 0.05, "percentile": 0.92, "date": "2026-09-04"}]
+  },
+  "cvelistMetrics": [ /* one CVSS/EPSS entry per CVE in the advisory */ ]
+}
+```
+
+`metrics` is an advisory-level **rollup** — the highest CVSS and (in `epss[0]`) the highest EPSS
+across the advisory's CVEs, empty when the EPSS store is unavailable. For each CVE's own score, read
+the per-CVE listing: `cvelistMetrics` on the audit endpoints, or the advisory's own `epss[]` on
+`sbom_audit` (returned by default there). Note `metrics.epss[0]` is a full record
+`{cve, epss, percentile, date}` on `software`/`host`/`library_audit`, but **still a bare CVE-id
+string on `smart` and `sbom_audit`** during the rollout — so guard with `isinstance(epss[0], dict)`
+before indexing it.
+
 ### `audit.linux_audit(...)` · `audit.win_audit(...)`
 
 A single object keyed by `issues` (**not** wrapped in `result` — that is the v3 shape):

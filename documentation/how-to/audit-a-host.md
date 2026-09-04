@@ -200,6 +200,22 @@ The audit endpoints can attach severity and exploitation intelligence to each fi
 - **`sbom_audit`**: pass `cvelist_metrics=True` (sent as a query option, since the body carries
   the uploaded file); the result carries `appliedOptions` and `warnings` alongside the data.
 
+!!! note "`metrics` (rollup) vs `cvelistMetrics` (per-CVE)"
+    On an advisory, `metrics` is a **rollup** — the highest CVSS and the highest EPSS across the
+    advisory's CVEs. Its `epss` is a **one-element** list (kept a list so `epss[0]` keeps working)
+    and comes back **empty** when the EPSS store is unavailable, so treat it as "the worst score",
+    not a per-CVE listing. For each CVE's own CVSS/EPSS, use **`cvelistMetrics`** — that is the
+    single place the full per-CVE listing lives.
+
+    **The `epss` element has two shapes during the current rollout.** On `software`, `host` and
+    `library_audit` it is a full EPSS record — `{"cve", "epss", "percentile", "date"}`, so
+    `epss[0]["epss"]` is the float score. On `smart` and `sbom_audit` it is **still a bare CVE-id
+    string** (e.g. `["CVE-2019-10744"]`), so `epss[0]["epss"]` there raises `TypeError`. Until the
+    rollout finishes, accept either — check `isinstance(epss[0], dict)` before indexing. (This
+    transitional dual shape is exactly why the SDK hands audit responses back as raw dicts rather
+    than typed models.) On `sbom_audit` each advisory also carries its own per-CVE `epss[]` list
+    (full records, returned by default).
+
 === "Sync"
 
     ```python

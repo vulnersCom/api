@@ -64,12 +64,10 @@ each vulnerability gains a `metrics` rollup and a `cvelistMetrics` list:
 ```
 
 `metrics` is an advisory-level **rollup** — the highest CVSS and (in `epss[0]`) the highest EPSS
-across the advisory's CVEs, empty when the EPSS store is unavailable. For each CVE's own score, read
-the per-CVE listing: `cvelistMetrics` on the audit endpoints, or the advisory's own `epss[]` on
-`sbom_audit` (returned by default there). Note `metrics.epss[0]` is a full record
-`{cve, epss, percentile, date}` on `software`/`host`/`library_audit`, but **still a bare CVE-id
-string on `smart` and `sbom_audit`** during the rollout — so guard with `isinstance(epss[0], dict)`
-before indexing it.
+across the advisory's CVEs, empty when the EPSS store is unavailable. `metrics.epss` is a one-element
+list holding that top-EPSS CVE as a full record `{cve, epss, percentile, date}` — the same shape on
+every endpoint. For each CVE's own score, read the per-CVE listing: `cvelistMetrics` on the audit
+endpoints, or the advisory's own `epss[]` on `sbom_audit` (returned by default there).
 
 ### `audit.linux_audit(...)` · `audit.win_audit(...)`
 

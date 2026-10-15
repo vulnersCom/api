@@ -11,6 +11,8 @@ the commit log. Only the v3 series is covered in detail.
 
 ## [Unreleased]
 
+## [4.4.0] - 2026-10-15
+
 ### Added
 
 - `documents.list_references(id, *, type=..., limit=20, offset=0, fields=...)` — page through
@@ -26,6 +28,9 @@ the commit log. Only the v3 series is covered in detail.
   related documents per id; when a list is cut, `/api/v3/search/id` answers `206 Partial
   Content` with the usual body. Both clients already treat 206 as success; this is now covered by
   tests, and the docstring points to `documents.list_references()` for the full relation.
+- `metrics.epss` in audit results is documented as a one-element list holding the highest-EPSS
+  CVE as a full record `{cve, epss, percentile, date}`, the same shape on every audit endpoint;
+  per-CVE scores are in `cvelistMetrics` (or the advisory's `epss[]` on `sbom_audit`).
 
 ## [4.3.0] - 2026-08-18
 

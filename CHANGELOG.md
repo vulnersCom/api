@@ -11,6 +11,22 @@ the commit log. Only the v3 series is covered in detail.
 
 ## [Unreleased]
 
+### Added
+
+- `documents.list_references(id, *, type=..., limit=20, offset=0, fields=...)` — page through
+  every bulletin related to `id` through a shared CVE via `GET /api/v4/search/references`.
+  Returns a `ReferencesPage` (async: `AsyncReferencesPage`, both importable from `vulners`):
+  iterating it fetches the following pages until the relation is exhausted; `total` and
+  `total_by_type` describe the whole relation; ids of related documents that no longer exist are
+  listed in `missing` instead of `data`.
+
+### Documentation
+
+- `documents.references()` and the `references=True` lookups are capped by the server at 1000
+  related documents per id; when a list is cut, `/api/v3/search/id` answers `206 Partial
+  Content` with the usual body. Both clients already treat 206 as success; this is now covered by
+  tests, and the docstring points to `documents.list_references()` for the full relation.
+
 ## [4.3.0] - 2026-08-18
 
 ### Added

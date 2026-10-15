@@ -4,15 +4,19 @@
 
 Document-centric lookups: fetch bulletins by id (single or batch, sharing the
 same endpoint spec as the ``search`` resource), resolve the documents a bulletin
-references, and read a bulletin's per-field edition history.
+references (inline, or paged through the whole relation), and read a bulletin's
+per-field edition history.
 """
 
 from __future__ import annotations
 
+import json
 from collections.abc import Sequence
 from typing import Any
 
 import httpx
+
+from vulners._pagination import ReferencesPage
 
 from ..._base_client import RequestSpec
 from ..._models.bulletin import Bulletin, construct_bulletin
@@ -23,6 +27,12 @@ from .search import _LOOKUP_SPEC
 _HISTORY_SPEC = RequestSpec(
     "GET", "/api/v3/search/history", body_mode="query", unwrap=("data", "result")
 )
+_REFERENCES_SPEC = RequestSpec(
+    "GET", "/api/v4/search/references", body_mode="query", unwrap=("result",)
+)
+
+# Page size bound enforced by ``/api/v4/search/references``.
+_REFERENCES_MAX_LIMIT = 100
 
 
 # Deliberately not Async-prefixed: the class name is shared with the generated
@@ -114,6 +124,10 @@ class Documents(_base.BaseResource):
             A mapping of source type (e.g. ``"nessus"``, ``"zdt"``) to the
             referencing/referenced :class:`Bulletin` documents; empty when the
             document does not exist or has no references.
+
+        The server returns at most 1000 related documents per bulletin (answering
+        ``206 Partial Content`` when it cuts the list); use
+        :meth:`list_references` to page through the whole relation.
         """
         body: dict[str, Any] = {"id": [id], "references": True}
         self._set(body, "fields", fields, list)
@@ -130,6 +144,97 @@ class Documents(_base.BaseResource):
             }
 
         return self._request(_LOOKUP_SPEC, cast=_cast, body=body, timeout=timeout)
+
+    def list_references(
+        self,
+        id: str,
+        *,
+        type: str | NotGiven = not_given,
+        limit: int = 20,
+        offset: int = 0,
+        fields: Sequence[str] | NotGiven = not_given,
+        timeout: float | httpx.Timeout | NotGiven = not_given,
+    ) -> ReferencesPage[Bulletin]:
+        """Page through every bulletin related to ``id`` through a shared CVE.
+
+        Unlike :meth:`references`, which is capped at 1000 documents, this walks
+        the whole relation: iterating the returned page fetches the following
+        pages until the relation is exhausted. Documents are ordered by id,
+        ascending, and the order is stable between requests.
+
+        Args:
+            id: The bulletin whose related documents to list; any type, not
+                only a CVE.
+            type: Return only related bulletins of this type (e.g.
+                ``"exploitdb"``).
+            limit: Number of relation entries per page, 1 to 100.
+            offset: Number of relation entries to skip.
+            fields: Document fields to return; ``id`` and ``type`` are always
+                present. Names outside the public field set are ignored, and the
+                full public field set is returned when omitted or when none of
+                the names is public.
+
+        Returns:
+            A :class:`vulners._pagination.ReferencesPage` of :class:`Bulletin`. ``.total`` and
+            ``.total_by_type`` describe the whole relation as visible to your
+            licence, regardless of ``type`` and of the page; ids of related
+            documents that no longer exist are listed in ``.missing``.
+
+        Raises:
+            NotFoundError: no bulletin with this ``id`` exists.
+        """
+        if limit < 1 or limit > _REFERENCES_MAX_LIMIT:
+            raise ValueError(f"limit must be between 1 and {_REFERENCES_MAX_LIMIT}, got {limit}")
+        if offset < 0:
+            raise ValueError(f"offset must be >= 0, got {offset}")
+        params: dict[str, Any] = {"id": id, "skip": offset, "size": limit}
+        self._set(params, "type", type)
+        # The endpoint reads ``fields`` as one JSON-encoded array; repeated
+        # ``fields=`` parameters are rejected.
+        self._set(params, "fields", fields, lambda value: json.dumps(list(value)))
+
+        def _fetch(next_offset: int, next_limit: int) -> ReferencesPage[Bulletin]:
+            return self.list_references(
+                id,
+                type=type,
+                limit=next_limit,
+                offset=next_offset,
+                fields=fields,
+                timeout=timeout,
+            )
+
+        def _build(data: Any) -> ReferencesPage[Bulletin]:
+            data = data if isinstance(data, dict) else {}
+            buckets = data.get("references")
+            entries = [
+                entry
+                for bucket in (buckets.values() if isinstance(buckets, dict) else ())
+                if isinstance(bucket, list)
+                for entry in bucket
+                if isinstance(entry, dict)
+            ]
+            # The server buckets one id-ordered page by type; restore that order.
+            entries.sort(key=lambda entry: str(entry.get("id", "")))
+            total = data.get("total")
+            total_by_type = data.get("totalByType")
+            total_by_type = total_by_type if isinstance(total_by_type, dict) else {}
+            if isinstance(type, NotGiven):
+                matching = total if isinstance(total, int) else None
+            else:
+                matching = total_by_type.get(type, 0)
+            return ReferencesPage(
+                data=[construct_bulletin(e) for e in entries if e.get("missing") is not True],
+                missing=[str(e.get("id")) for e in entries if e.get("missing") is True],
+                total=total if isinstance(total, int) else None,
+                total_by_type=total_by_type,
+                offset=offset,
+                limit=limit,
+                entries=len(entries),
+                matching=matching,
+                fetch=_fetch,
+            )
+
+        return self._request(_REFERENCES_SPEC, cast=_build, body=params, timeout=timeout)
 
     def history(
         self,

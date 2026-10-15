@@ -80,6 +80,27 @@ result window and walks further pages when you iterate it.
       heading_level: 3
       show_root_heading: true
 
+`documents.list_references` returns a `ReferencesPage` (async: `AsyncReferencesPage`): one page
+of the bulletins related to a given one. The relation has no result window, so iterating the
+page walks it to the end. Related ids whose document no longer exists are listed in `missing`.
+
+```python
+page = client.documents.list_references("CVE-2021-44228", type="exploitdb", limit=100)
+print(page.total, page.total_by_type)  # the whole relation, whatever the type filter
+for bulletin in page:  # fetches the following pages as needed
+    print(bulletin.id)
+```
+
+::: vulners._pagination.ReferencesPage
+    options:
+      heading_level: 3
+      show_root_heading: true
+
+::: vulners._pagination.AsyncReferencesPage
+    options:
+      heading_level: 3
+      show_root_heading: true
+
 ## Client configuration
 
 The resolved, immutable configuration for a client instance is available as `client.config`.

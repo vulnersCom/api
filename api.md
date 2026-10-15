@@ -39,6 +39,7 @@ Fetch Vulners documents (bulletins) by id.
 | `get(id: str, *, references: bool = False, fields: Sequence[str] \| NotGiven = NOT_GIVEN, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `Bulletin \| None` | - | Fetch a single document by id, or ``None`` if it does not exist |
 | `get_many(ids: Sequence[str], *, references: bool = False, fields: Sequence[str] \| NotGiven = NOT_GIVEN, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `dict[str, Bulletin]` | - | Fetch several documents by id, keyed by id |
 | `references(id: str, *, fields: Sequence[str] \| NotGiven = NOT_GIVEN, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `dict[str, list[Bulletin]]` | - | Fetch the documents a bulletin references, grouped by source type |
+| `list_references(id: str, *, type: str \| NotGiven = NOT_GIVEN, limit: int = 20, offset: int = 0, fields: Sequence[str] \| NotGiven = NOT_GIVEN, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `ReferencesPage[Bulletin]` | - | Page through every bulletin related to ``id`` through a shared CVE |
 | `history(id: str, *, timeout: float \| httpx.Timeout \| NotGiven = NOT_GIVEN)` | `list[dict[str, Any]]` | - | Read the per-field edition history of a bulletin |
 
 ## `client.audit`

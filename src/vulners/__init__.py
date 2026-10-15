@@ -67,7 +67,9 @@ if TYPE_CHECKING:
     from ._models._nested import *  # noqa: F403
     from ._models.audit import PackageMetadata as PackageMetadata
     from ._models.bulletins import *  # noqa: F403
+    from ._pagination import AsyncReferencesPage as AsyncReferencesPage
     from ._pagination import AsyncSearchPage as AsyncSearchPage
+    from ._pagination import ReferencesPage as ReferencesPage
     from ._pagination import SearchPage as SearchPage
     from ._response import APIResponse as APIResponse
     from ._response import AsyncStreamedAPIResponse as AsyncStreamedAPIResponse
@@ -106,6 +108,8 @@ _LAZY_ATTRS = {
     # v4 response models + nested value objects resolve via the __getattr__ fallback.
     "SearchPage": "._pagination",
     "AsyncSearchPage": "._pagination",
+    "ReferencesPage": "._pagination",
+    "AsyncReferencesPage": "._pagination",
     "APIResponse": "._response",
     "StreamedAPIResponse": "._response",
     "AsyncStreamedAPIResponse": "._response",
@@ -143,6 +147,8 @@ __all__ = [  # noqa: RUF022
     # v4 return / input types (for annotations)
     "SearchPage",
     "AsyncSearchPage",
+    "ReferencesPage",
+    "AsyncReferencesPage",
     "APIResponse",
     "StreamedAPIResponse",
     "AsyncStreamedAPIResponse",

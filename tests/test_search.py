@@ -58,3 +58,16 @@ class TestOffsetGuard:
             api.search.search_bulletins("type:synthetic", limit=20, offset=-1)
         assert excinfo.type.__name__ == "ValidationError"
         assert server.requests == []
+
+
+class TestPartialReferences:
+    """search/id answers 206 when a references list is cut at 1000 documents.
+
+    The body has the same shape as a 200, so the legacy client must return it
+    instead of raising.
+    """
+
+    def test_206_is_success(self, api, server):
+        refs = {"CVE-2099-0001": {"nessus": [{"id": "NESSUS-1"}]}}
+        server.enqueue_envelope({"documents": {}, "references": refs}, status_code=206)
+        assert api.search.get_bulletin_references("CVE-2099-0001") == refs["CVE-2099-0001"]

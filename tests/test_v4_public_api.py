@@ -43,12 +43,21 @@ class TestV4Importable:
 
     def test_public_types_reexported(self):
         # Annotation-worthy return/input types are reachable from the root, lazily.
-        from vulners import AsyncSearchPage, Bulletin, Cvss, SearchPage
+        from vulners import (
+            AsyncReferencesPage,
+            AsyncSearchPage,
+            Bulletin,
+            Cvss,
+            ReferencesPage,
+            SearchPage,
+        )
 
         assert Bulletin.__name__ == "Bulletin"  # a …Bulletin name -> bulletins package
         assert Cvss.__name__ == "Cvss"  # a nested value object -> _nested
         assert SearchPage.__name__ == "SearchPage"
         assert AsyncSearchPage.__name__ == "AsyncSearchPage"
+        assert ReferencesPage.__name__ == "ReferencesPage"
+        assert AsyncReferencesPage.__name__ == "AsyncReferencesPage"
         # Same object as the private module's (lazy re-export identity).
         from vulners._models.bulletin import Bulletin as PrivateBulletin
         from vulners._pagination import SearchPage as PrivateSearchPage

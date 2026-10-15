@@ -6,6 +6,10 @@ iteration transparently fetches subsequent pages and stops at the Elasticsearch
 result window (10 000 documents); asking for a page *past* the window raises
 :class:`SearchWindowExceeded`.
 
+:class:`ReferencesPage` / :class:`AsyncReferencesPage` — one page of the bulletins
+related to a given one. The relation has no result window, so iteration walks it
+to the end.
+
 Sync and async variants are hand-written here (rather than unasyncd-generated):
 the two differ only in whether ``next_page``/iteration is awaited, and each holds
 a differently typed fetch callback, so a mechanical async->sync transform would
@@ -27,6 +31,8 @@ SEARCH_WINDOW = 10000
 
 SyncFetch = Callable[[int, int], "SearchPage[T]"]
 AsyncFetch = Callable[[int, int], Awaitable["AsyncSearchPage[T]"]]
+SyncReferencesFetch = Callable[[int, int], "ReferencesPage[T]"]
+AsyncReferencesFetch = Callable[[int, int], Awaitable["AsyncReferencesPage[T]"]]
 
 
 def _short_page(count: int, limit: int, offset: int, total: int | None) -> bool:
@@ -172,8 +178,139 @@ class AsyncSearchPage(Generic[T]):
         )
 
 
+# ---------------------------------------------------------------------------
+# Reference pages (no result window)
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class ReferencesPage(Generic[T]):
+    """One page of the bulletins related to a given bulletin.
+
+    ``data`` holds the related documents of this page in server order (by id,
+    ascending, across all types). A related id whose document no longer exists
+    still occupies its position in the relation; it is listed in ``missing``
+    instead of ``data``, so a page can hold fewer documents than ``limit`` and
+    still not be the last one.
+    """
+
+    data: list[T] = field(default_factory=list)
+    missing: list[str] = field(default_factory=list)
+    total: int | None = None
+    total_by_type: dict[str, int] = field(default_factory=dict)
+    offset: int = 0
+    limit: int = 0
+    entries: int = 0
+    matching: int | None = None
+    fetch: SyncReferencesFetch[T] | None = None
+
+    def has_next_page(self) -> bool:
+        """Report whether another page can be fetched.
+
+        Returns:
+            ``True`` when the relation (narrowed to the requested ``type``, if
+            any) continues past this page; ``False`` otherwise, including when
+            this page has no fetch callback.
+        """
+        if self.fetch is None:
+            return False
+        return not _short_page(self.entries, self.limit, self.offset, self.matching)
+
+    def next_page(self) -> ReferencesPage[T]:
+        """Fetch the page after this one.
+
+        Returns:
+            The next :class:`ReferencesPage`, positioned ``limit`` entries
+            further into the relation.
+        """
+        if self.fetch is None:
+            raise RuntimeError("this page was not built with a fetch callback")
+        return self.fetch(self.offset + self.limit, self.limit)
+
+    def __iter__(self) -> Iterator[T]:
+        page: ReferencesPage[T] = self
+        while True:
+            yield from page.data
+            if not page.has_next_page():
+                return
+            page = page.next_page()
+
+    def __len__(self) -> int:
+        return len(self.data)
+
+    def __getitem__(self, index: int) -> T:
+        return self.data[index]
+
+    def __repr__(self) -> str:
+        return (
+            f"ReferencesPage(total={self.total}, count={len(self.data)}, "
+            f"missing={len(self.missing)}, offset={self.offset})"
+        )
+
+
+@dataclass
+class AsyncReferencesPage(Generic[T]):
+    """Async counterpart of :class:`ReferencesPage`."""
+
+    data: list[T] = field(default_factory=list)
+    missing: list[str] = field(default_factory=list)
+    total: int | None = None
+    total_by_type: dict[str, int] = field(default_factory=dict)
+    offset: int = 0
+    limit: int = 0
+    entries: int = 0
+    matching: int | None = None
+    fetch: AsyncReferencesFetch[T] | None = None
+
+    def has_next_page(self) -> bool:
+        """Report whether another page can be fetched.
+
+        Returns:
+            ``True`` when the relation (narrowed to the requested ``type``, if
+            any) continues past this page; ``False`` otherwise, including when
+            this page has no fetch callback.
+        """
+        if self.fetch is None:
+            return False
+        return not _short_page(self.entries, self.limit, self.offset, self.matching)
+
+    async def next_page(self) -> AsyncReferencesPage[T]:
+        """Fetch the page after this one.
+
+        Returns:
+            The next :class:`AsyncReferencesPage`, positioned ``limit`` entries
+            further into the relation.
+        """
+        if self.fetch is None:
+            raise RuntimeError("this page was not built with a fetch callback")
+        return await self.fetch(self.offset + self.limit, self.limit)
+
+    async def __aiter__(self) -> AsyncIterator[T]:
+        page: AsyncReferencesPage[T] = self
+        while True:
+            for row in page.data:
+                yield row
+            if not page.has_next_page():
+                return
+            page = await page.next_page()
+
+    def __len__(self) -> int:
+        return len(self.data)
+
+    def __getitem__(self, index: int) -> T:
+        return self.data[index]
+
+    def __repr__(self) -> str:
+        return (
+            f"AsyncReferencesPage(total={self.total}, count={len(self.data)}, "
+            f"missing={len(self.missing)}, offset={self.offset})"
+        )
+
+
 __all__ = [
     "SEARCH_WINDOW",
+    "AsyncReferencesPage",
     "AsyncSearchPage",
+    "ReferencesPage",
     "SearchPage",
 ]

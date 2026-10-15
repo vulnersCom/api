@@ -133,6 +133,9 @@ dev = [
 # --locked` in CI has no machine-global cutoff, so without this the lock would
 # be seen as stale). Dev/build tooling only — end users are unaffected.
 exclude-newer = "2026-08-14T00:00:00Z"
+# Security fixes released after the cutoff, lifted individually so the rest of the
+# lock stays put.
+exclude-newer-package = { pyjwt = "2026-10-01T00:00:00Z", urllib3 = "2026-10-01T00:00:00Z" }
 
 # anyio 4.14.x has a broken Path.parent (passes an unsupported limiter= kwarg) that
 # crashes unasyncd's write path (make unasync). Cap below it until a fixed release

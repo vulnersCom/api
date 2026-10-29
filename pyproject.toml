@@ -53,8 +53,10 @@ dependencies = [
     # (an extra would be opt-in and never help the default `pip install vulners`).
     # Both ship cp310–cp314 wheels, so `pip install vulners` never builds from source.
     # Upper-capped at the next major so a wheel/ABI-breaking release can't be
-    # pulled in silently; bump the cap deliberately when validated.
-    "brotli>=1.2,<2",
+    # pulled in silently; bump the cap deliberately when validated. The floor is at
+    # 1.2.1 because 1.2.0 carries an out-of-bounds write in the Brotli decoder, and
+    # the decoder runs on every response a server answers with `Content-Encoding: br`.
+    "brotli>=1.2.1,<2",
     "zstandard>=0.25,<1",
     # ISA-L accelerated gzip inflate on the multi-GB archive hot path (drop-in
     # zlib/gzip replacement). Ships cp310–cp314 wheels.
@@ -113,14 +115,15 @@ docs = [
     "mkdocstrings[python]>=1.0.4",
     "mkdocs-llmstxt>=0.5.0",
 ]
-# Code generation (unasyncd -> msgspec 0.18.6). Isolated from the default `dev`
-# sync so a plain `uv sync` never pulls msgspec, and never affects tests/lint/docs
-# or the runtime package. Run `make unasync` / `make unasync-check` on Python
-# <=3.12 (msgspec 0.18.6 has cp310-cp312 wheels only). Note: a newer unasyncd that
-# would allow msgspec 0.19+ (with 3.13/3.14 wheels) pins rich incompatibly with
-# the `mcp` extra (fastmcp), so the tool stays here. ruff is included because
-# unasyncd shells out to it (ruff_fix / ruff_format).
-codegen = ["unasyncd>=0.8.1", "ruff>=0.11.8"]
+# Code generation (unasyncd -> msgspec). Isolated from the default `dev` sync so a
+# plain `uv sync` never pulls msgspec, and never affects tests/lint/docs or the
+# runtime package. The 0.10.1 floor is load-bearing: older unasyncd crashes its own
+# write path on anyio >= 4.14 (see the anyio note under [tool.uv]), which would hold
+# the lock on an anyio carrying a TLS flaw. That floor pins rich>=13.6,<13.7, which
+# fastmcp cannot share — hence the declared conflict — and brings msgspec 0.21, whose
+# wheels cover 3.10-3.14, so `make unasync` is no longer limited to Python <=3.12.
+# ruff is included because unasyncd shells out to it (ruff_fix / ruff_format).
+codegen = ["unasyncd>=0.10.1", "ruff>=0.11.8"]
 dev = [
     { include-group = "test" },
     { include-group = "lint" },
@@ -133,18 +136,45 @@ dev = [
 # --locked` in CI has no machine-global cutoff, so without this the lock would
 # be seen as stale). Dev/build tooling only — end users are unaffected.
 exclude-newer = "2026-08-14T00:00:00Z"
-# Security fixes released after the cutoff, lifted individually so the rest of the
-# lock stays put.
-exclude-newer-package = { pyjwt = "2026-10-01T00:00:00Z", urllib3 = "2026-10-01T00:00:00Z" }
 
-# anyio >= 4.14 crashes unasyncd 0.8.1's write path (make unasync): anyio's Path.parent
-# rebuilds the instance as type(self)(..., limiter=...), and unasyncd's File subclass
-# rejects that kwarg -> TypeError in its `target_file.parent.mkdir()`. The fix belongs
-# to (and landed in) unasyncd, not anyio: 0.8.1 still crashes on anyio 4.15.1, while
-# unasyncd 0.10.1 transforms cleanly. So the cap lifts by bumping unasyncd, which the
-# codegen group's `>=0.8.1` already permits — the lock pins 0.8.1 only through the
-# exclude-newer cutoff above. Transitive (via httpx) and lock-only: users unaffected.
-constraint-dependencies = ["anyio<4.14"]
+# `codegen` and the `mcp` extra are never installed together — `make unasync` runs
+# --no-default-groups --group codegen, the MCP suite runs --extra mcp — and they cannot
+# be: unasyncd pins rich>=13.6,<13.7 while fastmcp needs rich>=13.9.4. Declaring the
+# conflict lets uv resolve each on its own instead of failing the whole lock.
+conflicts = [[{ group = "codegen" }, { extra = "mcp" }]]
+
+# anyio is deliberately NOT capped. A cap at <4.14 used to sit here to dodge a crash in
+# unasyncd 0.8.1's write path (anyio's Path.parent rebuilds the instance as
+# type(self)(..., limiter=...), which that unasyncd's File subclass rejected), but it
+# also held the lock on an anyio whose TLSStream encodes host names with IDNA 2003 —
+# certificate spoofing. The fix belonged to unasyncd, so the codegen floor replaces the
+# cap. Cap a transitive dependency only while no fixed consumer exists, never past a
+# security fix.
+
+# Security fixes released after the cutoff, lifted individually so the rest of the lock
+# stays put. Each entry answers an advisory against the version the cutoff would
+# otherwise hold. Keep this table last in [tool.uv]: TOML binds the bare keys above to
+# the section they follow.
+[tool.uv.exclude-newer-package]
+pyjwt = "2026-10-01T00:00:00Z"
+urllib3 = "2026-10-01T00:00:00Z"
+# Empty JWS signatures accepted on JSON deserialization; empty HMAC keys accepted at
+# verification — either lets a caller forge a signed token.
+authlib = "2026-10-29T00:00:00Z"
+# Out-of-bounds write in the decoder (see the brotli floor in [project] dependencies).
+brotli = "2026-10-29T00:00:00Z"
+# Ships emSign root CAs whose intermediate keys were compromised.
+certifi = "2026-10-29T00:00:00Z"
+# Excessive CPU in dns.name.from_wire_parser. Upstream's fix requires Python >= 3.11,
+# so the 3.10 leg of the lock stays on 2.8.0 — nothing to lift there.
+dnspython = "2026-10-29T00:00:00Z"
+fastmcp = "2026-10-29T00:00:00Z"
+fastmcp-slim = "2026-10-29T00:00:00Z"
+mcp = "2026-10-29T00:00:00Z"
+opentelemetry-api = "2026-10-29T00:00:00Z"
+# No advisory of its own: this is the release that keeps codegen working on an anyio
+# without the TLS flaw, so it is what makes dropping the anyio cap possible.
+unasyncd = "2026-10-29T00:00:00Z"
 
 [tool.unasyncd]
 # Build-time generation of the sync mirror from the async source of truth. Both

@@ -21,10 +21,38 @@ the commit log. Only the v3 series is covered in detail.
   The unused plugin is no longer loaded (`-p no:anyio`), and the fixture loop scope is now set
   explicitly to `function` — pytest-asyncio's announced future default, and already the scope of
   the suite's only async fixture. The warnings-as-errors gate itself is unchanged.
-- The `anyio<4.14` development constraint keeps its effect but now records the actual cause and
-  exit condition: anyio's `Path.parent` rebuilds the instance as `type(self)(..., limiter=...)`,
-  which unasyncd 0.8.1's `File` subclass rejects, so the fix belongs to unasyncd (0.8.1 still
-  crashes on anyio 4.15.1; 0.10.1 transforms cleanly) rather than to a future anyio release.
+- The `anyio<4.14` development constraint is gone, replaced by a `unasyncd>=0.10.1` floor in the
+  `codegen` group. The constraint existed because anyio's `Path.parent` rebuilds the instance as
+  `type(self)(..., limiter=...)`, which unasyncd 0.8.1's `File` subclass rejects — so the fix
+  belonged to unasyncd, not to a future anyio release (0.8.1 still crashes on anyio 4.15.1, while
+  0.10.1 regenerates all 15 mirrored files cleanly). That floor pulls `rich>=13.6,<13.7`, which
+  fastmcp cannot share, so `codegen` and the `mcp` extra are now declared conflicting — they are
+  never installed together — and uv resolves each on its own. It also brings msgspec 0.21, whose
+  wheels cover 3.10–3.14, retiring the old "run `make unasync` on Python <=3.12" restriction.
+
+### Security
+
+- Moved the locked dependency set off every release that carried an open advisory. Dependabot had
+  not landed any of them: its uv update jobs fail on this repository (its github-actions jobs do
+  not), and under the reproducibility cutoff in `[tool.uv]` no upgrade of these packages resolves
+  to the patched release anyway, so there was no bump for it to open. Each package is lifted
+  individually, as that cutoff's convention prescribes.
+  - `brotli` 1.2.0 → 1.2.1: out-of-bounds write in the Brotli decoder, which this SDK runs on
+    every response a server answers with `Content-Encoding: br`. The declared floor moved with it
+    (`brotli>=1.2.1`), so a fresh install can no longer resolve the vulnerable release either.
+  - `certifi` 2026.7.22 → 2026.10.23: the older bundle ships emSign root CAs whose intermediate
+    CA keys were compromised.
+  - `anyio` 4.13.0 → 4.14.2: `TLSStream` encoded host names with IDNA 2003, enabling certificate
+    spoofing. See the constraint removal above for why the lock had been held below the fix.
+  - `authlib` 1.7.2 → 1.9.1: empty JWS signatures accepted on JSON deserialization, and empty
+    HMAC keys accepted at verification — either one allows signature forgery.
+  - `mcp` 1.29.0 → 1.30.0, `fastmcp` 3.4.7 → 3.4.11, `opentelemetry-api` 1.44.0 → 1.45.1.
+  - `dnspython` 2.8.0 → 2.9.0 (excessive CPU in `dns.name.from_wire_parser`) on Python 3.11+
+    only; upstream's fix requires 3.11, so the 3.10 leg of the lock stays on 2.8.0.
+- The lock governs this repo's CI and anyone running `uv sync --locked` from a checkout. Installing
+  the published package resolves these transitively from PyPI, so end users already picked the
+  patched releases up — except for `brotli`, whose declared floor admitted the vulnerable version
+  until now and is the one piece of published metadata this changes.
 
 ## [4.4.0] - 2026-10-15
 

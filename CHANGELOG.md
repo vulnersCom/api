@@ -11,6 +11,8 @@ the commit log. Only the v3 series is covered in detail.
 
 ## [Unreleased]
 
+## [4.5.0] - 2026-10-29
+
 ### Changed
 
 - The `mcp` extra accepts fastmcp 4 (`fastmcp>=2.0,<5`) and the lock moves to 4.1.4, over the
@@ -50,6 +52,11 @@ the commit log. Only the v3 series is covered in detail.
   and pytest-codspeed at once, and silently settles on pytest-codspeed 2.2.1 — three majors back,
   dragging in `filelock`, which currently has a cluster of open advisories with no fixed release.
   With the conflict declared, the benchmark tooling stays at 5.0.3 and filelock leaves the tree.
+- The uv toolchain is current too: the `uv_build` band moves to `>=0.13.1,<0.14` (it has to
+  contain every uv that builds the project, or uv warns that the running version falls outside
+  it) and the uv that CI installs through setup-uv moves from 0.11.30 to 0.13.6. Both were
+  verified against the refreshed lock — 0.11.30, 0.13.1 and 0.13.6 all read it and
+  `sync --locked` succeeds — so the lock's bumped revision does not strand an older uv.
 - Pinned GitHub Actions are at their newest releases: `actions/checkout` v4.3.1 → v7.0.1, which
   clears the last Node 20 deprecation warning from every job, and `astral-sh/setup-uv` → v10.3.3.
   checkout v7 also refuses to check out a fork PR under `pull_request_target` / `workflow_run`;

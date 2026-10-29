@@ -14,6 +14,26 @@ builds (the build backend is `uv_build`).
 uv sync            # create the venv and install the project + dev tools
 ```
 
+Three environments are kept apart on purpose, because their dependencies cannot
+coexist: the default one above, the `codegen` group that runs unasyncd, and the
+`mcp` extra. unasyncd pins `rich>=13.6,<13.7`, which neither fastmcp nor
+pytest-codspeed can live with, so `pyproject.toml` declares those pairs as
+conflicting and `uv sync --all-groups --all-extras` fails by design — that is not a
+broken checkout. The Makefile selects the right environment per target, so prefer
+`make unasync` / `make cov-mcp` over hand-rolled `uv run` invocations.
+
+## Dependencies and the lockfile
+
+`uv.lock` is committed and CI installs from it with `uv sync --locked`, so any
+dependency change has to land in the lock. Resolution is pinned in time as well, by
+`[tool.uv] exclude-newer`: the lock resolves identically on every machine, and a
+release published after that date is not picked up until the date moves. Refreshing
+dependencies means `uv lock --upgrade` together with moving that cutoff to midnight
+UTC of the day you do it, which leaves a day between a release and this tree — long
+enough that a hijacked upload is usually caught and yanked first. To take a single
+security fix without a wholesale refresh, add a `[tool.uv.exclude-newer-package]`
+entry naming the advisory it answers instead of moving the global cutoff.
+
 ## Everyday commands
 
 ```bash

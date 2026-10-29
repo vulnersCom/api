@@ -1,6 +1,6 @@
 [project]
 name = "vulners"
-version = "4.4.0"
+version = "4.5.0"
 description = "Python SDK for the Vulners vulnerability intelligence API (https://vulners.com)"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -233,9 +233,11 @@ aclose = "close"
 AsyncAPIClient = "vulners._transport_client_sync.SyncAPIClient"
 
 [build-system]
-# uv_build backend (src-layout auto-detected: src/vulners). Floor aligned to the
-# locally installed uv (0.11.29).
-requires = ["uv_build>=0.11.29,<0.12"]
+# uv_build backend (src-layout auto-detected: src/vulners). The band has to contain
+# every uv that builds this project — uv warns when the running version falls outside
+# it — so the floor tracks the oldest uv in play (a developer's 0.13.1) and the cap is
+# the next minor, which also covers the version CI pins for setup-uv.
+requires = ["uv_build>=0.13.1,<0.14"]
 build-backend = "uv_build"
 
 [tool.ruff]

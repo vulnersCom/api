@@ -134,6 +134,16 @@ make check             # lint + typecheck + unasync-check + test
 `uv run pytest tests/<file>` runs a single module; `make test-fast` runs
 serially for easier debugging.
 
+Two environment facts that bite if you improvise commands. First, the `codegen`
+group (unasyncd) conflicts with both the `mcp` extra and the `test` group — it
+pins `rich>=13.6,<13.7`, which fastmcp and pytest-codspeed cannot share — and
+`pyproject.toml` declares that, so `uv sync --all-groups --all-extras` fails by
+design; use the Makefile target, which picks the right isolated environment.
+Second, `[tool.uv] exclude-newer` pins resolution to a fixed date, so a brand-new
+release is deliberately not locked until that date moves: refresh with
+`uv lock --upgrade` plus a new cutoff, or add a `[tool.uv.exclude-newer-package]`
+entry (naming the advisory) to pull a single security fix past it.
+
 ## Testing expectations
 
 Tests live in `tests/`:

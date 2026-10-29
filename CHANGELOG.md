@@ -11,8 +11,49 @@ the commit log. Only the v3 series is covered in detail.
 
 ## [Unreleased]
 
+### Changed
+
+- The `mcp` extra accepts fastmcp 4 (`fastmcp>=2.0,<5`) and the lock moves to 4.1.4, over the
+  official `mcp` 2.3.0 SDK. Note what that pulls in: fastmcp now rides on `httpx2` — the
+  httpx 2.x line, published under that name by Pydantic — so `pip install vulners[mcp]` ends up
+  with two HTTP stacks, fastmcp's httpx2 next to the httpx 0.28 this SDK uses itself. The MCP
+  server's own surface is unchanged, and `vulners` without the extra is untouched.
+
+### Fixed
+
+- The 100% branch-coverage gate no longer fails at random. The "a sibling range failed, skip
+  queued work" branch in `_ranges_async` was reached only when the event loop happened to
+  interleave the real transport's I/O a particular way: it missed in roughly half of local runs
+  — on the previous dependency set too — which made `make cov` and the CI coverage job a coin
+  flip. A new test drives that path through a stubbed fetch that yields exactly once, so a
+  single connection slot makes the skip the scheduler's only possible outcome.
+
 ### Internal
 
+- Every locked dependency is at its newest release: 63 upgraded, 6 added, 14 removed. The
+  reproducibility cutoff moved with them, and now sits at midnight UTC of the refresh day
+  rather than a date months back — still a fixed point, so the lock resolves identically
+  everywhere, but it leaves a one-day quarantine instead of admitting a release the hour it
+  appears. Notable majors: mypy 2.4.1, pytest 9.2.0, ruff 0.17.3, msgspec 0.22, rich 15,
+  python-dateutil 3, pymdown-extensions 12 — all green with no source changes.
+- Supply-chain review of the refreshed tree, since a bulk upgrade is where a hijacked release
+  would arrive: every artifact resolves from pypi.org and is pinned by sha256; OSV reports no
+  advisory against any locked version except dnspython on the Python 3.10 leg (noted above);
+  and each newly added package was checked by hand rather than by name. Worth recording because
+  three of them look like typosquats and are not: `httpx2` and `httpcore2` are the httpx 2.x
+  line (authored by httpx's own author, maintained by Pydantic at github.com/pydantic/httpx2),
+  and `httpx2-jsfetch` is its Pyodide transport, which the lock marks
+  `sys_platform == 'emscripten'` and therefore never installs here. `mcp-types` carries the
+  same maintainers as `mcp`, `truststore` is Seth Larson's, `tzdata` is the Python org's.
+- `codegen` is now declared conflicting with the `test` group as well as the `mcp` extra.
+  Without that second pair the universal resolution has to satisfy unasyncd's `rich>=13.6,<13.7`
+  and pytest-codspeed at once, and silently settles on pytest-codspeed 2.2.1 — three majors back,
+  dragging in `filelock`, which currently has a cluster of open advisories with no fixed release.
+  With the conflict declared, the benchmark tooling stays at 5.0.3 and filelock leaves the tree.
+- Pinned GitHub Actions are at their newest releases: `actions/checkout` v4.3.1 → v7.0.1, which
+  clears the last Node 20 deprecation warning from every job, and `astral-sh/setup-uv` → v10.3.3.
+  checkout v7 also refuses to check out a fork PR under `pull_request_target` / `workflow_run`;
+  no workflow here uses either trigger.
 - The nightly pre-release dependency probe is green again. Two newer test-tool releases
   tripped the warnings-as-errors gate before a single test ran: the anyio pytest plugin —
   auto-loaded only because anyio is a transitive httpx dependency, and unused here, as async

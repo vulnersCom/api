@@ -7,6 +7,7 @@ helpers — sync and async, against an ``httpx.MockTransport`` so nothing hits t
 
 from __future__ import annotations
 
+import asyncio
 import os
 import threading
 
@@ -355,6 +356,29 @@ class TestAtomicity:
             with pytest.raises(APIConnectionError):
                 await client.archive.download_getsploit(dest, connections=2)
         assert dest.read_bytes() == b"OLD"
+        assert not list(tmp_path.glob(".vulners-dl-*"))
+
+    async def test_async_queued_range_skips_after_sibling_failure(self, tmp_path, monkeypatch):
+        # A range still waiting for a slot when a sibling fails must drop its fetch rather
+        # than issue a request the caller is billed for. The test above reaches this through
+        # the real transport, where whether a queued range observes the abort before it is
+        # set depends on how the loop interleaves socket I/O. Here the fetch is a stub that
+        # yields exactly once, so a single slot serializes the ranges and the skip is the
+        # scheduler's only possible outcome: range 0 fails, range 8 is already past the
+        # check, and everything behind it sees the abort.
+        monkeypatch.setattr(dl, "_CHUNK", 8)
+        attempted: list[int] = []
+
+        async def fake_fetch(client, url, start, end, fd, lock, timeout):
+            attempted.append(start)
+            await asyncio.sleep(0)
+            if start == 0:
+                raise httpx.ConnectError("down")
+
+        monkeypatch.setattr(dl, "_fetch_range_async", fake_fetch)
+        with pytest.raises(httpx.ConnectError):
+            await dl._ranges_async(None, GCS, str(tmp_path / "out"), 40, 1, httpx.Timeout(5.0))
+        assert attempted == [0, 8], "ranges 16/24/32 must never leave the queue"
         assert not list(tmp_path.glob(".vulners-dl-*"))
 
 

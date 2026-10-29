@@ -112,6 +112,8 @@ class CisaKevBulletin(InfoBulletin):
     """Binary/media attachments associated with the document."""
     due_date: str | None = Field(default=None, alias="dueDate")
     """Remediation due date (e.g. CISA KEV required-action deadline)."""
+    forensic_triage: str | None = Field(default=None, alias="forensicTriage")
+    """Forensic-triage marker, as a string ('Yes'/'No', per CISA KEV) — not a boolean. 'Yes' means the catalog entry also carries CISA's Forensics Triage Requirements, i.e. checking whether the flaw was already exploited, on top of patching it."""
     known_ransomware_campaign_use: str | None = Field(
         default=None, alias="knownRansomwareCampaignUse"
     )
@@ -308,12 +310,29 @@ class RdotBulletin(InfoBulletin):
     """w3af scanner provenance (plugin type)."""
 
 
+class RedhatBulletin(InfoBulletin):
+    """`type: redhat` — Red Hat's vulnerability database provides advisories and CVEs related to Red Hat products and Linux distributions, focusing on security updates and patches."""
+
+    affected_libraries: list | None = Field(default=None, alias="affectedLibraries")
+    """Affected libraries/packages (name, purl, version range)."""
+    affected_package: list | None = Field(default=None, alias="affectedPackage")
+    """Affected OS/distribution packages (name, version, OS, arch)."""
+    attachments: Any = None
+    """Binary/media attachments associated with the document."""
+    cpe_configurations: Any = Field(default=None, alias="cpeConfigurations")
+    """CPE applicability configurations (NVD-style match tree)."""
+    cwe: list[str] | None = None
+    """Associated CWE weakness identifiers."""
+    relates_to: str | None = Field(default=None, alias="relatesTo")
+    """Identifier this document relates to."""
+
+
 class RedhatcveBulletin(InfoBulletin):
     """`type: redhatcve` — Red Hat CVE collection provides advisories and CVE entries specifically for Red Hat products and operating systems."""
 
     attachments: Any = None
     """Binary/media attachments associated with the document."""
-    cwe: list[str] | None = None
+    cwe: Any = None
     """Associated CWE weakness identifiers."""
     source_affected_data: Any = Field(default=None, alias="sourceAffectedData")
     """Affected-product data in the source's own shape."""
@@ -395,9 +414,9 @@ class VulncheckKevBulletin(InfoBulletin):
     """Binary/media attachments associated with the document."""
     cpe_configurations: Any = Field(default=None, alias="cpeConfigurations")
     """CPE applicability configurations (NVD-style match tree)."""
-    cvss_score: float | None = Field(default=None, alias="cvssScore")
+    cvss_score: Any = Field(default=None, alias="cvssScore")
     """Flat numeric CVSS base score, when only a scalar is provided."""
-    source: str | None = None
+    source: Any = None
     """Source name/identifier for the record."""
     wild_exploited: bool | None = Field(default=None, alias="wildExploited")
     """Whether the vulnerability is exploited in the wild."""

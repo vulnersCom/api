@@ -10,7 +10,7 @@ Present in every `cnvd` document, beyond the [common base](base.md).
 |---|---|---|---|
 | `affectedSoftware` | `Any` | Affected software products (name/version/operator). |  |
 | `attachments` | `Any` | Binary/media attachments associated with the document. |  |
-| `cpeConfigurations` | `Any` | CPE applicability configurations (NVD-style match tree). | `{"_index": true, "vulnersCpeConfiguration": […` |
+| `cpeConfigurations` | `Any` | CPE applicability configurations (NVD-style match tree). |  |
 | `vendorCVSS` | `Any` | Vendor-assigned CVSS, as a raw string. |  |
 
 ## Collections

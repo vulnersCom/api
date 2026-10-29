@@ -14,7 +14,7 @@ Present in every `ncsc` document, beyond the [common base](base.md).
 
 ## Collections
 
-### `ncsc` · ~4.2k documents → `NcscCollectionBulletin`
+### `ncsc` · ~4.4k documents → `NcscCollectionBulletin`
 
 The NCSC collection includes UK government advisories and alerts on cybersecurity vulnerabilities across various vendors and products, featuring CVEs and mitigation guidance.
 

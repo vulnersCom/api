@@ -8,11 +8,12 @@ Present in every `tools` document, beyond the [common base](base.md).
 
 | field | type | description | example |
 |---|---|---|---|
-| `toolHref` | `str | None` | Link to the associated tool/exploit. | `"https://github.com/nullfuzz-pentest/shodan-d…` |
+| `attachments` | `Any` | Binary/media attachments associated with the document. |  |
+| `toolHref` | `str | None` | Link to the associated tool/exploit. | `"https://gitlab.com/fengguan/arpcut"` |
 
 ## Collections
 
-### `kitploit` · ~6k documents → `KitploitBulletin`
+### `kitploit` · ~47k documents → `KitploitBulletin`
 
 Kitploit is a security database focused on exploits and tools, primarily for penetration testing and ethical hacking, sourced from various contributors.
 
@@ -26,7 +27,6 @@ n0where is a vulnerability database focusing on advisories and CVEs related to v
 |---|---|---|---|
 | `affectedSoftware` | `Any` | Affected software products (name/version/operator). |  |
 | `appercut` | `Any` | AppercutScanner tool provenance (report pages). |  |
-| `attachments` | `Any` | Binary/media attachments associated with the document. |  |
 | `exploitpack` | `Any` | ExploitPack tool provenance (platform, type). |  |
 | `hackapp` | `Any` | HackApp mobile-app scan provenance. |  |
 | `sourceData` | `Any` | Raw, unparsed source body as delivered by the origin. |  |

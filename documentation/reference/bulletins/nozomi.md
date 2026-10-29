@@ -8,13 +8,13 @@ Present in every `nozomi` document, beyond the [common base](base.md).
 
 | field | type | description | example |
 |---|---|---|---|
-| `affectedSoftware` | `list | None` | Affected software products (name/version/operator). | `[{"version": "< v26.2.0", "name": "guardian"}…` |
+| `affectedSoftware` | `list | None` | Affected software products (name/version/operator). | `[{"version": "< v26.3.0", "name": "guardian"}…` |
 | `attachments` | `Any` | Binary/media attachments associated with the document. |  |
 | `cpeConfigurations` | `Any` | CPE applicability configurations (NVD-style match tree). | `{"_index": true, "vulnersCpeConfiguration": […` |
 
 ## Collections
 
-### `nozomi` · ~59 documents → `NozomiCollectionBulletin`
+### `nozomi` · ~66 documents → `NozomiCollectionBulletin`
 
 Nozomi Networks provides advisories and CVEs related to cybersecurity vulnerabilities in industrial control systems and critical infrastructure.
 

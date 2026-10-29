@@ -11,6 +11,33 @@ the commit log. Only the v3 series is covered in detail.
 
 ## [Unreleased]
 
+### Added
+
+- The bulletin data model is resampled against the live API: **293 collections across 19
+  families**, up from 238 across 18. Newly modelled and documented sources include `rapid7`
+  (~420k documents), `mend`, `kittysploit`, `acronis`, and a new `cvd` family for
+  coordinated-disclosure records, which credits the finding to a `researcher` and the
+  `harness` that found it and can pin the `introducedYear` of the flaw. Eighteen newly served
+  fields gained descriptions, among them CISA KEV's `forensicTriage` and Rapid7's exploitation
+  flags (`exploitedInWild`, `hasPoc`, `hasMetasploitModule`, `msfModuleCount`, …).
+
+### Changed
+
+- Vulners split its single `osv` collection into ~50 per-source ones (`osv_ghsa`, `osv_debian`,
+  `osv_ubuntu`, `osv_pysec`, `osv_rustsec`, `osv_mal`, …). `type:osv` matches nothing
+  server-side now, and `OsvBulletin` is gone from the generated models in favour of one class
+  per OSV source. No public symbol changes: these per-collection classes live in the private
+  `_models` package and are selected for you while a payload is parsed, with the family model
+  and then `GenericBulletin` as fallbacks.
+
+### Documentation
+
+- `dev-tools/README.md` described a model layout that no longer exists — a lazy factory reading
+  a generated `_collections_data.py`, with hand-written base and family models. It now matches
+  the generator that replaced it, where every layer of the `base → family → type` hierarchy is
+  emitted as real classes and only the selection runtime and the field descriptions are
+  hand-written.
+
 ## [4.5.0] - 2026-10-29
 
 ### Changed

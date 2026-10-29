@@ -7,19 +7,23 @@ an API key.
 ## `data-models/` — bulletin data-model sampler & codegen
 
 Keeps the bulletin models (`src/vulners/_models/`) and their reference docs in
-sync with the collections Vulners actually serves. The model hierarchy is
-**base → family → type**:
+sync with the collections Vulners actually serves. The hierarchy is
+**base → family → type**, and all three layers are generated:
 
-- `Bulletin` — fields common to every document (hand-written, `bulletin.py`).
-- family models (`CveBulletin`, …) — one per `bulletinFamily` (hand-written).
-- per-collection models — one per collection `type`, built lazily by the factory
-  in `collections.py` from generated data in `_collections_data.py`. No wall of
-  238 hand-written classes; adding a collection is a one-line data change.
+- `Bulletin` — the fields every document carries (`_models/bulletins/base.py`).
+- family models (`CveBulletin`, …) — one per `bulletinFamily`, a module each
+  (`_models/bulletins/<family>Bulletins.py`).
+- per-collection models — one per collection `type`, inside its family's module.
+  `FAMILY_MODELS` / `TYPE_MODELS` in `_models/bulletins/__init__.py` resolve a
+  payload to its most specific class — 293 collections across 19 families as of
+  the last refresh.
 
-Every field's human description lives once in
-`src/vulners/_models/_field_descriptions.py` and flows to the models (attribute
-docstrings → IDE hover on the hand-written models; `Field(description=…)` on the
-factory-built ones) and to the docs.
+Nothing in that hierarchy is hand-written, so a new collection or field is a re-run
+rather than an edit. What *is* hand-written sits beside it: `_models/bulletin.py`,
+the runtime that picks and builds the most specific class (type → family →
+`GenericBulletin`), and `_models/_field_descriptions.py`, where every field's human
+description lives once and flows to both the models (attribute docstrings → IDE
+hover) and the docs.
 
 ### Refresh workflow (when Vulners adds collections/fields)
 
@@ -33,7 +37,7 @@ python dev-tools/data-models/sample_collections.py
 It samples every collection, then updates the repo locally (never commits/pushes):
 
 - if every collection field already has a description in `_field_descriptions.py`,
-  it regenerates `_collections_data.py` and the reference docs — done;
+  it regenerates the model hierarchy and the reference docs — done;
 - if some fields have none, it **lists them** and asks whether to stop (so you can
   author them) or proceed anyway (undescribed fields get a `TODO` placeholder you
   fill in later — grep `TODO`).
@@ -52,8 +56,10 @@ in isolation: `_sample.py` (live sampling), `_emit_models.py` (the
 
 ### What is committed vs regenerable
 
-Committed: `sample_collections.py` and its sibling modules. The baseline of what
-Vulners serves is the generated `src/vulners/_models/_collections_data.py` itself,
-so the test suite re-checks coherence offline in CI without a key. Every sampled
-JSON (`type_schemas.json`, …) is regenerable and git-ignored (see
+Committed: `sample_collections.py` and its sibling modules, plus everything they
+emit — the generated models under `src/vulners/_models/bulletins/` and the pages
+under `documentation/reference/bulletins/`. Those generated files *are* the baseline
+of what Vulners serves, which is why the test suite re-checks coherence (and
+generator idempotency) offline in CI without a key. Every sampled JSON
+(`type_schemas.json`, `collection_map.json`) is regenerable and git-ignored (see
 `data-models/.gitignore`).

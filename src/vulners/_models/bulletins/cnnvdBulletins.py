@@ -18,6 +18,8 @@ class CnnvdBulletin(Bulletin):
     """Binary/media attachments associated with the document."""
     cpe_configurations: Any = Field(default=None, alias="cpeConfigurations")
     """CPE applicability configurations (NVD-style match tree)."""
+    cwe: list[str] | None = None
+    """Associated CWE weakness identifiers."""
 
 
 class CnnvdCollectionBulletin(CnnvdBulletin):

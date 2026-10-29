@@ -150,6 +150,9 @@ FIELD_DESCRIPTIONS: dict[str, str] = {
     "wildExploitedReports": "Reports evidencing in-the-wild exploitation.",
     "knownRansomwareCampaignUse": "Ransomware-campaign-use marker, as a string "
     "('Known'/'Unknown', per CISA KEV) — not a boolean.",
+    "forensicTriage": "Forensic-triage marker, as a string ('Yes'/'No', per CISA KEV) — not a "
+    "boolean. 'Yes' means the catalog entry also carries CISA's Forensics Triage Requirements, "
+    "i.e. checking whether the flaw was already exploited, on top of patching it.",
     "impact": "Impact description/classification.",
     "impacts": "Structured impact records (CVE JSON 5.x).",
     "denialOfService": "Denial-of-service impact marker, as a string "
@@ -210,6 +213,10 @@ FIELD_DESCRIPTIONS: dict[str, str] = {
     "osvSeverity": "OSV severity entries (score, type).",
     "osvCrossReferences": "OSV cross-references to other advisories.",
     "snykData": "Snyk-specific data (exploit maturity, malicious flag).",
+    "ecosystems": "Package ecosystems the advisory applies to (npm, pypi, go, crates.io, "
+    "rubygems, alpine, debian, …).",
+    "malware": "Whether the advisory reports a malicious package itself (GitHub's 'Malware in …' "
+    "entries) rather than a vulnerability in a legitimate one.",
     # --- enrichment / provenance details ---
     "attachments": "Binary/media attachments associated with the document.",
     "immutableFields": "Fields the source marks as immutable.",
@@ -218,6 +225,31 @@ FIELD_DESCRIPTIONS: dict[str, str] = {
     "source": "Source name/identifier for the record.",
     "protected_by": "Products/controls that protect against the issue.",
     "mitre_vector": "MITRE ATT&CK vector mapping.",
+    # --- coordinated disclosure (cvd) ---
+    "harness": "Tooling credited with finding the issue in a coordinated-disclosure record "
+    "(e.g. 'Claude Code', 'VulnForge').",
+    "researcher": "Researcher or team credited with the disclosure.",
+    "introducedYear": "Year the flaw was introduced into the affected code, when the disclosure "
+    "pins it down.",
+    # --- Rapid7-specific ---
+    "cisaKev": "Whether Rapid7 marks the CVE as listed in CISA's Known Exploited "
+    "Vulnerabilities catalog.",
+    "crossReferences": "Rapid7 cross-references to other sources, each as 'SOURCE/ID' "
+    "(e.g. 'NVD/NVD', 'CWE/CWE-122').",
+    "exploitedInWild": "Whether Rapid7 records in-the-wild exploitation (its key for "
+    "wildExploited).",
+    "hasMetasploitModule": "Whether a Metasploit module exists for the issue; msfModuleCount "
+    "holds how many.",
+    "hasPoc": "Whether Rapid7 knows of a public proof-of-concept (camelCase key for has_poc).",
+    "hasRapid7VmCoverage": "Whether Rapid7's vulnerability-management products detect the issue.",
+    "isRapid7Critical": "Whether Rapid7's own rating marks the issue critical.",
+    "isZeroDay": "Whether Rapid7 recorded the issue as a zero-day.",
+    "msfModuleCount": "Number of Metasploit modules Rapid7 counts for the issue.",
+    "rapid7Epss": "Rapid7's copy of the EPSS forecast ('score' and 'percentile', both strings); "
+    "an empty object when Rapid7 holds no EPSS data for the CVE.",
+    "rapid7Severity": "Rapid7's own severity label — served empty on every document as of the "
+    "last sampling, so prefer cvss/severity.",
+    "rapid7UpdatedAt": "Date Rapid7 last updated its record, as 'YYYY-MM-DD'.",
     # --- vendor scanner/tool provenance flags ---
     "appercut": "AppercutScanner tool provenance (report pages).",
     "exploitpack": "ExploitPack tool provenance (platform, type).",

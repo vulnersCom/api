@@ -12,6 +12,8 @@ from .base import Bulletin
 class ToolsBulletin(Bulletin):
     """`bulletinFamily: tools` — adds the fields shared across this family."""
 
+    attachments: Any = None
+    """Binary/media attachments associated with the document."""
     tool_href: str | None = Field(default=None, alias="toolHref")
     """Link to the associated tool/exploit."""
 
@@ -29,8 +31,6 @@ class N0whereBulletin(ToolsBulletin):
     """Affected software products (name/version/operator)."""
     appercut: Any = None
     """AppercutScanner tool provenance (report pages)."""
-    attachments: Any = None
-    """Binary/media attachments associated with the document."""
     exploitpack: Any = None
     """ExploitPack tool provenance (platform, type)."""
     hackapp: Any = None

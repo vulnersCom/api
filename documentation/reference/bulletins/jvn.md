@@ -14,7 +14,7 @@ Present in every `jvn` document, beyond the [common base](base.md).
 
 ## Collections
 
-### `jvn` · ~5.6k documents → `JvnCollectionBulletin`
+### `jvn` · ~5.7k documents → `JvnCollectionBulletin`
 
 The JVN collection provides advisories and CVEs related to vulnerabilities in various software products and operating systems sourced from Japan's security community.
 

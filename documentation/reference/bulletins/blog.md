@@ -10,7 +10,7 @@ _No fields beyond the layers above._
 
 ## Collections
 
-### `akamaiblog` · ~2.4k documents → `AkamaiblogBulletin`
+### `akamaiblog` · ~2.5k documents → `AkamaiblogBulletin`
 
 Akamai Blog provides security advisories and insights related to Akamai's products and services, focusing on web security and performance.
 
@@ -22,9 +22,11 @@ Akamai Blog provides security advisories and insights related to Akamai's produc
 
 AnandPraka provides security advisories and CVEs focused on vulnerabilities in various software products and operating systems.
 
-_No fields beyond the layers above._
+| field | type | description | example |
+|---|---|---|---|
+| `attachments` | `Any` | Binary/media attachments associated with the document. |  |
 
-### `avleonov` · ~390 documents → `AvleonovBulletin`
+### `avleonov` · ~410 documents → `AvleonovBulletin`
 
 AVLeonov provides advisories and CVEs related to vulnerabilities in various software products, sourced from multiple vendors and security bulletins.
 
@@ -50,7 +52,6 @@ The d0znpp collection provides vendor-specific advisories and CVEs related to vu
 
 | field | type | description | example |
 |---|---|---|---|
-| `aiDescription` | `Any` | AI-generated summary of the vulnerability. |  |
 | `attachments` | `Any` | Binary/media attachments associated with the document. |  |
 
 ### `filippoio` · ~110 documents → `FilippoioBulletin`
@@ -61,7 +62,7 @@ Filippo.io provides security advisories and CVEs focused on vulnerabilities in v
 |---|---|---|---|
 | `attachments` | `Any` | Binary/media attachments associated with the document. |  |
 
-### `hackread` · ~7.5k documents → `HackreadBulletin`
+### `hackread` · ~7.7k documents → `HackreadBulletin`
 
 HackRead provides cybersecurity news and insights, focusing on vulnerabilities, exploits, and advisories related to various vendors and products.
 
@@ -69,7 +70,7 @@ HackRead provides cybersecurity news and insights, focusing on vulnerabilities, 
 |---|---|---|---|
 | `attachments` | `Any` | Binary/media attachments associated with the document. |  |
 
-### `impervablog` · ~1k documents → `ImpervablogBulletin`
+### `impervablog` · ~1.1k documents → `ImpervablogBulletin`
 
 Imperva Blog provides insights and advisories on web application security, focusing on vulnerabilities and exploits related to Imperva products.
 
@@ -81,7 +82,9 @@ Imperva Blog provides insights and advisories on web application security, focus
 
 IntotheSymmetry provides advisories and CVEs focused on vulnerabilities in various software products and systems, sourced from multiple vendors.
 
-_No fields beyond the layers above._
+| field | type | description | example |
+|---|---|---|---|
+| `attachments` | `Any` | Binary/media attachments associated with the document. |  |
 
 ### `jakearchibald` · ~120 documents → `JakearchibaldBulletin`
 
@@ -99,7 +102,7 @@ Krebs on Security provides in-depth articles and analysis on cybersecurity threa
 |---|---|---|---|
 | `attachments` | `Any` | Binary/media attachments associated with the document. |  |
 
-### `malwarebytes` · ~4.7k documents → `MalwarebytesBulletin`
+### `malwarebytes` · ~5k documents → `MalwarebytesBulletin`
 
 Malwarebytes collection includes advisories and threat intelligence related to malware and security vulnerabilities affecting various software and systems.
 
@@ -125,7 +128,7 @@ The MSRC collection includes Microsoft Security Response Center advisories and C
 | `attachments` | `Any` | Binary/media attachments associated with the document. |  |
 | `cpeConfigurations` | `Any` | CPE applicability configurations (NVD-style match tree). |  |
 
-### `mssecure` · ~1.6k documents → `MssecureBulletin`
+### `mssecure` · ~1.7k documents → `MssecureBulletin`
 
 Microsoft Security Update Guide collection featuring advisories and CVEs for Microsoft products and services across various platforms.
 
@@ -175,7 +178,7 @@ Rapid7 Community provides vulnerability advisories and CVEs focused on various s
 
 _No fields beyond the layers above._
 
-### `rhino` · ~83 documents → `RhinoBulletin`
+### `rhino` · ~84 documents → `RhinoBulletin`
 
 Rhino is a vulnerability collection from the Rhino Security Labs, focusing on advisories and CVEs related to various software products and services.
 
@@ -189,7 +192,7 @@ Ripstech provides vulnerability data focused on web application security, includ
 
 _No fields beyond the layers above._
 
-### `schneier` · ~3k documents → `SchneierBulletin`
+### `schneier` · ~3.1k documents → `SchneierBulletin`
 
 Schneier's collection provides security advisories and analyses focused on various vulnerabilities across software and systems, sourced from Bruce Schneier's insights.
 
@@ -197,7 +200,7 @@ Schneier's collection provides security advisories and analyses focused on vario
 |---|---|---|---|
 | `attachments` | `Any` | Binary/media attachments associated with the document. |  |
 
-### `securelist` · ~1k documents → `SecurelistBulletin`
+### `securelist` · ~1.1k documents → `SecurelistBulletin`
 
 Securelist provides vendor-specific security advisories, CVEs, and threat intelligence reports focusing on malware and cyber threats.
 
@@ -219,7 +222,7 @@ SonarSource provides security advisories and vulnerability data for various prog
 
 _No fields beyond the layers above._
 
-### `talosblog` · ~2k documents → `TalosblogBulletin`
+### `talosblog` · ~2.1k documents → `TalosblogBulletin`
 
 Talos Blog provides security advisories and insights from Cisco Talos, focusing on vulnerabilities across various vendors and products.
 
@@ -239,7 +242,9 @@ TaoSecurity provides advisories and CVEs focused on security vulnerabilities in 
 
 The Hacker Blog provides security advisories, CVEs, and exploits focused on various vendors and products, sourced from community contributions.
 
-_No fields beyond the layers above._
+| field | type | description | example |
+|---|---|---|---|
+| `attachments` | `Any` | Binary/media attachments associated with the document. |  |
 
 ### `trendmicroblog` · ~2.3k documents → `TrendmicroblogBulletin`
 
@@ -249,7 +254,7 @@ Trend Micro Blog provides vendor-specific advisories and insights on security th
 |---|---|---|---|
 | `attachments` | `Any` | Binary/media attachments associated with the document. |  |
 
-### `wallarmlab` · ~550 documents → `WallarmlabBulletin`
+### `wallarmlab` · ~560 documents → `WallarmlabBulletin`
 
 Wallarm Lab provides security advisories and CVEs focused on web application vulnerabilities across various vendors and products.
 
@@ -261,9 +266,11 @@ Wallarm Lab provides security advisories and CVEs focused on web application vul
 
 WebSecurityLog provides security advisories and CVEs focused on web applications and services, sourced from various vendors and platforms.
 
-_No fields beyond the layers above._
+| field | type | description | example |
+|---|---|---|---|
+| `attachments` | `Any` | Binary/media attachments associated with the document. |  |
 
-### `wired` · ~3.4k documents → `WiredBulletin`
+### `wired` · ~3.5k documents → `WiredBulletin`
 
 Wired provides security news and analysis, covering various vendors and products, typically featuring advisories, CVEs, and expert commentary.
 

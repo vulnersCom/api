@@ -20,6 +20,7 @@ Every document Vulners returns is a **bulletin**, modelled in three inheritance 
     - **[`CnnvdBulletin`](cnnvd.md)** — `bulletinFamily: cnnvd`
     - **[`CnvdBulletin`](cnvd.md)** — `bulletinFamily: cnvd`
     - **[`CryptoBulletin`](crypto.md)** — `bulletinFamily: crypto`
+    - **[`CvdBulletin`](cvd.md)** — `bulletinFamily: cvd`
     - **[`CveBulletin`](cve.md)** — `bulletinFamily: cve`
     - **[`EuvdBulletin`](euvd.md)** — `bulletinFamily: euvd`
     - **[`ExploitBulletin`](exploit.md)** — `bulletinFamily: exploit`

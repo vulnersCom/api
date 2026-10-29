@@ -11,6 +11,7 @@ Present in every `cnnvd` document, beyond the [common base](base.md).
 | `affectedSoftware` | `Any` | Affected software products (name/version/operator). |  |
 | `attachments` | `Any` | Binary/media attachments associated with the document. |  |
 | `cpeConfigurations` | `Any` | CPE applicability configurations (NVD-style match tree). |  |
+| `cwe` | `list[str] | None` | Associated CWE weakness identifiers. | `["CWE-401"]` |
 
 ## Collections
 

@@ -25,7 +25,8 @@ class AkamaiblogBulletin(BlogBulletin):
 class AnandprakaBulletin(BlogBulletin):
     """`type: anandpraka` — AnandPraka provides security advisories and CVEs focused on vulnerabilities in various software products and operating systems."""
 
-    pass
+    attachments: Any = None
+    """Binary/media attachments associated with the document."""
 
 
 class AvleonovBulletin(BlogBulletin):
@@ -50,8 +51,6 @@ class CoalfireBulletin(BlogBulletin):
 class D0znppBulletin(BlogBulletin):
     """`type: d0znpp` — The d0znpp collection provides vendor-specific advisories and CVEs related to vulnerabilities in various software products from the d0znpp database."""
 
-    ai_description: Any = Field(default=None, alias="aiDescription")
-    """AI-generated summary of the vulnerability."""
     attachments: Any = None
     """Binary/media attachments associated with the document."""
 
@@ -80,7 +79,8 @@ class ImpervablogBulletin(BlogBulletin):
 class IntothesymmetryBulletin(BlogBulletin):
     """`type: intothesymmetry` — IntotheSymmetry provides advisories and CVEs focused on vulnerabilities in various software products and systems, sourced from multiple vendors."""
 
-    pass
+    attachments: Any = None
+    """Binary/media attachments associated with the document."""
 
 
 class JakearchibaldBulletin(BlogBulletin):
@@ -225,7 +225,8 @@ class TaosecurityBulletin(BlogBulletin):
 class ThehackerblogBulletin(BlogBulletin):
     """`type: thehackerblog` — The Hacker Blog provides security advisories, CVEs, and exploits focused on various vendors and products, sourced from community contributions."""
 
-    pass
+    attachments: Any = None
+    """Binary/media attachments associated with the document."""
 
 
 class TrendmicroblogBulletin(BlogBulletin):
@@ -245,7 +246,8 @@ class WallarmlabBulletin(BlogBulletin):
 class WebsecuritylogBulletin(BlogBulletin):
     """`type: websecuritylog` — WebSecurityLog provides security advisories and CVEs focused on web applications and services, sourced from various vendors and platforms."""
 
-    pass
+    attachments: Any = None
+    """Binary/media attachments associated with the document."""
 
 
 class WiredBulletin(BlogBulletin):

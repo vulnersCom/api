@@ -15,6 +15,17 @@ class SoftwareBulletin(Bulletin):
     pass
 
 
+class AcronisBulletin(SoftwareBulletin):
+    """`type: acronis` — Acronis vulnerability collection includes advisories and CVEs related to Acronis software products and services."""
+
+    affected_software: list | None = Field(default=None, alias="affectedSoftware")
+    """Affected software products (name/version/operator)."""
+    attachments: Any = None
+    """Binary/media attachments associated with the document."""
+    cpe_configurations: Any = Field(default=None, alias="cpeConfigurations")
+    """CPE applicability configurations (NVD-style match tree)."""
+
+
 class AdobeBulletin(SoftwareBulletin):
     """`type: adobe` — Adobe's vulnerability collection includes advisories and CVEs related to Adobe products, addressing security issues across various software and platforms."""
 
@@ -219,6 +230,8 @@ class ContaoBulletin(SoftwareBulletin):
 
     affected_software: list | None = Field(default=None, alias="affectedSoftware")
     """Affected software products (name/version/operator)."""
+    attachments: Any = None
+    """Binary/media attachments associated with the document."""
     cpe_configurations: Any = Field(default=None, alias="cpeConfigurations")
     """CPE applicability configurations (NVD-style match tree)."""
 
@@ -278,7 +291,7 @@ class F5Bulletin(SoftwareBulletin):
 class FortinetBulletin(SoftwareBulletin):
     """`type: fortinet` — Fortinet collection includes security advisories and CVEs related to Fortinet products and services, focusing on vulnerabilities and patches."""
 
-    affected_software: list | None = Field(default=None, alias="affectedSoftware")
+    affected_software: Any = Field(default=None, alias="affectedSoftware")
     """Affected software products (name/version/operator)."""
     attachments: Any = None
     """Binary/media attachments associated with the document."""
@@ -302,6 +315,8 @@ class FuelphpBulletin(SoftwareBulletin):
 
     affected_software: list | None = Field(default=None, alias="affectedSoftware")
     """Affected software products (name/version/operator)."""
+    attachments: Any = None
+    """Binary/media attachments associated with the document."""
     cpe_configurations: Any = Field(default=None, alias="cpeConfigurations")
     """CPE applicability configurations (NVD-style match tree)."""
 
@@ -309,6 +324,8 @@ class FuelphpBulletin(SoftwareBulletin):
 class GithubBulletin(SoftwareBulletin):
     """`type: github` — GitHub collection includes vulnerability advisories and CVEs related to open-source projects hosted on GitHub, focusing on various software products and libraries."""
 
+    affected_libraries: Any = Field(default=None, alias="affectedLibraries")
+    """Affected libraries/packages (name, purl, version range)."""
     affected_software: list | None = Field(default=None, alias="affectedSoftware")
     """Affected software products (name/version/operator)."""
     attachments: Any = None
@@ -317,6 +334,10 @@ class GithubBulletin(SoftwareBulletin):
     """CPE applicability configurations (NVD-style match tree)."""
     cwe: list[str] | None = None
     """Associated CWE weakness identifiers."""
+    malware: bool | None = None
+    """Whether the advisory reports a malicious package itself (GitHub's 'Malware in …' entries) rather than a vulnerability in a legitimate one."""
+    purls: list[str] | None = None
+    """Affected packages as Package-URL (purl) strings."""
     withdrawn: Any = None
     """Withdrawal date if the advisory was retracted."""
 
@@ -440,6 +461,8 @@ class HuaweiBulletin(SoftwareBulletin):
 
     affected_software: list | None = Field(default=None, alias="affectedSoftware")
     """Affected software products (name/version/operator)."""
+    attachments: Any = None
+    """Binary/media attachments associated with the document."""
     cpe_configurations: Any = Field(default=None, alias="cpeConfigurations")
     """CPE applicability configurations (NVD-style match tree)."""
 
@@ -548,6 +571,21 @@ class LaminasBulletin(SoftwareBulletin):
     """Binary/media attachments associated with the document."""
     cpe_configurations: Any = Field(default=None, alias="cpeConfigurations")
     """CPE applicability configurations (NVD-style match tree)."""
+
+
+class MendBulletin(SoftwareBulletin):
+    """`type: mend` — Mend provides security advisories and CVEs focused on open-source vulnerabilities across various software products and dependencies."""
+
+    affected_libraries: list | None = Field(default=None, alias="affectedLibraries")
+    """Affected libraries/packages (name, purl, version range)."""
+    affected_software: Any = Field(default=None, alias="affectedSoftware")
+    """Affected software products (name/version/operator)."""
+    attachments: Any = None
+    """Binary/media attachments associated with the document."""
+    cpe_configurations: Any = Field(default=None, alias="cpeConfigurations")
+    """CPE applicability configurations (NVD-style match tree)."""
+    cwe: list[str] | None = None
+    """Associated CWE weakness identifiers."""
 
 
 class ModxBulletin(SoftwareBulletin):
@@ -668,6 +706,8 @@ class OpensslBulletin(SoftwareBulletin):
 
     affected_software: list | None = Field(default=None, alias="affectedSoftware")
     """Affected software products (name/version/operator)."""
+    attachments: Any = None
+    """Binary/media attachments associated with the document."""
     cpe_configurations: Any = Field(default=None, alias="cpeConfigurations")
     """CPE applicability configurations (NVD-style match tree)."""
 
@@ -708,8 +748,10 @@ class OssfBulletin(SoftwareBulletin):
 class OssfuzzBulletin(SoftwareBulletin):
     """`type: ossfuzz` — OSFuzz is a vulnerability collection from the Open Source Security Foundation focusing on security issues in open-source software, including advisories and CVEs."""
 
-    affected_software: list | None = Field(default=None, alias="affectedSoftware")
+    affected_software: Any = Field(default=None, alias="affectedSoftware")
     """Affected software products (name/version/operator)."""
+    attachments: Any = None
+    """Binary/media attachments associated with the document."""
     ossfuzz: Any = None
     """OSS-Fuzz crash details (crash type, project, issue)."""
 
@@ -749,7 +791,7 @@ class PatchstackBulletin(SoftwareBulletin):
     """CPE applicability configurations (NVD-style match tree)."""
     is_exploited: bool | None = Field(default=None, alias="isExploited")
     """Whether the vulnerability is known to be exploited."""
-    owasp: Any = None
+    owasp: str | None = None
     """Related OWASP category."""
     vendor_cvss: Any = None
     """Vendor-assigned CVSS (raw object)."""
@@ -889,8 +931,6 @@ class TibcoBulletin(SoftwareBulletin):
 
     affected_software: list | None = Field(default=None, alias="affectedSoftware")
     """Affected software products (name/version/operator)."""
-    ai_description: Any = Field(default=None, alias="aiDescription")
-    """AI-generated summary of the vulnerability."""
     attachments: Any = None
     """Binary/media attachments associated with the document."""
     cpe_configurations: Any = Field(default=None, alias="cpeConfigurations")
@@ -987,7 +1027,7 @@ class WpvulndbBulletin(SoftwareBulletin):
     """Binary/media attachments associated with the document."""
     cpe_configurations: Any = Field(default=None, alias="cpeConfigurations")
     """CPE applicability configurations (NVD-style match tree)."""
-    exploit: Any = None
+    exploit: str | None = None
     """Exploit availability/details (source-specific)."""
     generation: int | None = None
     """Internal generation/version counter of the record."""

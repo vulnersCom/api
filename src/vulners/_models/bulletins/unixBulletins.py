@@ -36,7 +36,7 @@ class AlmalinuxBulletin(UnixBulletin):
 class AlpinelinuxBulletin(UnixBulletin):
     """`type: alpinelinux` — Alpine Linux vulnerability collection includes advisories and CVEs specific to Alpine Linux OS and its packages."""
 
-    affected_libraries: Any = Field(default=None, alias="affectedLibraries")
+    affected_libraries: list | None = Field(default=None, alias="affectedLibraries")
     """Affected libraries/packages (name, purl, version range)."""
     affected_package: list | None = Field(default=None, alias="affectedPackage")
     """Affected OS/distribution packages (name, version, OS, arch)."""
@@ -123,7 +123,7 @@ class CloudlinuxBulletin(UnixBulletin):
 class DebianBulletin(UnixBulletin):
     """`type: debian` — Debian vulnerability collection includes security advisories and CVEs specific to Debian OS packages and software components."""
 
-    affected_package: Any = Field(default=None, alias="affectedPackage")
+    affected_package: list | None = Field(default=None, alias="affectedPackage")
     """Affected OS/distribution packages (name, version, OS, arch)."""
     attachments: Any = None
     """Binary/media attachments associated with the document."""
@@ -132,7 +132,7 @@ class DebianBulletin(UnixBulletin):
 class DebiancveBulletin(UnixBulletin):
     """`type: debiancve` — Debian Vulnerability Database (Debian VDE) provides security advisories and CVEs for Debian OS packages and related software vulnerabilities."""
 
-    affected_libraries: Any = Field(default=None, alias="affectedLibraries")
+    affected_libraries: list | None = Field(default=None, alias="affectedLibraries")
     """Affected libraries/packages (name, purl, version range)."""
     affected_package: list | None = Field(default=None, alias="affectedPackage")
     """Affected OS/distribution packages (name, version, OS, arch)."""
@@ -176,8 +176,6 @@ class GentooBulletin(UnixBulletin):
 
     affected_package: list | None = Field(default=None, alias="affectedPackage")
     """Affected OS/distribution packages (name, version, OS, arch)."""
-    ai_description: Any = Field(default=None, alias="aiDescription")
-    """AI-generated summary of the vulnerability."""
     attachments: Any = None
     """Binary/media attachments associated with the document."""
 
@@ -207,7 +205,7 @@ class MariadbunixBulletin(UnixBulletin):
 class OpensuseBulletin(UnixBulletin):
     """`type: opensuse` — OpenSUSE vulnerability collection includes advisories and CVEs related to OpenSUSE OS and its packages, sourced from the OpenSUSE security team."""
 
-    affected_package: list | None = Field(default=None, alias="affectedPackage")
+    affected_package: Any = Field(default=None, alias="affectedPackage")
     """Affected OS/distribution packages (name, version, OS, arch)."""
     attachments: Any = None
     """Binary/media attachments associated with the document."""
@@ -222,6 +220,8 @@ class OpenwrtBulletin(UnixBulletin):
 class OraclelinuxBulletin(UnixBulletin):
     """`type: oraclelinux` — Oracle Linux vulnerabilities collection includes advisories and CVEs specific to Oracle Linux OS, sourced from Oracle's security bulletins."""
 
+    affected_libraries: list | None = Field(default=None, alias="affectedLibraries")
+    """Affected libraries/packages (name, purl, version range)."""
     affected_package: list | None = Field(default=None, alias="affectedPackage")
     """Affected OS/distribution packages (name, version, OS, arch)."""
     attachments: Any = None
@@ -237,23 +237,6 @@ class PhotonBulletin(UnixBulletin):
     """Binary/media attachments associated with the document."""
     vendor_cvss: Any = Field(default=None, alias="vendorCvss")
     """Vendor-assigned CVSS score block."""
-
-
-class RedhatBulletin(UnixBulletin):
-    """`type: redhat` — Red Hat's vulnerability database provides advisories and CVEs related to Red Hat products and Linux distributions, focusing on security updates and patches."""
-
-    affected_libraries: list | None = Field(default=None, alias="affectedLibraries")
-    """Affected libraries/packages (name, purl, version range)."""
-    affected_package: list | None = Field(default=None, alias="affectedPackage")
-    """Affected OS/distribution packages (name, version, OS, arch)."""
-    attachments: Any = None
-    """Binary/media attachments associated with the document."""
-    cpe_configurations: Any = Field(default=None, alias="cpeConfigurations")
-    """CPE applicability configurations (NVD-style match tree)."""
-    cwe: list[str] | None = None
-    """Associated CWE weakness identifiers."""
-    relates_to: str | None = Field(default=None, alias="relatesTo")
-    """Identifier this document relates to."""
 
 
 class RedosBulletin(UnixBulletin):
@@ -316,7 +299,7 @@ class SusecveBulletin(UnixBulletin):
     """Affected OS/distribution packages (name, version, OS, arch)."""
     attachments: Any = None
     """Binary/media attachments associated with the document."""
-    threats: Any = None
+    threats: list | None = None
     """Threat-intelligence entries."""
 
 
@@ -338,13 +321,15 @@ class UbuntucveBulletin(UnixBulletin):
     """Affected OS/distribution packages (name, version, OS, arch)."""
     attachments: Any = None
     """Binary/media attachments associated with the document."""
-    bugs: Any = None
+    bugs: list[str] | None = None
     """Linked bug-tracker entries."""
 
 
 class VirtuozzoBulletin(UnixBulletin):
     """`type: virtuozzo` — Virtuozzo collection includes security advisories and CVEs related to Virtuozzo virtualization software and its components."""
 
+    affected_libraries: Any = Field(default=None, alias="affectedLibraries")
+    """Affected libraries/packages (name, purl, version range)."""
     affected_package: Any = Field(default=None, alias="affectedPackage")
     """Affected OS/distribution packages (name, version, OS, arch)."""
     attachments: Any = None

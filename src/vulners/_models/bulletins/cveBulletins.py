@@ -51,7 +51,7 @@ class CveCollectionBulletin(CveBulletin):
     """Ingestion origin/pipeline the record came through."""
     problem_types: Any = Field(default=None, alias="problemTypes")
     """Structured problem-type/weakness records (CVE JSON 5.x)."""
-    solutions: Any = None
+    solutions: list | None = None
     """Structured remediation entries (CVE JSON 5.x)."""
     threat_data: Any = Field(default=None, alias="threatData")
     """Aggregated threat-intelligence signals."""
@@ -84,9 +84,9 @@ class CvelistBulletin(CveBulletin):
     """Ingestion origin/pipeline the record came through."""
     provider: str | None = None
     """Organization that produced the record (e.g. the CNA)."""
-    solutions: Any = None
+    solutions: list | None = None
     """Structured remediation entries (CVE JSON 5.x)."""
-    workarounds: Any = None
+    workarounds: list | None = None
     """Structured workaround entries when no fix is available."""
 
 
@@ -110,6 +110,8 @@ class PrionBulletin(CveBulletin):
 
     affected_software: Any = Field(default=None, alias="affectedSoftware")
     """Affected software products (name/version/operator)."""
+    attachments: Any = None
+    """Binary/media attachments associated with the document."""
     cpe_configurations: Any = Field(default=None, alias="cpeConfigurations")
     """CPE applicability configurations (NVD-style match tree)."""
     sandbox_info: Any = Field(default=None, alias="sandboxInfo")
@@ -125,7 +127,7 @@ class VulnrichmentBulletin(CveBulletin):
     """Assignment date/owner recorded by the source (e.g. CVE assignment)."""
     attachments: Any = None
     """Binary/media attachments associated with the document."""
-    exploits: Any = None
+    exploits: list | None = None
     """Related exploit records."""
     impacts: list | None = None
     """Structured impact records (CVE JSON 5.x)."""
@@ -133,7 +135,7 @@ class VulnrichmentBulletin(CveBulletin):
     """Ingestion origin/pipeline the record came through."""
     provider: str | None = None
     """Organization that produced the record (e.g. the CNA)."""
-    solutions: Any = None
+    solutions: list | None = None
     """Structured remediation entries (CVE JSON 5.x)."""
     workarounds: Any = None
     """Structured workaround entries when no fix is available."""

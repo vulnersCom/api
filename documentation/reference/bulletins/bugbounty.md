@@ -12,15 +12,15 @@ Present in every `bugbounty` document, beyond the [common base](base.md).
 
 ## Collections
 
-### `hackerone` · ~15k documents → `HackeroneBulletin`
+### `hackerone` · ~16k documents → `HackeroneBulletin`
 
 HackerOne collection includes vulnerability reports and advisories from various vendors, focusing on security issues discovered through bug bounty programs.
 
 | field | type | description | example |
 |---|---|---|---|
 | `bounty` | `float | None` | Bounty amount/details paid for the report. | `0.0` |
-| `bountyState` | `str | None` | State of the bounty (awarded, pending, …). | `"not-applicable"` |
-| `h1reporter` | `Any` | HackerOne reporter profile. | `{"id": "Z2lkOi8vaGFja2Vyb25lL1VzZXIvNDUwNDg0M…` |
+| `bountyState` | `str | None` | State of the bounty (awarded, pending, …). | `"informative"` |
+| `h1reporter` | `Any` | HackerOne reporter profile. | `{"id": "Z2lkOi8vaGFja2Vyb25lL1VzZXIvNDM0OTEzN…` |
 | `h1team` | `Any` | HackerOne team/program the report belongs to. | `{"url": "https://hackerone.com/curl", "handle…` |
 
 ### `huntr` · ~4.1k documents → `HuntrBulletin`
@@ -29,10 +29,10 @@ Huntr is a vulnerability database that aggregates security advisories, CVEs, and
 
 | field | type | description | example |
 |---|---|---|---|
-| `cwe_id` | `str | None` | Single associated CWE identifier. | `"d32d"` |
+| `cwe_id` | `str | None` | Single associated CWE identifier. | `"b488"` |
 | `language` | `str | None` | Language of the report. | `"Python"` |
-| `patch_commit_sha` | `str | None` | Commit SHA of the fixing patch. | `"f9b1eb510478570609ef451984a255775aa4b937"` |
-| `repository` | `str | None` | Source code repository associated with the report. | `"https://github.com/mlflow/mlflow"` |
+| `patch_commit_sha` | `str | None` | Commit SHA of the fixing patch. | `"9b2a16bb7ddf5c4a5c74700eb85f371062e6cabc"` |
+| `repository` | `str | None` | Source code repository associated with the report. | `"https://github.com/keras-team/keras"` |
 | `status` | `str | None` | Workflow status of the record. | `"valid"` |
 
 ### `openbugbounty` · ~1.3M documents → `OpenbugbountyBulletin`

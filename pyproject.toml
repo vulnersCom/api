@@ -137,9 +137,13 @@ exclude-newer = "2026-08-14T00:00:00Z"
 # lock stays put.
 exclude-newer-package = { pyjwt = "2026-10-01T00:00:00Z", urllib3 = "2026-10-01T00:00:00Z" }
 
-# anyio 4.14.x has a broken Path.parent (passes an unsupported limiter= kwarg) that
-# crashes unasyncd's write path (make unasync). Cap below it until a fixed release
-# lands. Transitive (via httpx) and lock-only, so end users are unaffected.
+# anyio >= 4.14 crashes unasyncd 0.8.1's write path (make unasync): anyio's Path.parent
+# rebuilds the instance as type(self)(..., limiter=...), and unasyncd's File subclass
+# rejects that kwarg -> TypeError in its `target_file.parent.mkdir()`. The fix belongs
+# to (and landed in) unasyncd, not anyio: 0.8.1 still crashes on anyio 4.15.1, while
+# unasyncd 0.10.1 transforms cleanly. So the cap lifts by bumping unasyncd, which the
+# codegen group's `>=0.8.1` already permits — the lock pins 0.8.1 only through the
+# exclude-newer cutoff above. Transitive (via httpx) and lock-only: users unaffected.
 constraint-dependencies = ["anyio<4.14"]
 
 [tool.unasyncd]
@@ -262,6 +266,11 @@ typeCheckingMode = "standard"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+# Set explicitly: pytest-asyncio emits a PytestDeprecationWarning while this is unset,
+# and the `error` filter below turns that into a configure-time failure (seen on
+# pytest-asyncio 1.4.1). "function" is pytest-asyncio's announced future default and
+# matches the suite's only async fixture (`live_mcp`), which is function-scoped.
+asyncio_default_fixture_loop_scope = "function"
 # Any warning is an error: a DeprecationWarning from our code (src/vulners) or the
 # suite fails the run. Tests that intentionally exercise the deprecated v3 shims
 # opt back in locally with `pytest.warns(...)` / `@pytest.mark.filterwarnings`,
@@ -273,7 +282,13 @@ filterwarnings = ["error"]
 # benchmark`); live tests hit the real API and must never run under the default
 # suite / xdist (parallel API mutations) — run them explicitly with `make live` /
 # `make live-mcp`, which re-select them with `-m live`.
-addopts = "-m 'not benchmark and not live'"
+# `-p no:anyio`: anyio ships a pytest plugin that pytest auto-loads because anyio is a
+# transitive httpx dependency, yet nothing here uses it (async tests run on
+# pytest-asyncio; the suite has no anyio marker or fixture). On pytest >= 9.2 that
+# plugin imports the renamed `_pytest.python.CallSpec2` alias, whose deprecation
+# warning the `error` filter turns into a plugin-load failure; an unused plugin is
+# better not loaded than warning-suppressed.
+addopts = "-p no:anyio -m 'not benchmark and not live'"
 markers = [
     "live: hits the real Vulners API; needs VULNERS_API_KEY env or tests/live.local.toml",
     "benchmark: a pytest-codspeed micro-benchmark (excluded from the default run)",

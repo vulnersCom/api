@@ -11,6 +11,21 @@ the commit log. Only the v3 series is covered in detail.
 
 ## [Unreleased]
 
+### Internal
+
+- The nightly pre-release dependency probe is green again. Two newer test-tool releases
+  tripped the warnings-as-errors gate before a single test ran: the anyio pytest plugin —
+  auto-loaded only because anyio is a transitive httpx dependency, and unused here, as async
+  tests run on pytest-asyncio — imports the `_pytest.python.CallSpec2` alias that pytest 9.2
+  renamed, and pytest-asyncio 1.4.1 warns while `asyncio_default_fixture_loop_scope` is unset.
+  The unused plugin is no longer loaded (`-p no:anyio`), and the fixture loop scope is now set
+  explicitly to `function` — pytest-asyncio's announced future default, and already the scope of
+  the suite's only async fixture. The warnings-as-errors gate itself is unchanged.
+- The `anyio<4.14` development constraint keeps its effect but now records the actual cause and
+  exit condition: anyio's `Path.parent` rebuilds the instance as `type(self)(..., limiter=...)`,
+  which unasyncd 0.8.1's `File` subclass rejects, so the fix belongs to unasyncd (0.8.1 still
+  crashes on anyio 4.15.1; 0.10.1 transforms cleanly) rather than to a future anyio release.
+
 ## [4.4.0] - 2026-10-15
 
 ### Added
